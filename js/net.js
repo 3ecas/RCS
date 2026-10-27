@@ -6,7 +6,8 @@
 // index.html opened from disk — it connects to SERVER_URL.
 const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 // me: which computer we are in the match (0 or 1). local: players on this computer. roster: everyone's colour and owner.
-const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, counts: { coop: 0, versus: 0 }, peerReady: false, waitingAgain: false, sendT: 0, banner: '', bannerT: 0 };
+// lobby: while searching, how many players have joined and when the match starts.
+const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, lobby: null, peerReady: false, waitingAgain: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
   const h = location.hostname;
@@ -35,13 +36,13 @@ function netClose() {
   if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} }
 }
 
-// Start searching. If the server can't be reached (e.g. it's still waking up), keep retrying
+// Start searching for a random game. If the server can't be reached (e.g. it's still waking up), keep retrying
 // every few seconds for about a minute before giving up.
 const RETRY_FOR_MS = 75000;
 function startSearch() {
   netClose();
-  state = 'search'; net.peerReady = false; net.waitingAgain = false;
-  net.local = onlineLocal;
+  state = 'search'; net.peerReady = false; net.waitingAgain = false; net.lobby = null;
+  net.local = 1;                 // one player per computer
   net.searchStart = performance.now();
   connectOnce();
 }
@@ -55,7 +56,7 @@ function connectOnce() {
   // Tell the server our cube colours, so it can prefer partners with different colours
   const colors = [];
   for (let k = 0; k < net.local; k++) colors.push(localColor(k));
-  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', mode, colors }); };
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', mode, colors, name: playerName }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;
@@ -74,22 +75,44 @@ function connectOnce() {
 function leaveOnline() { netSend({ t: 'leave' }); netClose(); toMenu(); }
 
 function onNet(m) {
-  if (m.t === 'queue') net.counts = m.counts;
+  if (m.t === 'lobby') net.lobby = { ...m, at: performance.now() };
   else if (m.t === 'match') {
     net.rematch = net.status === 'playing';
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.peerReady = false; net.waitingAgain = false; net.sendT = 0;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
+    // New group of players (or someone left since last round): start the win count afresh
+    const sig = JSON.stringify(net.roster) + net.me;
+    if (sig !== net.rosterSig) { wins.fill(0); net.rosterSig = sig; }
     reset(m.seed);
     // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
     foundT = Math.min(1.5, m.startIn / 1000 - 1);
     countdown = m.startIn / 1000 - foundT;
     state = 'found'; sfx.milestone();
   } else if (m.t === 'peerReady') net.peerReady = true;
-  else if (m.t === 'left') { netClose(); netBanner('Your friend left the game'); toMenu(); }
+  else if (m.t === 'gone') playersLeft(m.owner);
+  else if (m.t === 'left') { netClose(); netBanner('Everyone else left the game'); toMenu(); }
   else if (m.t === 'peer') onPeer(m.d || {});
 }
 
-// Data from the other computer
+// Another computer left the match: its cubes vanish and the rest carry on
+function playersLeft(owner) {
+  if (!players || !net.roster) return;
+  const gone = players.filter(p => p.remote && net.roster[p.i] && net.roster[p.i].owner === owner && !p.dead);
+  for (const p of gone) {
+    p.dead = true; p.outAt = ++outCount;
+    burst(p.x + p.w / 2, p.y + p.h / 2, 10, p.color, 200, 0.6, 6);
+  }
+  if (!gone.length) return;
+  floatText(gone.map(p => p.name).join(' & ') + ' left', W / 2, camY + H * 0.45, PAL.inkSoft, 26);
+  // In a race, if only one cube is left standing, it wins
+  const left = alive();
+  if (mode === 'versus' && (state === 'play' || state === 'count') && left.length === 1) {
+    state = 'over'; overT = 0; winner = left[0].i; wins[winner]++;
+    deathMsg = 'Everyone else left the race';
+  }
+}
+
+// Data from the other computers
 function onPeer(d) {
   if (!players || net.status !== 'playing') return;
   if (d.k === 's') {               // positions of their cubes
@@ -107,7 +130,7 @@ function onPeer(d) {
     warnings.push({ x: d.x, t: 1.1 });
   } else if (d.k === 'd') {        // one of their cubes died
     const r = players[d.i];
-    if (r && r.remote && (state === 'play' || state === 'count')) die(r, d.r || 'fell');
+    if (r && r.remote && (state === 'play' || state === 'count' || state === 'found')) die(r, d.r || 'fell');
   }
 }
 

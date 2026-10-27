@@ -2,7 +2,7 @@
 'use strict';
 
 function update(dt) {
-  if (pressed.KeyM) muted = !muted;
+  if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();
 
   // Menus and end/pause screens are driven by buttons (mouse or keyboard)
@@ -21,7 +21,8 @@ function update(dt) {
     menuInput();
     return;
   }
-  // R stops the game (stop menu). Not online — the other computer's game can't be stopped.
+  gameClicks();   // the sound icon
+  // R stops the game (stop menu). Not online — the other computers' games can't be stopped.
   if (pressed.KeyR && net.status !== 'playing') { pausedFrom = state; state = 'paused'; ui.focus = 0; return; }
 
   time += dt;
@@ -52,7 +53,6 @@ function update(dt) {
     for (const p of players) {
       if (p.dead) continue;
       if (p.remote) { updateRemote(p, dt); continue; }
-      if (p.bot) botThink(p, dt);
       updatePlayer(p, dt);
     }
   }
@@ -127,7 +127,7 @@ function humanInput(i) {
 }
 
 function updatePlayer(p, dt) {
-  const inp = p.bot ? p.ai : humanInput(p.i);
+  const inp = humanInput(p.i);
   p.prevX = p.x; p.prevY = p.y;
 
   // Ride whatever we're standing on
@@ -287,15 +287,15 @@ function updateParticles(dt) {
 function die(p, reason) {
   if (state === 'over' || p.dead) return;
   if (net.status === 'playing' && !p.remote) relay({ k: 'd', i: p.i, r: reason });   // tell the other computer
-  p.dead = true; shake = 0.35;
+  p.dead = true; p.outAt = ++outCount; shake = 0.35;
   deathMsg = `${p.name} ${reason}!`;
   sfx.die();
   const left = alive();
   if (mode === 'versus' && left.length > 1) {
-    // Knocked out, but the race goes on
+    // Knocked out, but the race goes on — and you keep watching until one is left
     const cy = Math.min(p.y + p.h / 2, camY + H - 20);
     burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
-    floatText(`${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
+    floatText(p.remote ? `${p.name} is out!` : 'You’re out!', W / 2, camY + H * 0.5, p.dark, 34);
     return;
   }
   state = 'over'; overT = 0;

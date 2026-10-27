@@ -5,41 +5,36 @@ let best = 0;
 try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
 function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
 
-// Cube colours for player 1 (also picked on the main menu) and player 2 on this computer, remembered by the browser
-let myColor = 0, p2Color = 7;
-try {
-  const c1 = parseInt(localStorage.getItem('rcs.color'), 10), c2 = parseInt(localStorage.getItem('rcs.color2'), 10);
-  if (c1 >= 0 && c1 < COLORS.length) myColor = c1;
-  if (c2 >= 0 && c2 < COLORS.length) p2Color = c2;
-} catch (e) {}
-if (p2Color === myColor) p2Color = (myColor + 3) % COLORS.length;
-function saveColor() {
-  try { localStorage.setItem('rcs.color', String(myColor)); localStorage.setItem('rcs.color2', String(p2Color)); } catch (e) {}
-}
-// Colour of the n-th player on this computer
-const localColor = n => n === 0 ? myColor : n === 1 ? p2Color : (myColor + n * 3) % COLORS.length;
+// Your cube colour (picked at the top of the main menu), remembered by the browser
+let myColor = 0;
+try { const c = parseInt(localStorage.getItem('rcs.color'), 10); if (c >= 0 && c < COLORS.length) myColor = c; } catch (e) {}
+function saveColor() { try { localStorage.setItem('rcs.color', String(myColor)); } catch (e) {} }
+
+// Your name (typed above the colour picker), remembered by the browser. Shown in online games.
+let playerName = '';
+try { playerName = (localStorage.getItem('rcs.name') || '').slice(0, 12); } catch (e) {}
+// Colour of the n-th player on this computer: player 1 is yours; player 2 (co-op) gets a clearly different one
+const localColor = n => (myColor + n * 3) % COLORS.length;
 
 // ---------- World state ----------
 let state = 'title', pausedFrom = 'play';
 // Game mode: 'coop' (climb together, one falls = both lose) or 'versus' (race; fall behind = you lose)
 let mode = 'coop', winner = -1;
-let playerCount = 2;            // human players, 1–4 (versus with 1 adds a bot)
-let onlineLocal = 1;            // players on this computer when playing online (1 or 2)
+let playerCount = 1;            // players on this keyboard: 1 (Solo) or 2 (Co-op)
 // Button menus: which page we're on, which button has keyboard focus, and the mouse
-const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null };
-let localMode = 'coop';                   // Local co-op: 'coop' = same team, 'versus' = race each other
+const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false };
 let foundT = 0;                           // "Match found" screen timer
 
-const wins = [0, 0, 0, 0];      // versus score for this session, by player slot
+const wins = new Array(10).fill(0);   // versus score for this session, by player slot (online matches hold up to 10)
 let players, platforms, blades, jets, particles, fireballs, warnings, texts;
 let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
+let outCount = 0;               // order players are knocked out in (for the leaderboard)
 
-function mkPlayer(i, x, isBot = false, colorIdx = localColor(i)) {
-  const P = isBot ? PAL.bot : { ...COLORS[colorIdx], name: 'Player ' + (i + 1) };
+function mkPlayer(i, x, colorIdx = localColor(i)) {
+  const P = { ...COLORS[colorIdx], name: i === 0 && playerName ? playerName : 'Player ' + (i + 1) };
   return {
-    bot: isBot, speedMul: isBot ? BOT.speed : 1,
-    ai: isBot ? { left: false, right: false, jump: false, jumpPressed: false, down: false, target: null, wait: 0.3, wasGround: true } : null,
+    speedMul: 1,
     i, x, y: GROUND_Y - PS, w: PS, h: PS, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - PS,
     onGround: true, ground: null, coyote: 0, buf: 0, face: x < W / 2 ? 1 : -1, sq: 1, dropT: 0,
     blink: rand(1, 4), dead: false, springT: 0, springPad: null, best: 0,
@@ -51,7 +46,7 @@ function reset(seed) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
   nextPid = 1;
   camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
-  fireTimer = 3; newBest = false;
+  fireTimer = 3; newBest = false; outCount = 0;
   particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
   platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, t: 0, crumbleT: -1, falling: false }];
   // Generator memory: last main-path platform, and whether the last row had a hazard
@@ -59,33 +54,34 @@ function reset(seed) {
   rowK = 1;
   generate();
   players = [];
-  const spawnX = (i, n) => W / 2 - PS / 2 + (i - (n - 1) / 2) * 90;
+  // Spread the cubes evenly across the floor (closer together when there are many)
+  const spawnX = (i, n) => W / 2 - PS / 2 + (i - (n - 1) / 2) * Math.min(90, (W - 2 * WALL - PS - 20) / Math.max(1, n - 1));
   if (net.status === 'playing' && net.roster) {
     // Online: everyone in the match, in the server's order. Cubes from the other computer
     // are moved by that computer and drawn softer, so yours always stand out.
     const n = net.roster.length;
     net.roster.forEach((r, i) => {
-      const p = mkPlayer(i, spawnX(i, n), false, r.color);
+      const p = mkPlayer(i, spawnX(i, n), r.color);
       p.remote = r.owner !== net.me;
       p.slot = r.slot;                         // on its own computer: 0 = WASD, 1 = arrow keys
       if (p.remote) { p.color = soften(p.color); p.dark = soften(p.dark, 0.5); }
       p.net = null;
       players.push(p);
     });
-    // Names are colour names. Your cubes keep the plain name; a clashing colour from the other
-    // computer gets a number ("Pink 2").
+    // Names: the name each player typed (or their colour). Yours stays as typed; a repeated name
+    // from another computer gets a number ("Pink 2").
     const seen = {};
     for (const p of [...players.filter(q => !q.remote), ...players.filter(q => q.remote)]) {
-      const nm = COLORS[net.roster[p.i].color].name;
-      seen[nm] = (seen[nm] || 0) + 1;
-      p.name = seen[nm] > 1 ? `${nm} ${seen[nm]}` : nm;
+      const r = net.roster[p.i];
+      const nm = (r.name || '').trim() || COLORS[r.color].name;
+      seen[nm.toLowerCase()] = (seen[nm.toLowerCase()] || 0) + 1;
+      const k = seen[nm.toLowerCase()];
+      p.name = k > 1 ? `${nm} ${k}` : nm;
     }
-    if (net.local === 1) players.find(q => !q.remote).name = 'You';
     return;
   }
-  // Humans, plus a bot when playing versus alone; spread evenly across the floor
-  const n = playerCount + (mode === 'versus' && playerCount === 1 ? 1 : 0);
-  for (let i = 0; i < n; i++) players.push(mkPlayer(i, spawnX(i, n), i >= playerCount));
+  // Local: 1 (Solo) or 2 (Co-op) players on this keyboard
+  for (let i = 0; i < playerCount; i++) players.push(mkPlayer(i, spawnX(i, playerCount)));
 }
 let nextPid = 1;
 const alive = () => players.filter(p => !p.dead);

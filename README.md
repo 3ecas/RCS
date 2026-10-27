@@ -7,30 +7,30 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 - **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
 
 ## Main menu
-Use the mouse, or ↑ ↓ + Enter. Esc goes back one step.
+Minimal on purpose: type **your name** and pick **your cube colour** at the top (◀ ▶ or ← →, 10 colours; both are remembered), then choose:
 
-**Your cube colour:** at the top of the main menu, pick one of 10 colours with ◀ ▶ (or ← →). The browser remembers it.
+- **Local** — on this computer:
+  - **Solo** — climb alone. How high can you go?
+  - **Co-op** — two players on one keyboard, same team. If one falls, both lose. Player 2 gets a colour that's different from yours.
+- **Multiplayer** — a race against up to 10 players online. You join everyone who's searching; once a second player joins, an 8-second countdown lets more hop in (it starts straight away at 10), then **Match Found!** loads the level. If you're knocked out you keep watching. When only one player is left the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Your own cube is full colour and everyone else's is softer; repeated names get a number ("Bernie 2"). If someone leaves, the rest carry on.
 
-- **Local** — play on this computer:
-  - **Solo** — *Climb* alone, or *Race the bot*.
-  - **Co-op** — two players on one keyboard. Choose *Same team* or *Versus*, then each player picks a colour on the colour screen (player 1 with A D, player 2 with ← →; you can't both pick the same one), then **Play**.
-- **Multiplayer** — play online. Choose 1 or 2 players on this computer (so up to 4 in a match, e.g. 2 on each keyboard), then *Co-op* or *Versus*. The game finds another computer that is searching, shows **Match Found!** and loads the level. If you picked different modes you're still matched — the computer that started searching first decides. The server prefers partners whose cube colours don't clash, but never makes you wait because of a colour. On every screen your own cubes are full colour and the other computer's cubes are softer, so you can always tell yours apart (a clashing colour also gets a number, like "Pink 2").
-
-**Same team / Co-op:** climb together. If anyone falls off the bottom or hits a hazard, everyone loses. Your best height is saved in the browser.
-**Versus:** a race. The screen follows whoever is in the lead; fall behind the bottom edge (or hit a hazard) and you're out. Last one standing wins.
+Top-right corner: **?** opens the instructions, the **speaker** turns sound on/off (remembered).
 
 ## Controls
 
 | | Jump | Move | Drop through |
 |---|---|---|---|
 | Player 1 | W | A / D | S |
-| Player 2 | ↑ | ← / → | ↓ |
+| Player 2 (co-op) | ↑ | ← / → | ↓ |
 
-Solo, and online with 1 player: WASD **or** the arrow keys. Online with 2 players: the first uses WASD, the second the arrow keys.
-
-**R** stops the game (stop menu); press **R** again to start over. Not available online. · M sound · F full screen.
+Solo and online: WASD **or** the arrow keys. **R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
 
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
+
+## The tower
+- One main path goes up, every step within jumping reach of the last. Now and then an extra platform sticks out to the side.
+- A row right after a row with a hazard is always hazard-free.
+- Dangers unlock as you climb: springs 15 m · moving 30 m · spikes 50 m · crumbling 90 m · shurikens 120 m · wall flames 160 m · fireballs 230 m.
 
 ## Files
 ```
@@ -44,12 +44,12 @@ js/audio.js       sound effects (generated, no sound files)
 js/state.js       game state, players, starting a new tower
 js/net.js         online play (talks to the server)
 js/level.js       building the tower and its hazards
-js/bot.js         the computer opponent
 js/effects.js     particles and floating text
 js/menu.js        menus and buttons
 js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, menus and buttons
+js/name.js        the name box on the main menu
 js/main.js        starts the game loop
 server/server.js  online server: serves the game and pairs up players (no dependencies)
 render.yaml       Render setup
@@ -77,5 +77,4 @@ Open <http://localhost:8791> in two browser windows and press Multiplayer in bot
 - `ROW_GAP` (js/config.js) — height between platform rows (120 = 3 m)
 - `STAGES` (js/config.js) — the height at which each obstacle first appears
 - `JUMP_V`, `GRAV`, `MAX_VX` (js/config.js) — jump strength, gravity, run speed
-- `BOT` (js/bot.js) — the bot's speed (share of a human's) and its pause before each jump
 - `SERVER_URL` (js/net.js) — the online server used outside Render

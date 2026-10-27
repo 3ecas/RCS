@@ -13,6 +13,7 @@ function frame(now) {
     acc -= STEP;
   }
   render();
+  placeNameBox();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

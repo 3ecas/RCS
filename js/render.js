@@ -167,11 +167,6 @@ function drawPlayer(p) {
   ctx.fillStyle = PAL.ink;
   const eh = p.blink < 0 ? 2 : 7;
   ctx.fillRect(ex - 8, ey, 4, eh); ctx.fillRect(ex + 4, ey, 4, eh);
-  if (p.bot) {
-    ctx.fillStyle = p.dark;
-    ctx.fillRect(x + w / 2 - 1.5, y - 8, 3, 8);
-    ctx.fillRect(x + w / 2 - 4, y - 12, 8, 5);
-  }
 }
 
 function render() {

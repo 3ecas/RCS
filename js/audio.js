@@ -2,6 +2,12 @@
 'use strict';
 
 let actx = null, muted = false, noiseBuf = null;
+try { muted = localStorage.getItem('rcs.muted') === '1'; } catch (e) {}
+// Sound on/off (speaker icon or M key), remembered by the browser
+function toggleMute() {
+  muted = !muted;
+  try { localStorage.setItem('rcs.muted', muted ? '1' : '0'); } catch (e) {}
+}
 function audioInit() {
   if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   if (actx && actx.state === 'suspended') actx.resume().catch(() => {});

@@ -13,6 +13,10 @@ function textRow(items, y, size, weight = 900, gap = 18) {
   });
   ctx.globalAlpha = 1;
 }
+// Same, but wrapping to a new row every 5 items (online matches can have up to 10 players)
+function textRows(items, y, size, gap = 18, rowGap = size + 8) {
+  for (let k = 0; k < items.length; k += 5) textRow(items.slice(k, k + 5), y + (k / 5) * rowGap, size, 900, gap);
+}
 const tag = p => p.bot ? 'BOT' : net.status === 'playing' ? p.name.toUpperCase() : 'P' + (p.i + 1);
 const localCube = k => COLORS[localColor(k)];
 // Online: who plays with which keys on this computer
@@ -23,6 +27,7 @@ function onlineKeysText() {
 }
 
 function drawButton(b, focused) {
+  if (b.icon || b.label === '?') return drawIcon(b, focused);
   const c = b.color || PAL.ink;
   const lift = focused && !b.disabled ? -3 : 0;
   ctx.globalAlpha = b.disabled ? 0.55 : 1;
@@ -42,6 +47,84 @@ function drawButton(b, focused) {
   ctx.globalAlpha = 1;
 }
 
+// Small square corner icon: "?" (instructions) or a speaker (sound on / off)
+function drawIcon(b, focused) {
+  const hover = focused || inside(b, ui.mx, ui.my);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  if (b.label === '?') { text('?', cx, cy + 9, 26, PAL.ink, 'center', 900); return; }
+  ctx.fillStyle = PAL.ink;
+  ctx.fillRect(cx - 12, cy - 5, 7, 10);                       // speaker box
+  ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 3, cy - 11); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx - 5, cy + 5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = muted ? PAL.spike : PAL.ink; ctx.lineWidth = 2.5; ctx.beginPath();
+  if (muted) { ctx.moveTo(cx + 7, cy - 6); ctx.lineTo(cx + 15, cy + 6); ctx.moveTo(cx + 15, cy - 6); ctx.lineTo(cx + 7, cy + 6); }
+  else { ctx.arc(cx + 4, cy, 6, -0.9, 0.9); ctx.moveTo(cx + 9.5, cy - 9.5); ctx.arc(cx + 4, cy, 11, -0.9, 0.9); }
+  ctx.stroke();
+}
+
+// End of an online race: the winner, then everyone ranked by how long they lasted
+function drawResults() {
+  const wp = players.find(p => p.i === winner);
+  if (wp) {
+    cube(W / 2 - 30, 92, 60, { c: wp.color, d: wp.dark });
+    text(wp.remote ? wp.name.toUpperCase() + ' WINS!' : 'YOU WIN!', W / 2, 218, 54, wp.dark, 'center', 900);
+  } else text('DRAW!', W / 2, 218, 60, PAL.ink, 'center', 900);
+  // Ranking: the winner, then whoever was knocked out last, and so on
+  const ranked = [...players].sort((a, b) => (b.i === winner) - (a.i === winner) || (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
+  const x = W / 2 - 250, w = 500, top = 262, rh = Math.min(38, 400 / ranked.length);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x, top, w, 40 + ranked.length * rh);
+  text('LEADERBOARD', x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
+  text('HEIGHT', x + w - 110, top + 27, 12, PAL.inkSoft, 'right', 800);
+  text('WINS', x + w - 20, top + 27, 12, PAL.inkSoft, 'right', 800);
+  ranked.forEach((p, k) => {
+    const y = top + 40 + k * rh, mid = y + rh / 2 + 6;
+    if (!p.remote) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }   // you
+    text(String(k + 1), x + 34, mid, 18, k ? PAL.inkSoft : PAL.good, 'right', 900);
+    ctx.fillStyle = p.dark; ctx.fillRect(x + 50, y + rh / 2 - 9, 18, 18);
+    ctx.fillStyle = p.color; ctx.fillRect(x + 52, y + rh / 2 - 7, 14, 14);
+    text(p.name + (p.remote ? '' : '  (you)'), x + 82, mid, 17, PAL.ink, 'left', 800);
+    text(p.best + ' m', x + w - 110, mid, 16, PAL.ink, 'right', 800);
+    text(String(wins[p.i]), x + w - 20, mid, 16, PAL.ink, 'right', 900);
+  });
+}
+
+// Instructions overlay (the ? icon)
+function drawHelp() {
+  const x = W / 2 - 300, y = 70, w = 600, h = 690;
+  ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  text('HOW TO PLAY', W / 2, y + 56, 36, PAL.ink, 'center', 900);
+  const L = x + 40;
+  let yy = y + 104;
+  const head = t => { text(t, L, yy, 16, PAL.ink, 'left', 900); yy += 24; };
+  const line = (t, c = PAL.inkSoft) => { text(t, L, yy, 15, c, 'left', 600); yy += 22; };
+  head('The goal');
+  line('Jump up the tower and stay ahead of the screen as it scrolls up.');
+  line('Falling off the bottom or touching a danger ends your run.'); yy += 10;
+  head('Controls');
+  line('Player 1:  W jump  ·  A D move  ·  S drop through a platform');
+  line('Player 2 (co-op):  ↑ jump  ·  ← → move  ·  ↓ drop');
+  line('Solo and online: WASD or the arrow keys'); yy += 10;
+  head('Platforms');
+  const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['crumbles', PAL.crumble, PAL.crumbleD], ['spring', PAL.spring, PAL.springD]];
+  items.forEach(([label, c, cd], k) => {
+    const px = L + k * 130;
+    ctx.fillStyle = c; ctx.fillRect(px, yy - 13, 40, 12); ctx.fillStyle = cd; ctx.fillRect(px, yy - 4, 40, 3);
+    text(label, px + 48, yy - 2, 14, PAL.inkSoft, 'left', 700);
+  });
+  yy += 26;
+  line('Springs: press jump just as you land for a huge boost.'); yy += 10;
+  head('Dangers (they appear as you climb)');
+  line('Spikes, spinning shurikens, flames from the walls, falling fireballs.'); yy += 10;
+  head('Modes');
+  line('Solo — climb alone.   Co-op — two players, one keyboard, same team.');
+  line('Multiplayer — a random online race with up to 10 players.');
+  line('Last one standing wins; if you’re out, you keep watching.'); yy += 10;
+  head('Keys');
+  line('R  stop (R again to start over)   ·   M  sound   ·   F  full screen');
+}
+
 function drawBanner(y) {
   if (net.bannerT <= 0) return;
   ctx.fillStyle = PAL.spike; ctx.fillRect(W / 2 - 230, y, 460, 36);
@@ -54,15 +137,21 @@ function drawHUD() {
   if (inGame) {
     ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
     text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
-    if (VS) textRow(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, 17);
+    if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
     ctx.restore();
     if (VS) {
       text('WINS', WALL + 14, 32, 13, PAL.inkSoft, 'left', 800);
-      players.forEach((p, k) => text(String(wins[p.i]), WALL + 62 + k * 24, 32, 16, p.dark, 'left', 900));
+      players.forEach((p, k) => text(String(wins[p.i]), WALL + 62 + k * 20, 32, 16, p.dark, 'left', 900));
     } else {
       text('BEST ' + best + ' m', WALL + 14, 32, 15, PAL.good, 'left');
     }
-    text((muted ? 'SOUND OFF' : 'SOUND ON') + ' (M)' + (net.status === 'playing' ? '  ·  ONLINE' : '  ·  STOP (R)'), W - WALL - 14, 32, 12, PAL.inkSoft, 'right', 700);
+    text(net.status === 'playing' ? 'ONLINE' : 'R  STOP', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
+  }
+
+  // Online race: you're out but still watching
+  if (state === 'play' && VS && net.status === 'playing' && !players.some(p => !p.remote && !p.dead)) {
+    ctx.fillStyle = 'rgba(91,75,107,0.8)'; ctx.fillRect(W / 2 - 170, 146, 340, 34);
+    text('You’re out — watching the others', W / 2, 169, 16, '#ffffff', 'center', 900);
   }
 
   if (state === 'count') {
@@ -81,12 +170,11 @@ function drawHUD() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  if (state === 'title') {
+  if (state === 'title' && !ui.help) {
     const bob = Math.sin(time * 4) * 4;
     if (ui.page === 'main') {
-      // Colour picker: your cube between ◀ ▶, its name, and a dot for each of the 10 colours
+      // Name box (an HTML input placed here) and colour picker: your cube between ◀ ▶, its name, a dot per colour
       const C = COLORS[myColor];
-      text('YOUR CUBE', W / 2, 62, 13, PAL.inkSoft, 'center', 800);
       cube(W / 2 - 32, 80 + bob, 64, C);
       text(C.name.toUpperCase(), W / 2, 176, 17, C.d, 'center', 900);
       COLORS.forEach((k, i) => {
@@ -96,35 +184,17 @@ function drawHUD() {
       });
       text('RCS', W / 2, 268, 64, PAL.ink, 'center', 900);
       text('Climb the tower. Don’t fall behind.', W / 2, 300, 17, PAL.inkSoft, 'center', 600);
+      if (best > 0) text('Best height: ' + best + ' m', W / 2, 610, 16, PAL.good, 'center', 800);
       drawBanner(650);
-      text('← → colour  ·  ↑ ↓ + ENTER choose  ·  M sound  ·  F full screen', W / 2, 838, 13, PAL.inkSoft, 'center', 600);
-      if (best > 0) text('Best co-op height: ' + best + ' m', W / 2, 610, 16, PAL.good, 'center', 800);
-    } else if (ui.page === 'solo') {
-      cube(W / 2 - 23, 150 + bob, 46, localCube(0));
-      text('SOLO', W / 2, 250, 58, PAL.ink, 'center', 900);
-      text('Move: A D or ← →    Jump: W or ↑    Drop: S or ↓', W / 2, 680, 15, PAL.inkSoft, 'center', 700);
-      if (best > 0) text('Best co-op height: ' + best + ' m', W / 2, 715, 16, PAL.good, 'center', 800);
-    } else if (ui.page === 'local' || ui.page === 'coop') {
+    } else if (ui.page === 'local') {
       cube(W / 2 - 60, 110 + bob, 44, localCube(0));
       cube(W / 2 + 16, 110 - bob, 44, localCube(1));
-      text(ui.page === 'local' ? 'LOCAL' : 'CO-OP', W / 2, 228, 58, PAL.ink, 'center', 900);
-      text(ui.page === 'local' ? 'Play on this computer' : 'Two players, one keyboard', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
-    } else if (ui.page === 'colors') {
-      text('PICK YOUR COLOURS', W / 2, 140, 42, PAL.ink, 'center', 900);
-      text(localMode === 'coop' ? 'Same team — climb together' : 'Versus — race each other', W / 2, 176, 17, PAL.inkSoft, 'center', 700);
-      drawColorPanel(W / 2 - 165, 0);
-      drawColorPanel(W / 2 + 165, 1);
-    } else if (ui.page === 'multi') {
-      for (let k = 0; k < onlineLocal; k++) cube(W / 2 - 22 - (onlineLocal - 1) * 38 + k * 76, 92 + (k ? -bob : bob), 44, localCube(k));
-      text('MULTIPLAYER', W / 2, 208, 54, PAL.ink, 'center', 900);
-      text('Pick a mode — you’ll be matched with the next computer that searches.', W / 2, 240, 15, PAL.inkSoft, 'center', 700);
-      text('PLAYERS ON THIS COMPUTER', W / 2, 284, 13, PAL.inkSoft, 'center', 800);
-      text(onlineLocal === 1 ? 'Use WASD or the arrow keys.'
-        : `${localCube(0).name}: WASD   ·   ${localCube(1).name}: arrow keys`, W / 2, 716, 15, PAL.inkSoft, 'center', 700);
-      text('Your cubes are full colour; other computers’ cubes look softer.', W / 2, 740, 13, PAL.inkSoft, 'center', 600);
-      drawBanner(760);
+      text('LOCAL', W / 2, 228, 58, PAL.ink, 'center', 900);
+      text('Play on this computer', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
     }
   }
+
+  if (state === 'title' && ui.help) drawHelp();
 
   if (state === 'search') {
     const nl = net.local || 1;
@@ -135,19 +205,33 @@ function drawHUD() {
       text('Connecting to the server' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
       text('The first connection can take up to a minute while the server wakes up.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
     } else {
-      text('Looking for another player' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
-      text(`You picked ${mode === 'versus' ? 'Versus' : 'Co-op'}. Waiting for someone to search too.`, W / 2, 458, 15, PAL.inkSoft, 'center', 600);
+      const L = net.lobby;
+      if (!L || L.computers < 2) {
+        text('Looking for players' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
+        text(`You picked ${mode === 'versus' ? 'Versus' : 'Co-op'}. The match starts once someone else searches too.`, W / 2, 458, 15, PAL.inkSoft, 'center', 600);
+      } else {
+        // Others have joined: count down while more can still hop in
+        const secs = L.startsIn == null ? 0 : Math.max(0, Math.ceil((L.startsIn - (performance.now() - L.at)) / 1000));
+        text(`${L.players} players found`, W / 2, 425, 26, PAL.good, 'center', 900);
+        text(`Starting in ${secs}s — more can still join (up to ${L.max})`, W / 2, 458, 15, PAL.inkSoft, 'center', 700);
+      }
+      // One box per player slot, filled as players join
+      const filled = L ? L.players : (net.local || 1), max = L ? L.max : 10;
+      for (let i = 0; i < max; i++) {
+        ctx.fillStyle = i < filled ? PAL.good : PAL.wallLine;
+        ctx.fillRect(W / 2 - max * 13 + i * 26 + 4, 486, 18, 18);
+      }
     }
   }
 
   if (state === 'found') {
     const pop = 1 + Math.max(0, foundT - 1.2) * 1.2;
     // Everyone in the match: your cubes full colour, the other computer's softer
-    const n = players.length;
+    const n = players.length, sz = n > 6 ? 40 : 56, gap = Math.min(96, 680 / n);
     players.forEach((p, k) => {
-      const x = W / 2 - 28 + (k - (n - 1) / 2) * 96;
-      cube(x, 250, 56, { c: p.color, d: p.dark });
-      text(p.remote ? p.name : (net.local === 1 ? 'YOU' : p.name + ' (you)'), x + 28, 336, 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
+      const x = W / 2 + (k - (n - 1) / 2) * gap;
+      cube(x - sz / 2, 250 + (56 - sz), sz, { c: p.color, d: p.dark });
+      text(p.remote ? p.name : 'YOU', x, 336, n > 6 ? 11 : 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
     });
     text(net.rematch ? 'NEW ROUND!' : 'MATCH FOUND!', W / 2, 420, 64 * pop, PAL.good, 'center', 900);
     text(mode === 'versus' ? 'Versus — race to the top' : 'Co-op — climb together', W / 2, 466, 20, PAL.ink, 'center', 800);
@@ -163,15 +247,7 @@ function drawHUD() {
   if (state === 'over' && overT > 0.4) {
     const y0 = H * 0.3;
     if (VS) {
-      const wp = players.find(p => p.i === winner);
-      if (wp) {
-        cube(W / 2 - 23, y0 - 120, 46, { c: wp.color, d: wp.dark });
-        const title = wp.name === 'You' ? 'YOU WIN!' : wp.name.toUpperCase() + ' WINS!';
-        text(title, W / 2, y0, 64, wp.dark, 'center', 900);
-      } else text('DRAW!', W / 2, y0, 70, PAL.ink, 'center', 900);
-      text(deathMsg, W / 2, y0 + 46, 22, PAL.ink, 'center', 700);
-      textRow(players.map(p => ({ t: `${tag(p)} ${p.best} m`, c: p.dark })), y0 + 104, 26);
-      textRow(players.map(p => ({ t: String(wins[p.i]), c: p.dark })), y0 + 186, 56, 900, 46);
+      drawResults();
     } else {
       text('GAME OVER', W / 2, y0, 76, PAL.spike, 'center', 900);
       text(deathMsg, W / 2, y0 + 48, 22, PAL.ink, 'center', 700);
@@ -179,31 +255,11 @@ function drawHUD() {
       if (newBest) text('NEW BEST!', W / 2, y0 + 184, 26, PAL.good, 'center', 900);
       else text('Best: ' + best + ' m', W / 2, y0 + 184, 21, PAL.good, 'center', 800);
     }
-    if (net.status === 'playing' && net.peerReady && !net.waitingAgain) text('The other computer wants to play again!', W / 2, y0 + 232, 17, PAL.good, 'center', 900);
+    if (net.status === 'playing' && net.peerReady && !net.waitingAgain) text('Others want to play again!', W / 2, 682, 16, PAL.good, 'center', 900);
   }
 
   // Buttons for whatever screen we're on
   const bs = layoutButtons(), fb = focusable(bs);
   bs.forEach(b => drawButton(b, b === fb[ui.focus]));
   canvas.style.cursor = bs.some(b => !b.disabled && inside(b, ui.mx, ui.my)) ? 'pointer' : 'default';
-}
-
-// One player's colour panel on the co-op colour screen (the ◀ ▶ buttons are drawn with the other buttons)
-function drawColorPanel(cx, who) {
-  const C = COLORS[who ? p2Color : myColor], other = who ? myColor : p2Color;
-  const bob = Math.sin(time * 4 + who * 1.6) * 4;
-  ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(cx - 150, 206, 300, 378);
-  ctx.strokeStyle = C.c; ctx.lineWidth = 3; ctx.strokeRect(cx - 148.5, 207.5, 297, 375);
-  text('PLAYER ' + (who + 1), cx, 248, 22, C.d, 'center', 900);
-  cube(cx - 48, 292 + bob, 96, C);
-  text(C.name.toUpperCase(), cx, 428, 20, C.d, 'center', 900);
-  COLORS.forEach((k, i) => {
-    ctx.globalAlpha = i === other ? 0.2 : 1;      // the other player's colour is taken
-    const s = i === (who ? p2Color : myColor) ? 11 : 7;
-    ctx.fillStyle = s > 7 ? k.d : k.c;
-    ctx.fillRect(cx - 90 + i * 20 - s / 2, 448 - s / 2, s, s);
-  });
-  ctx.globalAlpha = 1;
-  text(who ? '← →  change colour' : 'A  D  change colour', cx, 496, 15, PAL.ink, 'center', 800);
-  text(who ? '↑ jump  ·  ← → move  ·  ↓ drop' : 'W jump  ·  A D move  ·  S drop', cx, 528, 13, PAL.inkSoft, 'center', 700);
 }

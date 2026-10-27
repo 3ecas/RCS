@@ -1,96 +1,68 @@
-// RCS — Menus and buttons: Solo, Split screen, Multiplayer, pause and end screens.
+// RCS — Menus and buttons: main menu, Local (Solo / Co-op), Multiplayer, help, stop and end screens.
 'use strict';
 
 function startGame() { reset(); state = 'count'; countdown = 3; sfx.beep(440); }
-function toMenu() { reset(); state = 'title'; ui.focus = 0; }
+function toMenu() { reset(); state = 'title'; ui.focus = 0; ui.help = false; }
+
+// Top-right corner icons: instructions (?) on the menus, and sound on/off everywhere
+const ICON = 44;
+function cornerIcons() {
+  const y = 14, x = W - WALL - 14 - ICON;
+  const icons = [{ id: 'mute', label: '', icon: 'sound', x, y, w: ICON, h: ICON, nofocus: true }];
+  if (state === 'title') icons.unshift({ id: 'help', label: '?', x: x - ICON - 10, y, w: ICON, h: ICON, nofocus: true });
+  return icons;
+}
 
 // The buttons on the current screen
 function layoutButtons() {
   const B = (id, label, sub, x, y, w, h, extra = {}) => ({ id, label, sub, x, y, w, h, ...extra });
   const cx = W / 2;
+  if (state === 'title' && ui.help) return [B('help-close', 'GOT IT', '', cx - 100, 776, 200, 56, { color: PAL.good })];
+  const icons = cornerIcons();
   if (state === 'title') {
-    if (ui.page === 'main') return [
+    if (ui.page === 'local') return [...icons,
+      B('solo', 'SOLO', 'Climb alone — how high can you go?', cx - 210, 320, 420, 96, { color: PAL.good }),
+      B('coop', 'CO-OP', 'Two players, one keyboard, same team', cx - 210, 436, 420, 96, { color: COLORS[7].d }),
+      B('back', 'BACK', '', cx - 100, 580, 200, 56),
+    ];
+    return [...icons,   // main menu
       // colour picker arrows (mouse, or ← → keys); not part of the up/down button focus
       B('col-prev', '◀', '', cx - 132, 84, 56, 56, { nofocus: true, color: COLORS[myColor].d }),
       B('col-next', '▶', '', cx + 76, 84, 56, 56, { nofocus: true, color: COLORS[myColor].d }),
-      B('local', 'LOCAL', 'Play on this computer', cx - 210, 350, 420, 96, { color: PAL.good }),
-      B('multi', 'MULTIPLAYER', 'Play online with friends', cx - 210, 466, 420, 96, { color: PAL.spike }),
-    ];
-    if (ui.page === 'local') return [
-      B('solo', 'SOLO', 'Climb alone or race a bot', cx - 210, 300, 420, 96, { color: PAL.good }),
-      B('coop', 'CO-OP', 'Two players, one keyboard', cx - 210, 416, 420, 96, { color: COLORS[7].d }),
-      B('back', 'BACK', '', cx - 100, 560, 200, 56),
-    ];
-    if (ui.page === 'solo') return [
-      B('solo-climb', 'CLIMB', 'How high can you go?', cx - 210, 300, 420, 96, { color: PAL.good }),
-      B('solo-bot', 'RACE THE BOT', 'Fall behind and you lose', cx - 210, 416, 420, 96, { color: PAL.spike }),
-      B('back', 'BACK', '', cx - 100, 560, 200, 56),
-    ];
-    if (ui.page === 'coop') return [
-      B('same-team', 'SAME TEAM', 'Climb together — if one falls, both lose', cx - 210, 300, 420, 96, { color: PAL.good }),
-      B('local-versus', 'VERSUS', 'Race each other — last one standing wins', cx - 210, 416, 420, 96, { color: PAL.spike }),
-      B('back', 'BACK', '', cx - 100, 560, 200, 56),
-    ];
-    if (ui.page === 'colors') {
-      // Each player's ◀ ▶ sit beside their cube (mouse, or A D / ← → keys); not part of button focus
-      const c1 = cx - 165, c2 = cx + 165;
-      return [
-        B('c1-prev', '◀', '', c1 - 122, 314, 50, 50, { nofocus: true, color: COLORS[myColor].d }),
-        B('c1-next', '▶', '', c1 + 72, 314, 50, 50, { nofocus: true, color: COLORS[myColor].d }),
-        B('c2-prev', '◀', '', c2 - 122, 314, 50, 50, { nofocus: true, color: COLORS[p2Color].d }),
-        B('c2-next', '▶', '', c2 + 72, 314, 50, 50, { nofocus: true, color: COLORS[p2Color].d }),
-        B('colors-play', 'PLAY', '', cx - 150, 612, 300, 70, { color: PAL.good }),
-        B('back', 'BACK', '', cx - 100, 704, 200, 52),
-      ];
-    }
-    if (ui.page === 'multi') return [
-      B('ol1', '1 PLAYER', '', cx - 210, 296, 200, 56, { color: PAL.ink, selected: onlineLocal === 1 }),
-      B('ol2', '2 PLAYERS', '', cx + 10, 296, 200, 56, { color: PAL.ink, selected: onlineLocal === 2 }),
-      B('on-coop', 'CO-OP', 'Climb together online', cx - 210, 384, 420, 96, { color: PAL.good }),
-      B('on-versus', 'VERSUS', 'Race the others online', cx - 210, 500, 420, 96, { color: PAL.spike }),
-      B('back', 'BACK', '', cx - 100, 628, 200, 56),
+      B('local', 'LOCAL', 'Solo or co-op on this keyboard', cx - 210, 350, 420, 96, { color: PAL.good }),
+      B('multi', 'MULTIPLAYER', 'Race up to 10 players online', cx - 210, 466, 420, 96, { color: PAL.spike }),
     ];
   }
-  if (state === 'search') return [B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];
-  if (state === 'paused') return [
+  if (state === 'search') return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];
+  if (state === 'paused') return [...icons,
     B('resume', 'RESUME', '', cx - 310, H * 0.5, 200, 60, { color: PAL.good }),
     B('restart', 'START OVER', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
   if (state === 'over' && overT > 0.8) {
     const on = net.status === 'playing';
-    return [
-      B('again', on ? (net.waitingAgain ? 'WAITING…' : 'PLAY AGAIN') : (mode === 'versus' ? 'REMATCH' : 'PLAY AGAIN'), '',
-        cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good, disabled: on && net.waitingAgain }),
-      B('menu', on ? 'LEAVE' : 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
+    return [...icons,
+      B('again', on ? (net.waitingAgain ? 'WAITING…' : 'PLAY AGAIN') : 'PLAY AGAIN', '',
+        cx - 260, on ? 700 : H * 0.3 + 250, 250, 64, { color: PAL.good, disabled: on && net.waitingAgain }),
+      B('menu', on ? 'LEAVE' : 'MENU', '', cx + 10, on ? 700 : H * 0.3 + 250, 250, 64),
     ];
   }
-  return [];
+  return icons;    // in game: just the sound icon
 }
 const inside = (b, x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
-
-// Buttons that keyboard focus moves between (the colour arrows are mouse / ← → only)
+// Buttons that keyboard focus moves between (icons and colour arrows are mouse / shortcut keys only)
 const focusable = bs => bs.filter(b => !b.nofocus);
 
 function menuInput() {
   const bs = layoutButtons();
   const click = ui.click; ui.click = null;
-  if (!bs.length) return;
+  if (state === 'title' && pressed.Slash) { ui.help = !ui.help; ui.focus = 0; return; }   // ? key
   const fb = focusable(bs), n = fb.length, prev = ui.focus;
   if (ui.focus >= n) ui.focus = 0;
-  // Colour keys: on the main menu ← → (or A D) change your colour; on the colour screen
-  // player 1 uses A D and player 2 uses ← →. Elsewhere ← → move between buttons like ↑ ↓.
-  const page = state === 'title' ? ui.page : '';
-  const colorKeys = page === 'main' || page === 'colors';
-  if (page === 'main') {
-    if (pressed.ArrowLeft || pressed.KeyA) changeColor(0, -1);
-    if (pressed.ArrowRight || pressed.KeyD) changeColor(0, 1);
-  } else if (page === 'colors') {
-    if (pressed.KeyA) changeColor(0, -1);
-    if (pressed.KeyD) changeColor(0, 1);
-    if (pressed.ArrowLeft) changeColor(1, -1);
-    if (pressed.ArrowRight) changeColor(1, 1);
-  }
+  // On the main menu ← → (or A D) change your colour; elsewhere they move between buttons like ↑ ↓
+  const colorKeys = state === 'title' && !ui.help && ui.page === 'main';
+  if (colorKeys && (pressed.ArrowLeft || pressed.KeyA)) changeColor(-1);
+  if (colorKeys && (pressed.ArrowRight || pressed.KeyD)) changeColor(1);
   const fwd = pressed.ArrowDown || pressed.KeyS || pressed.Tab || (!colorKeys && (pressed.ArrowRight || pressed.KeyD));
   const bwd = pressed.ArrowUp || pressed.KeyW || (!colorKeys && (pressed.ArrowLeft || pressed.KeyA));
   if (n && fwd) ui.focus = (ui.focus + 1) % n;
@@ -103,48 +75,37 @@ function menuInput() {
   if (ui.focus !== prev) sfx.beep(600);
   let act = null;
   if ((pressed.Enter || pressed.Space) && n) act = fb[ui.focus];
-  if (click) act = bs.find(b => inside(b, click.x, click.y)) || null;
+  if (click) act = bs.find(b => inside(b, click.x, click.y)) || (ui.help ? { id: 'help-close' } : null);
   if (act && !act.disabled) { sfx.beep(760); activate(act.id); }
 }
 
-// Change player 1's (who = 0) or player 2's (who = 1) colour, skipping the colour the other one has
-function changeColor(who, step) {
-  const other = who === 0 ? p2Color : myColor;
-  let c = who === 0 ? myColor : p2Color;
-  do { c = (c + step + COLORS.length) % COLORS.length; } while (c === other);
-  if (who === 0) myColor = c; else p2Color = c;
+// During play only the sound icon can be clicked
+function gameClicks() {
+  const click = ui.click; ui.click = null;
+  if (click && cornerIcons().some(b => inside(b, click.x, click.y))) toggleMute();
+}
+
+function changeColor(step) {
+  myColor = (myColor + step + COLORS.length) % COLORS.length;
   saveColor();
   reset();            // refresh the cubes standing behind the menu
   sfx.beep(700);
 }
-
-// Where BACK / Esc goes from each menu page
-const PARENT = { local: 'main', solo: 'local', coop: 'local', colors: 'coop', multi: 'main' };
 
 function goPage(page, focus = 0) { ui.page = page; ui.focus = focus; }
 
 function activate(id) {
   switch (id) {
     case 'local': goPage('local'); break;
-    case 'solo': goPage('solo'); break;
-    case 'coop': goPage('coop'); break;
-    case 'multi': goPage('multi', 2); break;          // focus starts on CO-OP
-    case 'col-prev': changeColor(0, -1); break;
-    case 'col-next': changeColor(0, 1); break;
-    case 'same-team': localMode = 'coop'; goPage('colors'); break;
-    case 'local-versus': localMode = 'versus'; goPage('colors'); break;
-    case 'c1-prev': changeColor(0, -1); break;
-    case 'c1-next': changeColor(0, 1); break;
-    case 'c2-prev': changeColor(1, -1); break;
-    case 'c2-next': changeColor(1, 1); break;
-    case 'colors-play': mode = localMode; playerCount = 2; startGame(); break;
-    case 'ol1': onlineLocal = 1; break;
-    case 'ol2': onlineLocal = 2; break;
-    case 'back': goPage(PARENT[ui.page] || 'main'); break;
-    case 'solo-climb': mode = 'coop'; playerCount = 1; startGame(); break;
-    case 'solo-bot': mode = 'versus'; playerCount = 1; startGame(); break;
-    case 'on-coop': mode = 'coop'; startSearch(); break;
-    case 'on-versus': mode = 'versus'; startSearch(); break;
+    case 'multi': mode = 'versus'; startSearch(); break;       // online is always a race: last one standing wins
+    case 'back': goPage('main'); break;
+    case 'solo': mode = 'coop'; playerCount = 1; startGame(); break;
+    case 'coop': mode = 'coop'; playerCount = 2; startGame(); break;
+    case 'col-prev': changeColor(-1); break;
+    case 'col-next': changeColor(1); break;
+    case 'help': ui.help = true; ui.focus = 0; break;
+    case 'help-close': ui.help = false; ui.focus = 0; break;
+    case 'mute': toggleMute(); break;
     case 'cancel': netSend({ t: 'cancel' }); netClose(); toMenu(); break;
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;
@@ -158,7 +119,7 @@ function activate(id) {
 
 // ESC: go back one step
 function escAction() {
-  if (state === 'title') { if (ui.page !== 'main') goPage(PARENT[ui.page] || 'main'); }
+  if (state === 'title') { if (ui.help) ui.help = false; else if (ui.page !== 'main') goPage('main'); }
   else if (state === 'search') activate('cancel');
   else if (state === 'over' && overT > 0.8) activate('menu');
 }
