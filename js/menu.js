@@ -40,11 +40,11 @@ function layoutButtons() {
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
   if (state === 'over' && overT > 0.8) {
-    const on = net.status === 'playing';
+    // Online the next round starts by itself; you can only leave the room
+    if (net.status === 'playing') return [...icons, B('menu', 'LEAVE', '', cx - 125, 716, 250, 60)];
     return [...icons,
-      B('again', on ? (net.waitingAgain ? 'WAITING…' : 'PLAY AGAIN') : 'PLAY AGAIN', '',
-        cx - 260, on ? 700 : H * 0.3 + 250, 250, 64, { color: PAL.good, disabled: on && net.waitingAgain }),
-      B('menu', on ? 'LEAVE' : 'MENU', '', cx + 10, on ? 700 : H * 0.3 + 250, 250, 64),
+      B('again', 'PLAY AGAIN', '', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
+      B('menu', 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
     ];
   }
   return icons;    // in game: just the sound icon
@@ -110,10 +110,7 @@ function activate(id) {
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;
     case 'menu': if (net.status === 'playing') leaveOnline(); else toMenu(); break;
-    case 'again':
-      if (net.status !== 'playing') startGame();
-      else if (!net.waitingAgain) { net.waitingAgain = true; netSend({ t: 'again' }); }
-      break;
+    case 'again': startGame(); break;
   }
 }
 

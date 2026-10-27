@@ -12,7 +12,7 @@ Minimal on purpose: type **your name** and pick **your cube colour** at the top 
 - **Local** — on this computer:
   - **Solo** — climb alone. How high can you go?
   - **Co-op** — two players on one keyboard, same team. If one falls, both lose. Player 2 gets a colour that's different from yours.
-- **Multiplayer** — a race against up to 10 players online. You join everyone who's searching; once a second player joins, an 8-second countdown lets more hop in (it starts straight away at 10), then **Match Found!** loads the level. If you're knocked out you keep watching. When only one player is left the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Your own cube is full colour and everyone else's is softer; repeated names get a number ("Bernie 2"). If someone leaves, the rest carry on.
+- **Multiplayer** — everyone who clicks it goes into **the same room** (up to 10 players; a second room only opens when one is full). Races run in rounds: once there are 2 players a short countdown lets more join, then **Match Found!** loads the level. If you join while a race is on, you're in the room and play from the next round. If you're knocked out you keep watching. When only one player is left the round ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins — wins are kept per player for as long as they stay). The next round starts by itself after 10 seconds with everyone in the room; press **Leave** to go. Your own cube is full colour and everyone else's is softer; repeated names get a number ("Bernie 2"). If someone leaves mid-race, the rest carry on.
 
 Top-right corner: **?** opens the instructions, the **speaker** turns sound on/off (remembered).
 
@@ -71,7 +71,7 @@ In the repository's **Settings → Pages**, deploy from the `main` branch, root 
 ```
 node server/server.js 8791
 ```
-Open <http://localhost:8791> in two browser windows and press Multiplayer in both.
+Open <http://localhost:8791> in two or more browser windows and press Multiplayer in each.
 
 ## Easy tweaks
 - `ROW_GAP` (js/config.js) — height between platform rows (120 = 3 m)

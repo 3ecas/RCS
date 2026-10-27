@@ -7,7 +7,8 @@
 const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 // me: which computer we are in the match (0 or 1). local: players on this computer. roster: everyone's colour and owner.
 // lobby: while searching, how many players have joined and when the match starts.
-const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, lobby: null, peerReady: false, waitingAgain: false, sendT: 0, banner: '', bannerT: 0 };
+// round: which race in the room this is; sentOver: told the server this race has ended.
+const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, lobby: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
   const h = location.hostname;
@@ -41,7 +42,7 @@ function netClose() {
 const RETRY_FOR_MS = 75000;
 function startSearch() {
   netClose();
-  state = 'search'; net.peerReady = false; net.waitingAgain = false; net.lobby = null;
+  state = 'search'; net.lobby = null;
   net.local = 1;                 // one player per computer
   net.searchStart = performance.now();
   connectOnce();
@@ -74,21 +75,26 @@ function connectOnce() {
 
 function leaveOnline() { netSend({ t: 'leave' }); netClose(); toMenu(); }
 
+// Our race has ended: tell the server once, so the room can start the next round
+function reportRoundOver() {
+  if (net.status !== 'playing' || net.sentOver) return;
+  net.sentOver = true;
+  netSend({ t: 'roundOver', round: net.round });
+}
+
 function onNet(m) {
   if (m.t === 'lobby') net.lobby = { ...m, at: performance.now() };
   else if (m.t === 'match') {
     net.rematch = net.status === 'playing';
-    mode = m.mode; net.me = m.you; net.status = 'playing'; net.peerReady = false; net.waitingAgain = false; net.sendT = 0;
+    mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;
+    net.round = m.round; net.sentOver = false;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
-    // New group of players (or someone left since last round): start the win count afresh
-    const sig = JSON.stringify(net.roster) + net.me;
-    if (sig !== net.rosterSig) { wins.fill(0); net.rosterSig = sig; }
     reset(m.seed);
     // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
     foundT = Math.min(1.5, m.startIn / 1000 - 1);
     countdown = m.startIn / 1000 - foundT;
     state = 'found'; sfx.milestone();
-  } else if (m.t === 'peerReady') net.peerReady = true;
+  }
   else if (m.t === 'gone') playersLeft(m.owner);
   else if (m.t === 'left') { netClose(); netBanner('Everyone else left the game'); toMenu(); }
   else if (m.t === 'peer') onPeer(m.d || {});
@@ -107,7 +113,7 @@ function playersLeft(owner) {
   // In a race, if only one cube is left standing, it wins
   const left = alive();
   if (mode === 'versus' && (state === 'play' || state === 'count') && left.length === 1) {
-    state = 'over'; overT = 0; winner = left[0].i; wins[winner]++;
+    state = 'over'; overT = 0; winner = left[0].i; wins[left[0].uid] = winsOf(left[0]) + 1;
     deathMsg = 'Everyone else left the race';
   }
 }

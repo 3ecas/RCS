@@ -25,7 +25,9 @@ let playerCount = 1;            // players on this keyboard: 1 (Solo) or 2 (Co-o
 const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false };
 let foundT = 0;                           // "Match found" screen timer
 
-const wins = new Array(10).fill(0);   // versus score for this session, by player slot (online matches hold up to 10)
+// Online race wins this session, by player id (so they stay right as people join and leave the room)
+const wins = {};
+const winsOf = p => wins[p.uid] || 0;
 let players, platforms, blades, jets, particles, fireballs, warnings, texts;
 let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
@@ -64,6 +66,7 @@ function reset(seed) {
       const p = mkPlayer(i, spawnX(i, n), r.color);
       p.remote = r.owner !== net.me;
       p.slot = r.slot;                         // on its own computer: 0 = WASD, 1 = arrow keys
+      p.uid = r.id || 'p' + i;                 // stable id across rounds (for win counts)
       if (p.remote) { p.color = soften(p.color); p.dark = soften(p.dark, 0.5); }
       p.net = null;
       players.push(p);

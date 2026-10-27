@@ -14,7 +14,7 @@ function update(dt) {
   if (state === 'title' || state === 'paused' || state === 'search' || state === 'over') {
     time += dt;
     if (state !== 'paused') updateParticles(dt);
-    if (state === 'over') { overT += dt; shake = Math.max(0, shake - dt); }
+    if (state === 'over') { overT += dt; shake = Math.max(0, shake - dt); reportRoundOver(); }
     if (net.bannerT > 0) net.bannerT -= dt;
     if (state === 'paused' && pressed.KeyR) { startGame(); return; }   // R again: start over
     if (pressed.Escape && state !== 'paused') { escAction(); return; }
@@ -302,7 +302,7 @@ function die(p, reason) {
   const cy = Math.min(p.y + p.h / 2, camY + H - 20);
   burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
   burst(p.x + p.w / 2, cy, 8, p.dark, 260, 0.7, 6);
-  if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[winner]++; }
+  if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[left[0].uid] = winsOf(left[0]) + 1; }
   else if (height > best) { best = height; newBest = true; saveBest(); }
 }
 

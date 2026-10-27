@@ -85,7 +85,7 @@ function drawResults() {
     ctx.fillStyle = p.color; ctx.fillRect(x + 52, y + rh / 2 - 7, 14, 14);
     text(p.name + (p.remote ? '' : '  (you)'), x + 82, mid, 17, PAL.ink, 'left', 800);
     text(p.best + ' m', x + w - 110, mid, 16, PAL.ink, 'right', 800);
-    text(String(wins[p.i]), x + w - 20, mid, 16, PAL.ink, 'right', 900);
+    text(String(winsOf(p)), x + w - 20, mid, 16, PAL.ink, 'right', 900);
   });
 }
 
@@ -125,6 +125,12 @@ function drawHelp() {
   line('R  stop (R again to start over)   ·   M  sound   ·   F  full screen');
 }
 
+// Seconds until the room's next race starts (or null)
+function roomSecs() {
+  const L = net.lobby;
+  return L && L.startsIn != null ? Math.max(0, Math.ceil((L.startsIn - (performance.now() - L.at)) / 1000)) : null;
+}
+
 function drawBanner(y) {
   if (net.bannerT <= 0) return;
   ctx.fillStyle = PAL.spike; ctx.fillRect(W / 2 - 230, y, 460, 36);
@@ -141,7 +147,7 @@ function drawHUD() {
     ctx.restore();
     if (VS) {
       text('WINS', WALL + 14, 32, 13, PAL.inkSoft, 'left', 800);
-      players.forEach((p, k) => text(String(wins[p.i]), WALL + 62 + k * 20, 32, 16, p.dark, 'left', 900));
+      players.forEach((p, k) => text(String(winsOf(p)), WALL + 62 + k * 20, 32, 16, p.dark, 'left', 900));
     } else {
       text('BEST ' + best + ' m', WALL + 14, 32, 15, PAL.good, 'left');
     }
@@ -205,15 +211,18 @@ function drawHUD() {
       text('Connecting to the server' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
       text('The first connection can take up to a minute while the server wakes up.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
     } else {
-      const L = net.lobby;
-      if (!L || L.computers < 2) {
-        text('Looking for players' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
-        text(`You picked ${mode === 'versus' ? 'Versus' : 'Co-op'}. The match starts once someone else searches too.`, W / 2, 458, 15, PAL.inkSoft, 'center', 600);
-      } else {
-        // Others have joined: count down while more can still hop in
-        const secs = L.startsIn == null ? 0 : Math.max(0, Math.ceil((L.startsIn - (performance.now() - L.at)) / 1000));
-        text(`${L.players} players found`, W / 2, 425, 26, PAL.good, 'center', 900);
+      const L = net.lobby, secs = roomSecs();
+      if (L && L.phase === 'playing') {
+        // A race is already on in the room: you're in, and play from the next round
+        text(`You’re in the room — ${L.players} players`, W / 2, 425, 24, PAL.good, 'center', 900);
+        text('A race is on right now. You’ll join the next round.', W / 2, 458, 15, PAL.inkSoft, 'center', 700);
+      } else if (L && L.computers >= 2 && secs != null) {
+        // Others are here: count down while more can still hop in
+        text(`${L.players} players in the room`, W / 2, 425, 26, PAL.good, 'center', 900);
         text(`Starting in ${secs}s — more can still join (up to ${L.max})`, W / 2, 458, 15, PAL.inkSoft, 'center', 700);
+      } else {
+        text('Waiting for players' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
+        text('The race starts as soon as someone else joins.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
       }
       // One box per player slot, filled as players join
       const filled = L ? L.players : (net.local || 1), max = L ? L.max : 10;
@@ -255,7 +264,13 @@ function drawHUD() {
       if (newBest) text('NEW BEST!', W / 2, y0 + 184, 26, PAL.good, 'center', 900);
       else text('Best: ' + best + ' m', W / 2, y0 + 184, 21, PAL.good, 'center', 800);
     }
-    if (net.status === 'playing' && net.peerReady && !net.waitingAgain) text('Others want to play again!', W / 2, 682, 16, PAL.good, 'center', 900);
+    // Online: the room goes again by itself
+    if (net.status === 'playing') {
+      const L = net.lobby, secs = roomSecs();
+      const msg = L && L.phase === 'break' && secs != null ? `Next round in ${secs}s` + (L.players > players.length ? ` — ${L.players - players.length} more joining` : '')
+        : L && L.phase === 'lobby' ? 'Waiting for more players to join…' : 'Next round coming up…';
+      text(msg, W / 2, 694, 18, PAL.good, 'center', 900);
+    }
   }
 
   // Buttons for whatever screen we're on
