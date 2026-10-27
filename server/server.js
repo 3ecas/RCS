@@ -1,4 +1,4 @@
-// RCS online server: serves the game page and pairs up players who are searching.
+// RCS online server: serves the game (index.html, css/, js/) and pairs up players who are searching.
 // No dependencies — uses only Node's built-in modules (Node 18+).
 //
 //   node server/server.js            (listens on $PORT, or 10000)
@@ -23,21 +23,29 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = Number(process.argv[2] || process.env.PORT || 10000);
-const GAME_FILE = path.join(__dirname, '..', 'game', 'index.html');
+const ROOT = path.join(__dirname, '..');                 // the game's files
+const PUBLIC_DIRS = ['css', 'js'];                        // folders browsers may load from
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 const MAX_FRAME = 64 * 1024;
 
-// ---------- HTTP: the game page + health check ----------
+// ---------- HTTP: the game files + health check ----------
+function sendFile(res, file) {
+  fs.readFile(file, (err, data) => {
+    if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('not found'); return; }
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    res.end(data);
+  });
+}
+
 const server = http.createServer((req, res) => {
-  const url = (req.url || '/').split('?')[0];
+  let url;
+  try { url = decodeURIComponent((req.url || '/').split('?')[0]); } catch (e) { url = '/'; }
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok'); return; }
-  if (url === '/' || url === '/index.html') {
-    fs.readFile(GAME_FILE, (err, data) => {
-      if (err) { res.writeHead(500); res.end('game file missing'); return; }
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.end(data);
-    });
-    return;
-  }
+  if (url === '/' || url === '/index.html') return sendFile(res, path.join(ROOT, 'index.html'));
+  // Only files inside css/ and js/ with a known type — never the server code or anything else
+  const file = path.normalize(path.join(ROOT, url));
+  const inPublic = PUBLIC_DIRS.some(d => file.startsWith(path.join(ROOT, d) + path.sep));
+  if (inPublic && TYPES[path.extname(file)]) return sendFile(res, file);
   res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('not found');
 });
 
