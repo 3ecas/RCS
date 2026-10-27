@@ -1,0 +1,9 @@
+# Render Blueprint: one free web service that serves the game and runs matchmaking.
+services:
+  - type: web
+    name: rcs
+    runtime: node
+    plan: free
+    buildCommand: echo "No build step needed"
+    startCommand: node server/server.js
+    healthCheckPath: /health

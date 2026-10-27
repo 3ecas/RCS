@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tower Duo</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f6eef6; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+
+// ---------- Constants ----------
+const W = 800, H = 900, WALL = 40;
+const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;
+const PX_PER_M = 40;
+const GROUND_Y = H - 70;
+const ROW_GAP = 120;        // every row of platforms sits this far above the last (3 m)
+const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid
+const PS = 34;              // player cube size
+const STEP = 1 / 120;
+const JET_LEN = 150;        // wall flame reach
+const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
+
+const PAL = {
+  ink: '#5b4b6b', inkSoft: 'rgba(91,75,107,0.6)',
+  wall: '#dcd2ec', wallLine: '#c7badf', nozzle: '#b4a5d1',
+  ground: '#cfc3e8', groundD: '#b6a8d8',
+  normal: '#c5b9e6', normalD: '#a99bd3',
+  move: '#a8e6cf', moveD: '#7fcfb0',
+  crumble: '#ffd3b6', crumbleD: '#f0b28c',
+  spring: '#fff0a0', springD: '#ecd060',
+  spike: '#ff7b9c', blade: '#6c5b7b', flame: '#ff9a76', flame2: '#ffe0a8', fire: '#ff8c69',
+  good: '#4fb386',
+  players: [
+    { c: '#ff9aa2', d: '#e06c7a', name: 'Player 1' },
+    { c: '#86c8f5', d: '#4f9bd3', name: 'Player 2' },
+    { c: '#ffc078', d: '#e3923e', name: 'Player 3' },
+    { c: '#b5e48c', d: '#7fb84f', name: 'Player 4' },
+  ],
+  bot: { c: '#d4cde3', d: '#9d93b5', name: 'Bot' },
+};
+// Background colour bands [top, bottom] that drift as you climb
+const BG = [
+  ['#fff4e9', '#fde3e6'], ['#e9f7f1', '#d6f0e7'], ['#e8edff', '#d7e0fc'],
+  ['#f7e9f6', '#ecd8f1'], ['#fff7dc', '#fdeacb'],
+];
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const heightM = y => (GROUND_Y - y) / PX_PER_M;
+const diff = y => clamp(heightM(y) / 400, 0, 1);
+const ramp = (m, start, len) => clamp((m - start) / len, 0, 1);
+const hash = (i, j) => (((i * 73856093) ^ (j * 19349663)) >>> 0) % 1000 / 1000;
+const hex = h => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const mixHex = (a, b, t) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], t))).join(',')})`; };
+
+// When each obstacle first appears (metres) — the difficulty curve
+const STAGES = [
+  { m: 15,  key: 'spring',    text: 'Springs!',            color: '#d9b42e' },
+  { m: 30,  key: 'move',      text: 'Moving platforms!',   color: PAL.moveD },
+  { m: 50,  key: 'spikes',    text: 'Spikes!',             color: PAL.spike },
+  { m: 90,  key: 'crumble',   text: 'Crumbling floors!',   color: PAL.crumbleD },
+  { m: 120, key: 'shuriken',  text: 'Shurikens!',          color: PAL.blade },
+  { m: 160, key: 'wallflame', text: 'Wall flames!',        color: PAL.flame },
+  { m: 230, key: 'fireball',  text: 'Fireballs!',          color: PAL.fire },
+];
+const unlock = Object.fromEntries(STAGES.map(s => [s.key, s.m]));
+
+// ---------- Canvas ----------
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = W * s + 'px';
+  canvas.style.height = H * s + 'px';
+  canvas.width = Math.round(W * s * dpr);
+  canvas.height = Math.round(H * s * dpr);
+  ctx.setTransform(s * dpr, 0, 0, s * dpr, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------- Input ----------
+const keys = {}, pressed = {};
+const CONTROLS = [
+  { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS' },
+  { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', down: 'ArrowDown' },
+  { left: 'KeyJ', right: 'KeyL', jump: 'KeyI', down: 'KeyK' },
+  { left: 'KeyF', right: 'KeyH', jump: 'KeyT', down: 'KeyG' },
+];
+const KEYCAPS = [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→'], ['I', 'J', 'K', 'L'], ['T', 'F', 'G', 'H']];
+addEventListener('keydown', e => {
+  if (e.metaKey) return; // keep Cmd+Q etc. working
+  e.preventDefault();
+  if (!keys[e.code]) pressed[e.code] = true;
+  keys[e.code] = true;
+  audioInit();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
+  if (state === 'play' || state === 'count') { pausedFrom = state; state = 'paused'; }
+});
+
+// ---------- Audio ----------
+let actx = null, muted = false, noiseBuf = null;
+function audioInit() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (actx && actx.state === 'suspended') actx.resume();
+}
+function tone(f0, f1, dur, type = 'square', vol = 0.06, delay = 0) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + delay;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(actx.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol = 0.1, freq = 1200) {
+  if (!actx || muted) return;
+  if (!noiseBuf) {
+    noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+  const g = actx.createGain(); const t = actx.currentTime;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(actx.destination);
+  s.start(t); s.stop(t + dur);
+}
+const sfx = {
+  jump: i => tone(i ? 360 : 290, i ? 720 : 580, 0.13, 'triangle', 0.06),
+  land: () => tone(170, 90, 0.06, 'triangle', 0.05),
+  spring: () => tone(240, 1300, 0.3, 'sine', 0.09),
+  crumble: () => noise(0.3, 0.07, 700),
+  flame: () => noise(0.35, 0.03, 2200),
+  fireball: () => tone(900, 300, 0.4, 'sine', 0.03),
+  die: () => { tone(520, 60, 0.7, 'triangle', 0.1); noise(0.4, 0.12, 900); },
+  beep: f => tone(f, f, 0.12, 'triangle', 0.07),
+  milestone: () => { tone(660, 660, 0.1, 'triangle', 0.08); tone(990, 990, 0.18, 'triangle', 0.08, 0.1); },
+};
+
+// ---------- Best score ----------
+let best = 0;
+try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
+function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
+
+// ---------- World state ----------
+let state = 'title', pausedFrom = 'play';
+// Game mode: 'coop' (climb together, one falls = both lose) or 'versus' (race; fall behind = you lose)
+let mode = 'coop', menuSel = 0, winner = -1;
+let playerCount = 2;            // human players, 1–4 (versus with 1 adds a bot)
+const wins = [0, 0, 0, 0];      // versus score for this session, by player slot
+let players, platforms, blades, jets, particles, fireballs, warnings, texts;
+let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
+let fireTimer, shake, scrollSpeed, newBest, stageIdx;
+
+function mkPlayer(i, x, isBot = false) {
+  const P = isBot ? PAL.bot : PAL.players[i];
+  return {
+    bot: isBot, speedMul: isBot ? BOT.speed : 1,
+    ai: isBot ? { left: false, right: false, jump: false, jumpPressed: false, down: false, target: null, wait: 0.3, wasGround: true } : null,
+    i, x, y: GROUND_Y - PS, w: PS, h: PS, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - PS,
+    onGround: true, ground: null, coyote: 0, buf: 0, face: x < W / 2 ? 1 : -1, sq: 1, dropT: 0,
+    blink: rand(1, 4), dead: false, springT: 0, springPad: null, best: 0,
+    color: P.c, dark: P.d, name: P.name,
+  };
+}
+
+function reset() {
+  camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
+  fireTimer = 3; newBest = false; stageIdx = 0;
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
+  platforms = [{ x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, t: 0, crumbleT: -1, falling: false }];
+  // Generator memory: last main-path platform, and whether the last row had a hazard
+  gen = { prev: null, prevHaz: false };
+  rowK = 1;
+  generate();
+  // Humans, plus a bot when playing versus alone; spread evenly across the floor
+  const n = playerCount + (mode === 'versus' && playerCount === 1 ? 1 : 0);
+  players = [];
+  for (let i = 0; i < n; i++) players.push(mkPlayer(i, W / 2 - PS / 2 + (i - (n - 1) / 2) * 90, i >= playerCount));
+}
+const alive = () => players.filter(p => !p.dead);
+
+// ---------- Level generation ----------
+function generate() {
+  while (GROUND_Y - rowK * ROW_GAP > camY - 300) {
+    const nudge = Math.random() < ROW_WOBBLE ? rand(-14, 14) : 0;
+    genRow(GROUND_Y - rowK * ROW_GAP + nudge);
+    rowK++;
+  }
+}
+
+const center = p => p.type === 'move' ? p.baseX + p.w / 2 : p.x + p.w / 2;
+// Horizontal gap between a would-be platform (cx, w) and an existing one (0 if they overlap)
+const gapTo = (cx, w, q) => Math.max(0, Math.abs(cx - center(q)) - (w + q.w) / 2);
+
+// Pick a centre inside [lo, hi] that is within jumping reach (G) of every reference platform
+function pickCx(w, lo, hi, refs, G) {
+  const a = lo + w / 2, b = hi - w / 2;
+  if (b <= a) return (lo + hi) / 2;
+  if (!refs.length) return rand(a, b);
+  for (let k = 0; k < 25; k++) {
+    const cx = rand(a, b);
+    if (refs.every(q => gapTo(cx, w, q) <= G)) return cx;
+  }
+  let bestCx = a, bestV = 1e9;
+  for (let k = 0; k <= 30; k++) {
+    const cx = a + (b - a) * k / 30;
+    const v = Math.max(...refs.map(q => gapTo(cx, w, q)));
+    if (v < bestV) { bestV = v; bestCx = cx; }
+  }
+  return bestCx;
+}
+
+// Horizontal space a platform can ever occupy (moving ones include their full slide range)
+const extent = p => p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w] : [p.x, p.x + p.w];
+
+function genRow(y) {
+  const m = heightM(y), d = diff(y);
+  const G = lerp(110, 160, d);   // max horizontal gap from the previous step on the path
+  // A row right after a row with any hazard is always hazard-free,
+  // so you never have to dodge hazards on two steps back to back.
+  const allowHaz = !gen.prevHaz;
+
+  // The main path: one platform per row, always within reach of the last one
+  const w = rand(lerp(150, 95, d), lerp(210, 135, d));
+  const cx = pickCx(w, WALL, W - WALL, gen.prev ? [gen.prev] : [], G);
+  const main = makePlatform(cx, y, w, d, WALL, W - WALL, allowHaz);
+  platforms.push(main);
+  let rowHaz = !!main.spikes;
+
+  // Sometimes an extra platform sticks out to the side, in the free space beside the main one
+  if (Math.random() < lerp(0.35, 0.15, d)) {
+    const GAP = 50, minW = lerp(110, 80, d);
+    const [mL, mR] = extent(main);
+    const spaces = [[WALL, mL - GAP], [mR + GAP, W - WALL]].filter(([a, b]) => b - a >= minW);
+    if (spaces.length) {
+      const [lo, hi] = spaces[Math.floor(Math.random() * spaces.length)];
+      const w2 = Math.min(rand(minW, minW * 1.5), hi - lo);
+      const side = makePlatform(rand(lo + w2 / 2, hi - w2 / 2), y, w2, d, lo, hi, allowHaz && !rowHaz);
+      platforms.push(side);
+      rowHaz = rowHaz || !!side.spikes;
+    }
+  }
+
+  // One flying obstacle (shuriken or wall flame) in the gap above this row
+  if (allowHaz && !rowHaz) {
+    const pJet = m >= unlock.wallflame ? lerp(0.12, 0.3, ramp(m, unlock.wallflame, 300)) : 0;
+    const pBlade = m >= unlock.shuriken ? lerp(0.12, 0.3, ramp(m, unlock.shuriken, 300)) : 0;
+    const r = Math.random();
+    if (r < pJet) { addJet(Math.random() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
+    else if (r < pJet + pBlade) {
+      addBlade(y, clamp(cx - w / 2 - 90, WALL, W - WALL), clamp(cx + w / 2 + 90, WALL, W - WALL), m);
+      rowHaz = true;
+    }
+  }
+  gen.prevHaz = rowHaz;
+  gen.prev = main;
+}
+
+// lo/hi: the horizontal lane this platform must stay inside
+function makePlatform(cx, y, w, d, lo, hi, allowHaz) {
+  const m = heightM(y);
+  const p = { x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: rand(0, 10), crumbleT: -1, falling: false, vy: 0, bounceT: 0 };
+  const r = Math.random();
+  const pMove = m >= unlock.move ? lerp(0.08, 0.28, ramp(m, unlock.move, 250)) : 0;
+  const pCrumble = m >= unlock.crumble ? lerp(0.06, 0.2, ramp(m, unlock.crumble, 250)) : 0;
+  const pSpring = m >= unlock.spring ? 0.05 : 0;
+  if (r < pMove) {
+    // Slides around its own centre, always inside its lane
+    const amp = Math.min(rand(50, 130), cx - lo - w / 2, hi - w / 2 - cx);
+    if (amp >= 30) {
+      p.type = 'move'; p.amp = amp; p.baseX = cx - w / 2;
+      p.spd = rand(0.8, 1.4) * (1 + d * 0.5);
+      p.x = p.baseX + Math.sin(p.t * p.spd) * amp;
+    }
+  } else if (r < pMove + pCrumble) {
+    p.type = 'crumble';
+  } else if (r < pMove + pCrumble + pSpring) {
+    p.type = 'spring'; p.w = 70; p.x = cx - 35;
+  }
+  // Spikes: at most 45% of the platform, so there's always room to land
+  const pHaz = m >= unlock.spikes ? lerp(0.15, 0.45, ramp(m, unlock.spikes, 300)) : 0;
+  if (allowHaz && (p.type === 'normal' || p.type === 'move') && p.w >= 100 && Math.random() < pHaz) {
+    const len = rand(26, p.w * 0.45);
+    const x0 = Math.random() < 0.5 ? 0 : p.w - len;
+    p.spikes = { x0, x1: x0 + len };
+  }
+  return p;
+}
+
+// Spinning shuriken that patrols left-right in the gap above a row
+function addBlade(rowY, lo, hi, m) {
+  const sp = lerp(70, 150, ramp(m, unlock.shuriken, 300));
+  blades.push({ x: rand(lo + 20, hi - 20), y: rowY - 62, lo: lo + 16, hi: hi - 16, vx: (Math.random() < 0.5 ? -1 : 1) * sp, r: 18, ang: 0 });
+}
+// Flame jet that fires out of a side wall on a timer
+function addJet(side, rowY) {
+  jets.push({ side, y: rowY - 62, period: rand(2.6, 3.6), off: rand(0, 3), t: 0, last: 0 });
+}
+function jetState(j) {
+  const ph = (j.t + j.off) % j.period;
+  if (ph >= j.period - 1.0) return 2;   // burning
+  if (ph >= j.period - 1.6) return 1;   // warning
+  return 0;
+}
+function jetRect(j) {
+  return j.side === 'L' ? [WALL, WALL + JET_LEN] : [W - WALL - JET_LEN, W - WALL];
+}
+
+// ---------- Bot (computer opponent in 1-player versus) ----------
+// speed: share of human run speed. think: pause (seconds) after landing before the next jump.
+const BOT = { speed: 0.9, think: [0.12, 0.4] };
+
+// The part of a platform that's safe to stand on (avoids its spikes), as [left, right] in x
+function safeSpan(q) {
+  const x = q.x;
+  if (!q.spikes) return [x, x + q.w];
+  const a = [x, x + q.spikes.x0 - 6], b = [x + q.spikes.x1 + 6, x + q.w];
+  return (a[1] - a[0]) >= (b[1] - b[0]) ? a : b;
+}
+
+// Closest x (player centre) where the bot can land fully on the safe part of platform t
+function landingX(p, t) {
+  const [s0, s1] = safeSpan(t), half = p.w / 2;
+  const lo = s0 + half - 6, hi = s1 - half + 6;
+  return lo <= hi ? clamp(p.x + half, lo, hi) : (s0 + s1) / 2;
+}
+
+// Next platform to jump to: the nearest safe one in the row above.
+// If nothing up there is in reach, look further out, then try hopping sideways on the same row.
+function pickTarget(p) {
+  const feet = p.y + p.h, pc = p.x + p.w / 2, half = p.w / 2;
+  const stand = p.ground && !p.ground.isPlayer ? p.ground : null;
+  const [wlo, whi] = walkRange(p, stand);
+  // Can we take off from our platform on the safe side of q's spikes (so we don't fly up through them)?
+  const approachable = q => {
+    if (!q.spikes) return true;
+    const s0 = q.x + q.spikes.x0 - 4, s1 = q.x + q.spikes.x1 + 4;
+    const safeRight = q.spikes.x0 < 1;   // spikes on the left end → safe part is on the right
+    return safeRight ? whi >= s1 + half : wlo <= s0 - half;
+  };
+  const tries = [[40, 170, 260, true], [40, 170, 520, true], [-25, 25, 260, true], [40, 170, 520, false]];   // [min rise, max rise, max sideways, must be approachable]
+  for (const [rMin, rMax, hMax, strict] of tries) {
+    let bestQ = null, bestScore = 1e9;
+    for (const q of platforms) {
+      if (q.falling || q.type === 'ground' || q === p.ground) continue;
+      const rise = feet - q.y;
+      if (rise < rMin || rise > rMax) continue;
+      const [a, b] = safeSpan(q);
+      if (b - a < 24) continue;
+      const hd = pc < a ? a - pc : pc > b ? pc - b : 0;
+      if (hd > hMax || (rMin < 0 && hd < 20)) continue;
+      if (strict && rMin > 0 && !approachable(q)) continue;
+      const score = hd + (q.type === 'crumble' ? 40 : 0) + (q.type === 'move' ? 20 : 0);
+      if (score < bestScore) { bestScore = score; bestQ = q; }
+    }
+    if (bestQ) return bestQ;
+  }
+  return null;
+}
+
+// Somewhere to land when we're already high in the air: nearest safe platform below us
+function pickLanding(p) {
+  const feet = p.y + p.h, pc = p.x + p.w / 2;
+  let bestQ = null, bestScore = 1e9;
+  for (const q of platforms) {
+    if (q.falling || q.type === 'ground' || q.y < feet + 5 || q.y > feet + 420) continue;
+    const [a, b] = safeSpan(q);
+    if (b - a < 24) continue;
+    const hd = pc < a ? a - pc : pc > b ? pc - b : 0;
+    const score = hd + (q.y - feet) * 0.3;
+    if (score < bestScore) { bestScore = score; bestQ = q; }
+  }
+  return bestQ;
+}
+
+// Is it safe to jump now? Checks shurikens and wall flames in the gap we'd fly through
+function pathClear(p, t, goal) {
+  const feet = p.y + p.h;
+  const x0 = Math.min(p.x, goal - 20) - 20, x1 = Math.max(p.x + p.w, goal + 20) + 20;
+  for (const b of blades) {
+    if (b.y > feet || b.y < t.y - 40) continue;
+    // Where will it be over the next ~0.6 s (bouncing off the ends of its track)?
+    for (let k = 0; k <= 6; k++) {
+      let bx = b.x + b.vx * k * 0.1;
+      if (bx > b.hi) bx = 2 * b.hi - bx; if (bx < b.lo) bx = 2 * b.lo - bx;
+      if (bx > x0 - 40 && bx < x1 + 40) return false;
+    }
+  }
+  for (const j of jets) {
+    if (j.y > feet || j.y < t.y - 60) continue;
+    const [jx0, jx1] = jetRect(j);
+    if (jx1 < x0 || jx0 > x1) continue;
+    if (jetState(j)) return false;
+    const ph = (j.t + j.off) % j.period;
+    if (j.period - 1.6 - ph < 0.7) return false;   // about to fire
+  }
+  return true;
+}
+
+// Where the bot's centre may walk on the platform it stands on (stops before edges and spikes)
+function walkRange(p, stand) {
+  const half = p.w / 2;
+  if (!stand) return [-1e9, 1e9];
+  let lo = stand.x + 4, hi = stand.x + stand.w - 4;
+  if (stand.spikes) {
+    const s0 = stand.x + stand.spikes.x0, s1 = stand.x + stand.spikes.x1, pc = p.x + half;
+    if (pc < (s0 + s1) / 2) hi = Math.min(hi, s0 - half - 4);
+    else lo = Math.max(lo, s1 + half + 4);
+  }
+  return [lo, hi];
+}
+
+function botThink(p, dt) {
+  const ai = p.ai;
+  ai.left = ai.right = ai.jumpPressed = ai.down = false;
+  const pc = p.x + p.w / 2, feet = p.y + p.h;
+
+  // Sidestep falling fireballs
+  for (const f of fireballs) {
+    if (f.y < p.y && p.y - f.y < 320 && Math.abs(f.x - pc) < 45) {
+      if (f.x > pc) ai.left = true; else ai.right = true;
+      return;
+    }
+  }
+
+  if (p.onGround) {
+    if (!ai.wasGround) { ai.wait = rand(BOT.think[0], BOT.think[1]); ai.target = null; }   // just landed: rethink
+    ai.wasGround = true;
+    ai.jump = false;
+    const stand = p.ground && !p.ground.isPlayer ? p.ground : null;
+    const rise = ai.target ? feet - ai.target.y : 0;
+    if (!ai.target || ai.target.falling || rise < -25 || rise > 170 || !platforms.includes(ai.target)) ai.target = pickTarget(p);
+    const t = ai.target;
+    const [lo, hi] = walkRange(p, stand);
+    if (!t) {   // nothing in reach: drift toward the middle
+      if (pc < W / 2 - 20 && pc < hi) ai.right = true; else if (pc > W / 2 + 20 && pc > lo) ai.left = true;
+      return;
+    }
+    const goal = landingX(p, t);
+    const dist = goal - pc;
+    ai.wait -= dt;
+    const hurry = stand && stand.type === 'crumble';
+    const ready = (ai.wait <= 0 || hurry) && pathClear(p, t, goal);
+    // Don't fly up through the target's spikes: only take off where the path up misses them
+    const half = p.w / 2;
+    const sp = t.spikes ? [t.x + t.spikes.x0 - 4, t.x + t.spikes.x1 + 4] : null;
+    const crosses = sp && Math.max(pc, goal) + half > sp[0] && Math.min(pc, goal) - half < sp[1];
+    if (!crosses && Math.abs(dist) <= 140 && ready) { ai.jumpPressed = true; ai.jump = true; return; }
+    // Where we'd stop if we let go now (so we brake before edges and spikes, not after)
+    const stopAt = pc + p.vx * Math.abs(p.vx) / (2 * 3200);
+    if (goal - pc > 3 && stopAt < hi - 2) ai.right = true;
+    else if (goal - pc < -3 && stopAt > lo + 2) ai.left = true;
+    else if (ready && (!crosses || Math.abs(dist) <= 3 || stopAt >= hi - 2 || stopAt <= lo + 2)) { ai.jumpPressed = true; ai.jump = true; }
+    return;
+  }
+
+  // In the air: steer to the target's safe area, hold jump while rising
+  ai.wasGround = false;
+  ai.jump = p.vy < 0;
+  // Flying up: dodge sideways if we're about to pass up through spikes
+  if (p.vy < 0) {
+    const reach = p.vy * p.vy / (2 * GRAV);
+    for (const q of platforms) {
+      if (!q.spikes || q.falling || q.y > feet || q.y < p.y - reach - 10) continue;
+      const s0 = q.x + q.spikes.x0 - 6, s1 = q.x + q.spikes.x1 + 6;
+      if (p.x + p.w > s0 && p.x < s1) {
+        if (pc - s0 < s1 - pc) ai.left = true; else ai.right = true;
+        return;
+      }
+    }
+  }
+  // Far above our target (e.g. after a spring launch): pick somewhere new to land
+  if (!ai.target || ai.target.falling || ai.target.y > feet + 150) ai.target = pickLanding(p);
+  const t = ai.target;
+  if (t && !t.falling) {
+    const d = landingX(p, t) - pc;
+    if (Math.abs(d) > 4) { if (d > 0) ai.right = true; else ai.left = true; }
+    // Press jump just before touching a spring for the big launch
+    if (t.type === 'spring' && p.vy > 0 && t.y - feet < 30 && t.y - feet > 0 && Math.abs(d) < 30) ai.jumpPressed = true;
+  }
+}
+
+// ---------- Particles & text ----------
+function burst(x, y, n, color, spd = 200, life = 0.5, size = 5, grav = 700) {
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * Math.PI * 2, s = rand(0.3, 1) * spd;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - spd * 0.3, life, max: life, color, size: rand(size * 0.6, size), grav });
+  }
+}
+function dust(x, y) {
+  for (let k = 0; k < 4; k++)
+    particles.push({ x: x + rand(-12, 12), y, vx: rand(-60, 60), vy: rand(-40, -10), life: 0.3, max: 0.3, color: 'rgba(255,255,255,0.9)', size: rand(3, 5), grav: 150 });
+}
+function floatText(text, x, y, color = PAL.ink, size = 42) { texts.push({ text, x, y, t: 1.4, color, size }); }
+
+// ---------- Update ----------
+function startGame() { reset(); state = 'count'; countdown = 3; sfx.beep(440); }
+function toMenu() { reset(); state = 'title'; }
+
+function update(dt) {
+  if (pressed.KeyM) muted = !muted;
+  if (pressed.KeyF) toggleFullscreen();
+
+  if (state === 'title') {
+    const before = menuSel;
+    const beforeN = playerCount;
+    if (pressed.ArrowLeft || pressed.KeyA) menuSel = 0;
+    if (pressed.ArrowRight || pressed.KeyD) menuSel = 1;
+    if (pressed.ArrowUp || pressed.KeyW) playerCount = Math.min(4, playerCount + 1);
+    if (pressed.ArrowDown || pressed.KeyS) playerCount = Math.max(1, playerCount - 1);
+    for (let n = 1; n <= 4; n++) if (pressed['Digit' + n]) playerCount = n;
+    if (menuSel !== before || playerCount !== beforeN) sfx.beep(600);
+    if (pressed.Enter || pressed.Space) { mode = menuSel ? 'versus' : 'coop'; startGame(); }
+    time += dt; updateParticles(dt);
+    return;
+  }
+  if (state === 'paused') {
+    if (pressed.KeyQ) { toMenu(); return; }
+    if (pressed.Escape || pressed.KeyP || pressed.Enter || pressed.Space) state = pausedFrom;
+    return;
+  }
+  if (state === 'over') {
+    overT += dt; time += dt;
+    updateParticles(dt);
+    shake = Math.max(0, shake - dt);
+    if (overT > 0.8 && (pressed.Enter || pressed.Space)) startGame();
+    else if (overT > 0.8 && pressed.Escape) toMenu();
+    return;
+  }
+  if (pressed.Escape || pressed.KeyP) { pausedFrom = state; state = 'paused'; return; }
+
+  time += dt;
+  if (state === 'count') {
+    const before = Math.ceil(countdown);
+    countdown -= dt;
+    const after = Math.ceil(countdown);
+    if (after !== before) {
+      if (after > 0) sfx.beep(440);
+      else { sfx.beep(880); state = 'play'; floatText('GO!', W / 2, camY + H * 0.4, PAL.good); }
+    }
+  }
+
+  // Camera: constant climb that speeds up, plus catch-up when players climb fast
+  if (state === 'play') {
+    const camM = Math.max(0, heightM(camY + H));
+    scrollSpeed = Math.min(38 + camM * 0.4, 200);
+    camY -= scrollSpeed * dt;
+  }
+  const topY = Math.min(...alive().map(p => p.y));
+  const target = topY - H * 0.38;
+  if (target < camY) camY += (target - camY) * Math.min(1, 5 * dt);
+
+  generate();
+  updateWorld(dt);
+  // In versus nobody moves until the countdown hits GO, so it's a fair start
+  if (!(mode === 'versus' && state === 'count')) {
+    for (const p of players) {
+      if (p.dead) continue;
+      if (p.bot) botThink(p, dt);
+      updatePlayer(p, dt);
+    }
+  }
+  updateHazards(dt);
+  updateParticles(dt);
+  shake = Math.max(0, shake - dt);
+
+  for (const p of alive()) p.best = Math.max(p.best, Math.floor(heightM(p.y + PS)));
+  const h = Math.max(0, Math.floor(heightM(topY + PS)));
+  if (h > height) {
+    height = h;
+    if (height >= nextMilestone) {
+      floatText(nextMilestone + ' m!', W / 2, camY + H * 0.3);
+      sfx.milestone();
+      nextMilestone += 50;
+    }
+  }
+
+  for (const p of alive()) {
+    if (p.y > camY + H + 10) die(p, mode === 'versus' ? 'fell behind' : 'fell off the tower');
+    if (state === 'over') return;
+  }
+}
+
+function updateWorld(dt) {
+  for (const p of platforms) {
+    p.t += dt;
+    const ox = p.x;
+    if (p.type === 'move') p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
+    if (p.crumbleT >= 0 && !p.falling) {
+      p.crumbleT -= dt;
+      if (p.crumbleT <= 0) {
+        p.falling = true; sfx.crumble();
+        burst(p.x + p.w / 2, p.y + 8, 6, PAL.crumbleD, 120, 0.5, 6);
+      }
+    }
+    if (p.falling) { p.vy += GRAV * 0.6 * dt; p.y += p.vy * dt; }
+    if (p.bounceT > 0) p.bounceT -= dt;
+    p.dx = p.x - ox;
+  }
+  for (const b of blades) {
+    b.x += b.vx * dt;
+    if (b.x < b.lo) { b.x = b.lo; b.vx = -b.vx; }
+    if (b.x > b.hi) { b.x = b.hi; b.vx = -b.vx; }
+    b.ang += dt * 9 * Math.sign(b.vx);
+  }
+  for (const j of jets) {
+    j.t += dt;
+    const s = jetState(j);
+    if (s === 2 && j.last !== 2 && j.y > camY && j.y < camY + H) sfx.flame();
+    j.last = s;
+  }
+  const cut = camY + H + 250;
+  platforms = platforms.filter(p => p.y < cut);
+  blades = blades.filter(b => b.y < cut);
+  jets = jets.filter(j => j.y < cut);
+}
+
+function humanInput(i) {
+  const c = CONTROLS[i];
+  return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
+}
+
+function updatePlayer(p, dt) {
+  const inp = p.bot ? p.ai : humanInput(p.i);
+  p.prevX = p.x; p.prevY = p.y;
+
+  // Ride whatever we're standing on
+  if (p.onGround && p.ground) {
+    if (p.ground.falling) { p.onGround = false; p.ground = null; }
+    else p.x += p.ground.isPlayer ? (p.ground.ref.x - p.ground.ref.prevX) : p.ground.dx;
+  }
+
+  const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+  if (dir) p.face = dir;
+  const accel = p.onGround ? 3200 : 2200;
+  const tvx = dir * MAX_VX * p.speedMul;
+  if (p.vx < tvx) p.vx = Math.min(tvx, p.vx + accel * dt);
+  else if (p.vx > tvx) p.vx = Math.max(tvx, p.vx - accel * dt);
+
+  if (inp.jumpPressed) p.buf = 0.13;
+  // Pressed jump right after a plain spring bounce: upgrade it to the full launch
+  if (p.springT > 0) {
+    p.springT -= dt;
+    if (inp.jumpPressed && p.vy < 0) superBounce(p, p.springPad);
+  }
+  p.buf -= dt;
+  p.coyote = p.onGround ? 0.1 : p.coyote - dt;
+  if (p.buf > 0 && p.coyote > 0) {
+    p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
+    sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
+  }
+  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground') {
+    p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
+  }
+  p.dropT -= dt;
+
+  // Gravity (heavier when jump is released early, for variable jump height)
+  p.vy += GRAV * dt;
+  if (!inp.jump && p.vy < 0) p.vy += GRAV * 1.4 * dt;
+  p.vy = Math.min(p.vy, MAX_FALL);
+
+  p.x += p.vx * dt;
+  if (p.x < WALL) { p.x = WALL; p.vx = 0; }
+  if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
+
+  const prevBottom = p.y + p.h;
+  p.y += p.vy * dt;
+  const wasGround = p.onGround;
+  p.onGround = false; p.ground = null;
+
+  if (p.vy >= 0) {
+    // One-way platforms
+    if (p.dropT <= 0) {
+      for (const pl of platforms) {
+        if (pl.falling) continue;
+        if (p.x + p.w - 4 > pl.x && p.x + 4 < pl.x + pl.w && prevBottom <= pl.y + 1 && p.y + p.h >= pl.y) {
+          land(p, pl, wasGround);
+          break;
+        }
+      }
+    }
+    // Stand on another player's head
+    for (const o of players) {
+      if (p.onGround) break;
+      if (o === p || o.dead) continue;
+      if (p.x + p.w - 6 > o.x && p.x + 6 < o.x + o.w && prevBottom <= Math.max(o.y, o.prevY) + 2 && p.y + p.h >= o.y) {
+        p.y = o.y - p.h; p.vy = 0; p.onGround = true;
+        p.ground = { isPlayer: true, ref: o, falling: false };
+        if (!wasGround) { p.sq = 0.78; sfx.land(); }
+      }
+    }
+  }
+
+  p.sq += (1 - p.sq) * Math.min(1, dt * 12);
+  p.blink -= dt; if (p.blink < -0.12) p.blink = rand(2, 5);
+}
+
+function superBounce(p, pl) {
+  p.vy = -SPRING_V; p.buf = 0; p.springT = 0; p.sq = 1.4;
+  sfx.spring(); burst(pl.x + pl.w / 2, pl.y, 8, PAL.springD, 220, 0.5, 6);
+  floatText('BOING!', p.x + p.w / 2, p.y - 20, '#d9b42e', 28);
+}
+
+function land(p, pl, wasGround) {
+  p.y = pl.y - p.h; p.onGround = true; p.ground = pl;
+  if (pl.type === 'spring') {
+    p.onGround = false; p.ground = null; pl.bounceT = 0.25;
+    if (p.buf > 0) {
+      superBounce(p, pl);                     // jump pressed just before landing
+    } else {
+      p.vy = -JUMP_V; p.sq = 1.2;             // plain bounce, like a normal jump
+      p.springT = 0.15; p.springPad = pl;     // short window to press jump for the boost
+      tone(220, 500, 0.15, 'sine', 0.06);
+    }
+    return;
+  }
+  if (!wasGround) { p.sq = 0.75; sfx.land(); dust(p.x + p.w / 2, pl.y); }
+  p.vy = 0;
+  if (pl.type === 'crumble' && pl.crumbleT < 0) pl.crumbleT = 0.7;
+}
+
+function updateHazards(dt) {
+  const m = heightM(camY);
+  const fd = ramp(m, unlock.fireball, 300);
+  if (state === 'play' && m >= unlock.fireball) {
+    fireTimer -= dt;
+    if (fireTimer <= 0) {
+      fireTimer = rand(lerp(7, 1.8, fd), lerp(10, 3.5, fd));
+      warnings.push({ x: rand(WALL + 20, W - WALL - 20), t: 1.1 });
+    }
+  }
+  for (const w of warnings) {
+    w.t -= dt;
+    if (w.t <= 0) { fireballs.push({ x: w.x, y: camY - 40, vy: 360 + fd * 260, r: 13 }); sfx.fireball(); }
+  }
+  warnings = warnings.filter(w => w.t > 0);
+  for (const f of fireballs) { f.vy += 250 * dt; f.y += f.vy * dt; }
+  fireballs = fireballs.filter(f => f.y < camY + H + 80);
+
+  const circleHit = (p, cx, cy, r) => {
+    const nx = clamp(cx, p.x + 3, p.x + p.w - 3), ny = clamp(cy, p.y + 3, p.y + p.h);
+    return (nx - cx) ** 2 + (ny - cy) ** 2 < r * r;
+  };
+  const hazardHit = p => {
+    const px0 = p.x + 4, px1 = p.x + p.w - 4, py0 = p.y + 4, py1 = p.y + p.h;
+    for (const pl of platforms) {
+      if (!pl.spikes || pl.y < camY - 150 || pl.y > camY + H + 50) continue;
+      const x0 = pl.x + pl.spikes.x0 + 3, x1 = pl.x + pl.spikes.x1 - 3;
+      if (px1 > x0 && px0 < x1 && py1 > pl.y - 9 && py0 < pl.y) return 'got spiked';
+    }
+    for (const b of blades) if (circleHit(p, b.x, b.y, b.r - 5)) return 'was hit by a shuriken';
+    for (const j of jets) {
+      if (jetState(j) !== 2) continue;
+      const [x0, x1] = jetRect(j);
+      if (px1 > x0 + 4 && px0 < x1 - 8 && py1 > j.y - 10 && py0 < j.y + 10) return 'got burned';
+    }
+    for (const f of fireballs) if (circleHit(p, f.x, f.y, f.r - 2)) return 'was hit by a fireball';
+    return null;
+  };
+  for (const p of alive()) {
+    const why = hazardHit(p);
+    if (why) die(p, why);
+    if (state === 'over') return;
+  }
+}
+
+function updateParticles(dt) {
+  if (!particles) return;
+  for (const q of particles) { q.vy += q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; }
+  particles = particles.filter(q => q.life > 0);
+  if (texts) { for (const t of texts) { t.t -= dt; t.y -= 40 * dt; } texts = texts.filter(t => t.t > 0); }
+}
+
+function die(p, reason) {
+  if (state === 'over' || p.dead) return;
+  p.dead = true; shake = 0.35;
+  deathMsg = `${p.name} ${reason}!`;
+  sfx.die();
+  const left = alive();
+  if (mode === 'versus' && left.length > 1) {
+    // Knocked out, but the race goes on
+    const cy = Math.min(p.y + p.h / 2, camY + H - 20);
+    burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
+    floatText(`${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
+    return;
+  }
+  state = 'over'; overT = 0;
+  const cy = Math.min(p.y + p.h / 2, camY + H - 20);
+  burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
+  burst(p.x + p.w / 2, cy, 8, p.dark, 260, 0.7, 6);
+  if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[winner]++; }
+  else if (height > best) { best = height; newBest = true; saveBest(); }
+}
+
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  } catch (e) {}
+}
+
+// ---------- Rendering ----------
+function bgAt(m) {
+  const f = Math.max(0, m) / 130, i = Math.floor(f) % BG.length, j = (i + 1) % BG.length;
+  const t = clamp((f - Math.floor(f) - 0.6) / 0.4, 0, 1);
+  return [mixHex(BG[i][0], BG[j][0], t), mixHex(BG[i][1], BG[j][1], t)];
+}
+
+function drawBackground() {
+  const [top, bot] = bgAt(heightM(camY + H / 2));
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, top); g.addColorStop(1, bot);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Soft floating squares (parallax)
+  const span = H * 2;
+  for (let k = 0; k < 14; k++) {
+    const s = 30 + hash(k, 3) * 90;
+    const x = WALL + hash(k, 1) * (W - 2 * WALL);
+    let y = (hash(k, 2) * span - camY * 0.25) % span;
+    if (y < 0) y += span;
+    y -= s;
+    if (y > H) continue;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(hash(k, 4) * 0.8 + time * 0.05 * (hash(k, 5) - 0.5));
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(-s / 2, -s / 2, s, s);
+    ctx.restore();
+  }
+}
+
+function drawWalls() {
+  ctx.fillStyle = PAL.wall;
+  ctx.fillRect(0, camY, WALL, H); ctx.fillRect(W - WALL, camY, WALL, H);
+  ctx.fillStyle = PAL.wallLine;
+  ctx.fillRect(WALL - 3, camY, 3, H); ctx.fillRect(W - WALL, camY, 3, H);
+  // Height markers every 25 m
+  ctx.font = `700 12px ${FONT}`; ctx.textAlign = 'center';
+  const mTop = Math.ceil(heightM(camY + H) / 25) * 25, mMax = heightM(camY);
+  for (let mm = Math.max(25, mTop); mm <= mMax; mm += 25) {
+    const y = GROUND_Y - mm * PX_PER_M;
+    ctx.fillStyle = PAL.wallLine;
+    ctx.fillRect(8, y - 1, WALL - 16, 2); ctx.fillRect(W - WALL + 8, y - 1, WALL - 16, 2);
+    ctx.fillStyle = PAL.inkSoft;
+    ctx.fillText(mm + 'm', WALL / 2, y - 6); ctx.fillText(mm + 'm', W - WALL / 2, y - 6);
+  }
+  if (best > 0 && mode === 'coop') {
+    const y = GROUND_Y - best * PX_PER_M;
+    if (y > camY - 10 && y < camY + H + 10) {
+      ctx.setLineDash([8, 8]); ctx.strokeStyle = PAL.good; ctx.globalAlpha = 0.6; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(WALL, y); ctx.lineTo(W - WALL, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 1; ctx.fillStyle = PAL.good; ctx.textAlign = 'left'; ctx.font = `800 13px ${FONT}`;
+      ctx.fillText('BEST ' + best + 'm', WALL + 8, y - 6);
+    }
+  }
+}
+
+function drawPlatform(p) {
+  if (p.y < camY - 60 || p.y > camY + H + 80) return;
+  const y = p.y;
+  if (p.type === 'ground') {
+    ctx.fillStyle = PAL.ground; ctx.fillRect(p.x, y, p.w, p.h);
+    ctx.fillStyle = PAL.groundD; ctx.fillRect(p.x, y, p.w, 5);
+    ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText('START', W / 2, y + 40);
+    return;
+  }
+  let x = p.x;
+  if (p.crumbleT >= 0 && !p.falling) x += rand(-2, 2);
+  const colors = { normal: [PAL.normal, PAL.normalD], move: [PAL.move, PAL.moveD], crumble: [PAL.crumble, PAL.crumbleD], spring: [PAL.spring, PAL.springD] };
+  const [c, cd] = colors[p.type];
+
+  if (p.type === 'move') {
+    // faint track showing how far it slides
+    ctx.fillStyle = 'rgba(127,207,176,0.35)';
+    ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
+  }
+  if (p.type === 'crumble') {
+    ctx.globalAlpha = p.falling ? 0.6 : 1;
+    const n = Math.max(2, Math.round(p.w / 26)), bw = p.w / n;
+    for (let k = 0; k < n; k++) {
+      ctx.fillStyle = c; ctx.fillRect(x + k * bw + 1.5, y, bw - 3, p.h);
+      ctx.fillStyle = cd; ctx.fillRect(x + k * bw + 1.5, y + p.h - 4, bw - 3, 4);
+    }
+    ctx.globalAlpha = 1;
+  } else if (p.type === 'spring') {
+    drawSpringI(x, y, p.w, p.bounceT > 0 ? 5 : 0);
+  } else {
+    ctx.fillStyle = c; ctx.fillRect(x, y, p.w, p.h);
+    ctx.fillStyle = cd; ctx.fillRect(x, y + p.h - 4, p.w, 4);
+  }
+
+  if (p.spikes) {
+    const x0 = x + p.spikes.x0, len = p.spikes.x1 - p.spikes.x0;
+    const n = Math.max(1, Math.floor(len / 11)), sw = len / n;
+    ctx.fillStyle = PAL.spike;
+    for (let k = 0; k < n; k++) {
+      ctx.beginPath(); ctx.moveTo(x0 + k * sw, y); ctx.lineTo(x0 + k * sw + sw / 2, y - 11); ctx.lineTo(x0 + (k + 1) * sw, y); ctx.closePath(); ctx.fill();
+    }
+  }
+}
+
+// Spring shaped like an "I": top bar you land on, a short post, and a bottom bar.
+// `sq` pushes the top bar down while it's bouncing.
+function drawSpringI(x, y, w, sq) {
+  ctx.fillStyle = PAL.springD;
+  ctx.fillRect(x + 4, y + 16, w - 8, 6);                 // bottom bar
+  ctx.fillRect(x + w / 2 - 5, y + 6 + sq, 10, 10 - sq);  // post
+  ctx.fillStyle = PAL.spring;
+  ctx.fillRect(x, y + sq, w, 7);                         // top bar
+  ctx.fillStyle = PAL.springD;
+  ctx.fillRect(x, y + sq + 5, w, 2);
+}
+
+function drawBlade(b) {
+  if (b.y < camY - 40 || b.y > camY + H + 40) return;
+  ctx.save();
+  ctx.translate(b.x, b.y); ctx.rotate(b.ang);
+  ctx.fillStyle = PAL.blade;
+  ctx.beginPath();
+  for (let k = 0; k < 8; k++) {
+    const r = k % 2 ? b.r * 0.38 : b.r;
+    const a = k * Math.PI / 4;
+    k ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(r, 0);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath(); ctx.arc(0, 0, 3, 0, 7); ctx.fill();
+  ctx.restore();
+  // faint patrol track
+  ctx.fillStyle = 'rgba(108,91,123,0.12)';
+  ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
+}
+
+function drawJet(j) {
+  if (j.y < camY - 40 || j.y > camY + H + 40) return;
+  const s = jetState(j), L = j.side === 'L';
+  const wallX = L ? WALL : W - WALL;
+  // nozzle on the wall
+  ctx.fillStyle = s ? PAL.flame : PAL.nozzle;
+  ctx.fillRect(L ? WALL - 12 : W - WALL, j.y - 9, 12, 18);
+  if (s === 1 && Math.floor(time * 12) % 2) {
+    ctx.fillStyle = 'rgba(255,154,118,0.6)';
+    ctx.fillRect(L ? wallX : wallX - 14, j.y - 4, 14, 8);
+  }
+  if (s === 2) {
+    const len = JET_LEN * (0.92 + 0.08 * Math.sin(time * 30));
+    const g = ctx.createLinearGradient(wallX, 0, L ? wallX + len : wallX - len, 0);
+    g.addColorStop(0, PAL.flame2); g.addColorStop(0.5, PAL.flame); g.addColorStop(1, 'rgba(255,154,118,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(L ? wallX : wallX - len, j.y - 11, len, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(L ? wallX : wallX - len * 0.5, j.y - 3, len * 0.5, 6);
+  }
+}
+
+function drawPlayer(p) {
+  if (p.dead) return;
+  const sx = 1 / Math.sqrt(p.sq), sy = p.sq;
+  const w = p.w * sx, h = p.h * sy;
+  const x = p.x + p.w / 2 - w / 2, y = p.y + p.h - h;
+  ctx.fillStyle = p.dark; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = p.color; ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+  // eyes
+  const ex = x + w / 2 + p.face * 5, ey = y + h * 0.36;
+  ctx.fillStyle = PAL.ink;
+  const eh = p.blink < 0 ? 2 : 7;
+  ctx.fillRect(ex - 8, ey, 4, eh); ctx.fillRect(ex + 4, ey, 4, eh);
+  if (p.bot) {
+    ctx.fillStyle = p.dark;
+    ctx.fillRect(x + w / 2 - 1.5, y - 8, 3, 8);
+    ctx.fillRect(x + w / 2 - 4, y - 12, 8, 5);
+  }
+}
+
+function render() {
+  ctx.save();
+  if (shake > 0) ctx.translate(rand(-1, 1) * shake * 14, rand(-1, 1) * shake * 14);
+  drawBackground();
+
+  ctx.save();
+  ctx.translate(0, -camY);
+  for (const p of platforms) drawPlatform(p);
+  for (const b of blades) drawBlade(b);
+  for (const p of players) drawPlayer(p);
+  for (const f of fireballs) {
+    ctx.fillStyle = 'rgba(255,140,105,0.25)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 1.8, 0, 7); ctx.fill();
+    ctx.fillStyle = PAL.fire; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fill();
+  }
+  for (const q of particles) {
+    ctx.globalAlpha = clamp(q.life / q.max, 0, 1);
+    ctx.fillStyle = q.color; ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
+  }
+  ctx.globalAlpha = 1;
+  drawWalls();
+  for (const j of jets) drawJet(j);
+  ctx.textAlign = 'center';
+  for (const t of texts) {
+    ctx.globalAlpha = clamp(t.t, 0, 1);
+    ctx.font = `900 ${t.size}px ${FONT}`;
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineJoin = 'round';
+    ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillStyle = t.color; ctx.fillText(t.text, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Fireball warnings at the top edge
+  for (const w of warnings) {
+    if (Math.floor(w.t * 10) % 2) continue;
+    ctx.fillStyle = PAL.fire;
+    ctx.beginPath(); ctx.moveTo(w.x, 14); ctx.lineTo(w.x - 13, 36); ctx.lineTo(w.x + 13, 36); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `900 14px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText('!', w.x, 33);
+  }
+
+  // Danger glow when someone is near the bottom
+  if (state === 'play' && camY < -40) {
+    let danger = 0;
+    for (const p of alive()) danger = Math.max(danger, (p.y - (camY + H * 0.72)) / (H * 0.28));
+    danger = clamp(danger, 0, 1);
+    if (danger > 0) {
+      const g = ctx.createLinearGradient(0, H, 0, H - 150);
+      g.addColorStop(0, `rgba(255,123,156,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(255,123,156,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, H - 150, W, 150);
+    }
+  }
+  ctx.restore();
+  drawHUD();
+}
+
+function text(str, x, y, size, color, align = 'center', weight = 800) {
+  ctx.font = `${weight} ${size}px ${FONT}`; ctx.textAlign = align;
+  ctx.fillStyle = color; ctx.fillText(str, x, y);
+}
+
+function cube(x, y, s, P) {
+  ctx.fillStyle = P.d; ctx.fillRect(x, y, s, s);
+  ctx.fillStyle = P.c; ctx.fillRect(x + s * 0.09, y + s * 0.09, s * 0.82, s * 0.82);
+  ctx.fillStyle = PAL.ink;
+  ctx.fillRect(x + s * 0.3, y + s * 0.36, s * 0.12, s * 0.2); ctx.fillRect(x + s * 0.6, y + s * 0.36, s * 0.12, s * 0.2);
+}
+
+// Draw a centred row of coloured text pieces (e.g. one score per player)
+function textRow(items, y, size, weight = 900, gap = 18) {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  const widths = items.map(it => ctx.measureText(it.t).width);
+  let x = W / 2 - (widths.reduce((u, v) => u + v, 0) + gap * (items.length - 1)) / 2;
+  items.forEach((it, k) => {
+    ctx.globalAlpha = it.a ?? 1;
+    text(it.t, x, y, size, it.c, 'left', weight);
+    x += widths[k] + gap;
+  });
+  ctx.globalAlpha = 1;
+}
+const tag = p => p.bot ? 'BOT' : 'P' + (p.i + 1);
+
+function drawHUD() {
+  const VS = mode === 'versus';
+  if (state !== 'title') {
+    ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
+    text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
+    if (VS) textRow(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, 17);
+    ctx.restore();
+    if (VS) {
+      text('WINS', WALL + 14, 32, 13, PAL.inkSoft, 'left', 800);
+      players.forEach((p, k) => text(String(wins[p.i]), WALL + 62 + k * 24, 32, 16, p.dark, 'left', 900));
+    } else {
+      text('BEST ' + best + ' m', WALL + 14, 32, 15, PAL.good, 'left');
+    }
+    text((muted ? 'SOUND OFF' : 'SOUND ON') + ' (M)  ·  PAUSE (P)', W - WALL - 14, 32, 12, PAL.inkSoft, 'right', 700);
+  }
+
+  if (state === 'count') {
+    const n = Math.ceil(countdown), f = countdown - Math.floor(countdown);
+    ctx.globalAlpha = 0.35 + 0.65 * f;
+    text(String(n), W / 2, H * 0.42, 110 + 40 * f, PAL.ink, 'center', 900);
+    ctx.globalAlpha = 1;
+    text(VS ? 'Race to the top!' : 'Get ready…', W / 2, H * 0.42 + 54, 22, PAL.inkSoft, 'center', 700);
+  }
+
+  if (state === 'title' || state === 'paused' || (state === 'over' && overT > 0.4)) {
+    ctx.fillStyle = 'rgba(255,250,248,0.84)'; ctx.fillRect(0, 0, W, H);
+  }
+
+  if (state === 'title') {
+    const bob = Math.sin(time * 4) * 4;
+    cube(W / 2 - 280, 80 + bob, 42, PAL.players[0]);
+    cube(W / 2 + 238, 80 - bob, 42, PAL.players[1]);
+    text('TOWER DUO', W / 2, 122, 68, PAL.ink, 'center', 900);
+    text('Up to four players on one keyboard', W / 2, 158, 18, PAL.inkSoft, 'center', 600);
+
+    drawModeCard(W / 2 - 300, 180, 'CO-OP', 'Climb together.', 'If anyone falls, everyone loses.', menuSel === 0, PAL.good);
+    drawModeCard(W / 2 + 10, 180, 'VERSUS', 'Race each other up.', 'Fall behind and you’re out.', menuSel === 1, PAL.spike);
+
+    // Player count picker
+    text('PLAYERS', W / 2 - 112, 341, 16, PAL.ink, 'right', 900);
+    for (let n = 1; n <= 4; n++) {
+      const cx = W / 2 - 95 + (n - 1) * 50, sel = n === playerCount;
+      ctx.fillStyle = sel ? PAL.ink : '#ffffff'; ctx.fillRect(cx, 316, 40, 40);
+      ctx.strokeStyle = sel ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(cx + 1, 317, 38, 38);
+      text(String(n), cx + 20, 344, 22, sel ? '#ffffff' : PAL.ink, 'center', 900);
+    }
+    text('◀ ▶ mode  ·  ▲ ▼ or 1–4 players', W / 2 + 112, 341, 12, PAL.inkSoft, 'left', 700);
+    const note = playerCount === 1 ? (menuSel ? 'You against a computer bot' : 'Solo climb') : '';
+    if (note) text(note, W / 2, 378, 14, PAL.ink, 'center', 800);
+
+    // One control card per player (plus the bot)
+    const cards = [];
+    for (let i = 0; i < playerCount; i++) cards.push([i, false]);
+    if (menuSel === 1 && playerCount === 1) cards.push([1, true]);
+    const cw = 165, gap = 12, total = cards.length * cw + (cards.length - 1) * gap;
+    cards.forEach(([i, isBot], k) => drawControlCard(W / 2 - total / 2 + k * (cw + gap), 392, i, isBot));
+
+    const lines = [
+      ['Dangers', 'unlock as you climb: spikes, shurikens, wall flames, fireballs'],
+      ['Springs', 'press jump as you land on one for a huge boost'],
+      ['Tip', menuSel ? 'the screen follows the leader — last one standing wins' : 'stand on each other’s heads for a lift'],
+    ];
+    let y = 602;
+    for (const [a1, b1] of lines) {
+      text(a1, W / 2 - 310, y, 14, PAL.ink, 'left', 900);
+      text(b1, W / 2 - 225, y, 14, PAL.inkSoft, 'left', 600);
+      y += 25;
+    }
+    drawLegend(W / 2, 698);
+    if (menuSel === 0 && best > 0) text('Best co-op height: ' + best + ' m', W / 2, 736, 17, PAL.good, 'center', 800);
+    if (menuSel === 1 && wins.some(v => v > 0)) {
+      textRow([{ t: 'Wins', c: PAL.inkSoft }, ...[0, 1, 2, 3].filter(i => wins[i] > 0).map(i => ({ t: `P${i + 1} ${wins[i]}`, c: PAL.players[i].d }))], 736, 17, 800);
+    }
+    ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 4);
+    text('Press ENTER or SPACE to start', W / 2, 786, 27, PAL.ink, 'center', 900);
+    ctx.globalAlpha = 1;
+    text('M sound  ·  P pause  ·  F full screen', W / 2, 822, 13, PAL.inkSoft, 'center', 600);
+  }
+
+  if (state === 'paused') {
+    text('PAUSED', W / 2, H * 0.42, 70, PAL.ink, 'center', 900);
+    text('P or ENTER to continue  ·  Q main menu', W / 2, H * 0.42 + 48, 21, PAL.inkSoft, 'center', 700);
+  }
+
+  if (state === 'over' && overT > 0.4) {
+    const y0 = H * 0.3;
+    if (VS) {
+      const wp = players.find(p => p.i === winner);
+      if (wp) {
+        cube(W / 2 - 23, y0 - 120, 46, { c: wp.color, d: wp.dark });
+        text(wp.name.toUpperCase() + ' WINS!', W / 2, y0, 66, wp.dark, 'center', 900);
+      } else text('DRAW!', W / 2, y0, 70, PAL.ink, 'center', 900);
+      text(deathMsg, W / 2, y0 + 46, 22, PAL.ink, 'center', 700);
+      textRow(players.map(p => ({ t: `${tag(p)} ${p.best} m`, c: p.dark })), y0 + 108, 26);
+      textRow(players.map(p => ({ t: String(wins[p.i]), c: p.dark })), y0 + 196, 58, 900, 46);
+    } else {
+      text('GAME OVER', W / 2, y0, 76, PAL.spike, 'center', 900);
+      text(deathMsg, W / 2, y0 + 48, 22, PAL.ink, 'center', 700);
+      text(height + ' m', W / 2, y0 + 145, 74, PAL.ink, 'center', 900);
+      if (newBest) text('NEW BEST!', W / 2, y0 + 190, 26, PAL.good, 'center', 900);
+      else text('Best: ' + best + ' m', W / 2, y0 + 190, 21, PAL.good, 'center', 800);
+    }
+    if (overT > 0.8) {
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 4);
+      text(VS ? 'ENTER rematch' : 'ENTER climb again', W / 2, y0 + 285, 27, PAL.ink, 'center', 900);
+      ctx.globalAlpha = 1;
+      text('ESC main menu', W / 2, y0 + 320, 16, PAL.inkSoft, 'center', 700);
+    }
+  }
+}
+
+function drawModeCard(x, y, title, l1, l2, selected, color) {
+  const w = 290, h = 118;
+  ctx.globalAlpha = selected ? 1 : 0.55;
+  ctx.fillStyle = selected ? '#ffffff' : 'rgba(255,255,255,0.6)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = selected ? color : PAL.wallLine; ctx.lineWidth = selected ? 4 : 2;
+  ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+  text(title, x + w / 2, y + 44, 30, selected ? color : PAL.ink, 'center', 900);
+  text(l1, x + w / 2, y + 76, 15, PAL.ink, 'center', 700);
+  text(l2, x + w / 2, y + 98, 15, PAL.inkSoft, 'center', 600);
+  if (selected) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(x + 18, y + 26); ctx.lineTo(x + 30, y + 34); ctx.lineTo(x + 18, y + 42); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Little colour key for platform types
+function drawLegend(cx, y) {
+  const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['crumbles', PAL.crumble, PAL.crumbleD], ['spring', PAL.spring, PAL.springD]];
+  const slot = 130, x0 = cx - slot * items.length / 2;
+  items.forEach(([label, c, cd], k) => {
+    const x = x0 + k * slot + 10;
+    if (label === 'spring') { ctx.save(); ctx.translate(x, y - 16); ctx.scale(44 / 70, 0.75); drawSpringI(0, 0, 70, 0); ctx.restore(); }
+    else {
+      ctx.fillStyle = c; ctx.fillRect(x, y - 12, 44, 12);
+      ctx.fillStyle = cd; ctx.fillRect(x, y - 3, 44, 3);
+    }
+    text(label, x + 52, y, 14, PAL.inkSoft, 'left', 700);
+  });
+}
+
+function drawControlCard(x, y, i, isBot) {
+  const P = isBot ? PAL.bot : PAL.players[i];
+  const w = 165, h = 170;
+  ctx.fillStyle = 'rgba(255,255,255,0.78)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = P.c; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+  cube(x + 12, y + 12, 22, P);
+  text(isBot ? 'BOT' : 'PLAYER ' + (i + 1), x + w / 2 + 12, y + 30, 17, P.d, 'center', 900);
+  if (isBot) {
+    text('Computer', x + w / 2, y + 92, 17, PAL.ink, 'center', 800);
+    text('opponent', x + w / 2, y + 114, 17, PAL.ink, 'center', 800);
+    return;
+  }
+  const k = KEYCAPS[i];
+  const key = (kx, ky, label) => {
+    ctx.fillStyle = PAL.wallLine; ctx.fillRect(kx, ky + 3, 36, 36);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(kx, ky, 36, 36);
+    ctx.strokeStyle = PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(kx + 1, ky + 1, 34, 34);
+    text(label, kx + 18, ky + 25, 17, PAL.ink, 'center', 900);
+  };
+  key(x + w / 2 - 18, y + 46, k[0]);
+  key(x + w / 2 - 58, y + 88, k[1]); key(x + w / 2 - 18, y + 88, k[2]); key(x + w / 2 + 22, y + 88, k[3]);
+  text(`${k[0]} jump · ${k[2]} drop`, x + w / 2, y + 152, 12, PAL.inkSoft, 'center', 700);
+}
+
+// ---------- Loop ----------
+reset();
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now; acc += dt;
+  while (acc >= STEP) {
+    update(STEP);
+    for (const k in pressed) delete pressed[k];
+    acc -= STEP;
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

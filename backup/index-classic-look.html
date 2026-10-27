@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tower Duo</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d17; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+
+// ---------- Constants ----------
+const W = 800, H = 900, WALL = 40;
+const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;
+const PX_PER_M = 40;
+const GROUND_Y = H - 70;
+const FLAME_H = 95;
+const ROW_GAP = 120;        // every row of platforms sits this far above the last (3 m)
+const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid
+const STEP = 1 / 120;
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const heightM = y => (GROUND_Y - y) / PX_PER_M;
+const diff = y => clamp(heightM(y) / 400, 0, 1);
+// 0 → 1 as height goes from `start` to `start + len` metres
+const ramp = (m, start, len) => clamp((m - start) / len, 0, 1);
+// When each obstacle first appears (metres) — the difficulty curve
+const STAGES = [
+  { m: 15,  key: 'spring',  text: 'Springs!',            color: '#7CFF8A' },
+  { m: 30,  key: 'move',    text: 'Moving platforms!',   color: '#a8d0ff' },
+  { m: 60,  key: 'spikes',  text: 'Watch out: spikes!',  color: '#ff8a8a' },
+  { m: 100, key: 'crumble', text: 'Crumbling floors!',   color: '#e8b36a' },
+  { m: 150, key: 'flame',   text: 'Flame vents!',        color: '#ffb000' },
+  { m: 220, key: 'fireball',text: 'Fireballs incoming!', color: '#ff5d3a' },
+];
+const unlock = Object.fromEntries(STAGES.map(s => [s.key, s.m]));
+const hash = (i, j) => (((i * 73856093) ^ (j * 19349663)) >>> 0) % 1000 / 1000;
+
+// ---------- Canvas ----------
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = W * s + 'px';
+  canvas.style.height = H * s + 'px';
+  canvas.width = Math.round(W * s * dpr);
+  canvas.height = Math.round(H * s * dpr);
+  ctx.setTransform(s * dpr, 0, 0, s * dpr, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------- Input ----------
+const keys = {}, pressed = {};
+const CONTROLS = [
+  { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS' },
+  { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', down: 'ArrowDown' },
+];
+addEventListener('keydown', e => {
+  if (e.metaKey) return; // keep Cmd+Q etc. working
+  e.preventDefault();
+  if (!keys[e.code]) pressed[e.code] = true;
+  keys[e.code] = true;
+  audioInit();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
+  if (state === 'play' || state === 'count') { pausedFrom = state; state = 'paused'; }
+});
+
+// ---------- Audio ----------
+let actx = null, muted = false, noiseBuf = null;
+function audioInit() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (actx && actx.state === 'suspended') actx.resume();
+}
+function tone(f0, f1, dur, type = 'square', vol = 0.06, delay = 0) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + delay;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(actx.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol = 0.1, freq = 1200) {
+  if (!actx || muted) return;
+  if (!noiseBuf) {
+    noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+  const g = actx.createGain(); const t = actx.currentTime;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(actx.destination);
+  s.start(t); s.stop(t + dur);
+}
+const sfx = {
+  jump: i => tone(i ? 360 : 290, i ? 720 : 580, 0.13, 'square', 0.045),
+  land: () => tone(170, 90, 0.06, 'triangle', 0.05),
+  spring: () => tone(240, 1300, 0.3, 'sine', 0.09),
+  crumble: () => noise(0.3, 0.08, 700),
+  flame: () => noise(0.35, 0.035, 2200),
+  fireball: () => tone(900, 300, 0.4, 'sawtooth', 0.025),
+  die: () => { tone(520, 50, 0.8, 'sawtooth', 0.09); noise(0.6, 0.18, 900); },
+  beep: f => tone(f, f, 0.12, 'square', 0.05),
+  milestone: () => { tone(660, 660, 0.1, 'triangle', 0.08); tone(990, 990, 0.18, 'triangle', 0.08, 0.1); },
+};
+
+// ---------- Best score ----------
+let best = 0;
+try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
+function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
+
+// ---------- World state ----------
+let state = 'title', pausedFrom = 'play';
+let players, platforms, particles, fireballs, warnings, texts;
+let camY, nextRowY, rowK, lastX, time, countdown, overT, deathMsg, height, nextMilestone;
+let fireTimer, shake, scrollSpeed, newBest, stageIdx, prevRowHazard;
+
+function mkPlayer(i, x) {
+  return {
+    i, x, y: GROUND_Y - 44, w: 34, h: 44, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - 44,
+    onGround: true, ground: null, coyote: 0, buf: 0, face: i ? -1 : 1, sq: 1, dropT: 0,
+    blink: rand(1, 4), dead: false, springT: 0, springPad: null,
+    color: i ? '#4cc9f0' : '#ff5d73', dark: i ? '#1f7fa6' : '#b8304a', name: i ? 'Player 2' : 'Player 1',
+  };
+}
+
+function reset() {
+  camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
+  fireTimer = 3; newBest = false; stageIdx = 0; prevRowHazard = false;
+  particles = []; fireballs = []; warnings = []; texts = [];
+  platforms = [{ x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, t: 0, crumbleT: -1, falling: false }];
+  rowK = 1; nextRowY = GROUND_Y - ROW_GAP; lastX = W / 2;
+  generate();
+  players = [mkPlayer(0, W / 2 - 100), mkPlayer(1, W / 2 + 66)];
+}
+
+function generate() {
+  while (nextRowY > camY - 300) {
+    // Rows stay on an even grid; once in a while one is nudged a little up or down
+    const nudge = Math.random() < ROW_WOBBLE ? rand(-18, 18) : 0;
+    genRow(nextRowY + nudge);
+    rowK++;
+    nextRowY = GROUND_Y - rowK * ROW_GAP;
+  }
+}
+
+// Horizontal space a platform can ever occupy (moving ones include their full slide range)
+function extent(p) {
+  return p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w] : [p.x, p.x + p.w];
+}
+
+function genRow(y) {
+  const d = diff(y);
+  const minW = lerp(150, 90, d), maxW = lerp(230, 140, d);
+  const w = rand(minW, maxW);
+  let cx = clamp(lastX + rand(-290, 290), WALL + w / 2, W - WALL - w / 2);
+  if (Math.abs(cx - lastX) < 40) cx = clamp(cx + (Math.random() < 0.5 ? -90 : 90), WALL + w / 2, W - WALL - w / 2);
+  // A row right after a row with spikes/flames is always hazard-free,
+  // so you never have to dodge hazards on two steps back to back.
+  const allowHaz = !prevRowHazard;
+  const main = makePlatform(cx, y, w, d, WALL, W - WALL, allowHaz);
+  platforms.push(main);
+  let rowHazard = !!(main.spikes || main.flame);
+  lastX = main.type === 'move' ? main.baseX + main.w / 2 : cx;
+
+  // A second platform on the same row gives room for both players.
+  // It only goes in the free space beside the first one, so they never overlap.
+  if (Math.random() < lerp(0.4, 0.15, d)) {
+    const GAP = 50;
+    const [mL, mR] = extent(main);
+    const lanes = [[WALL, mL - GAP], [mR + GAP, W - WALL]].filter(([a, b]) => b - a >= minW * 0.8);
+    if (lanes.length) {
+      const [lo, hi] = lanes[Math.floor(Math.random() * lanes.length)];
+      const w2 = Math.min(rand(minW * 0.8, maxW * 0.9), hi - lo);
+      const cx2 = rand(lo + w2 / 2, hi - w2 / 2);
+      const second = makePlatform(cx2, y, w2, d, lo, hi, allowHaz);
+      platforms.push(second);
+      rowHazard = rowHazard || !!(second.spikes || second.flame);
+    }
+  }
+  prevRowHazard = rowHazard;
+}
+
+// lo/hi: the horizontal lane this platform must stay inside
+function makePlatform(cx, y, w, d, lo, hi, allowHaz = true) {
+  const m = heightM(y);
+  const p = { x: cx - w / 2, y, w, h: 18, type: 'normal', dx: 0, t: rand(0, 10), crumbleT: -1, falling: false, vy: 0, bounceT: 0 };
+  const r = Math.random();
+  const pMove = m >= unlock.move ? lerp(0.08, 0.32, ramp(m, unlock.move, 250)) : 0;
+  const pCrumble = m >= unlock.crumble ? lerp(0.06, 0.22, ramp(m, unlock.crumble, 250)) : 0;
+  const pSpring = m >= unlock.spring ? 0.05 : 0;
+  // Moving platforms slide within their lane; if the lane is too narrow they stay still
+  const laneC = clamp(cx + rand(-60, 60), lo + w / 2, hi - w / 2);
+  const laneAmp = Math.min(rand(90, 220), laneC - lo - w / 2, hi - w / 2 - laneC);
+  if (r < pMove) {
+    if (laneAmp >= 40) p.type = 'move';   // otherwise it just stays a normal platform
+  } else if (r < pMove + pCrumble) {
+    p.type = 'crumble';
+  } else if (r < pMove + pCrumble + pSpring) {
+    p.type = 'spring'; p.w = 70; p.x = cx - 35;
+  }
+  if (p.type === 'move') {
+    const c = laneC;
+    p.amp = laneAmp;
+    p.baseX = c - w / 2;
+    p.spd = rand(0.8, 1.5) * (1 + d * 0.6);
+    p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
+  }
+  // Hazards: always leave a safe landing area
+  const pHazard = m >= unlock.spikes ? lerp(0.12, 0.6, ramp(m, unlock.spikes, 300)) : 0;
+  if (allowHaz && (p.type === 'normal' || p.type === 'move') && p.w >= 110 && Math.random() < pHazard) {
+    const safe = Math.max(70, p.w * 0.5);   // at least half the platform stays safe
+    if (m >= unlock.flame && Math.random() < lerp(0.25, 0.5, ramp(m, unlock.flame, 200))) {
+      const fw = Math.min(rand(40, 80), p.w - safe);
+      const x0 = Math.random() < 0.5 ? 0 : p.w - fw;
+      p.flame = { x0, x1: x0 + fw, period: rand(2.4, 3.4), off: rand(0, 3), last: 0 };
+    } else {
+      const len = rand(30, p.w - safe);
+      const x0 = Math.random() < 0.5 ? 0 : p.w - len;
+      p.spikes = { x0, x1: x0 + len };
+    }
+  }
+  return p;
+}
+
+function flameState(p) {
+  const f = p.flame;
+  const ph = (p.t + f.off) % f.period;
+  if (ph >= f.period - 1.0) return 2;      // burning
+  if (ph >= f.period - 1.6) return 1;      // warning
+  return 0;
+}
+
+// ---------- Particles & text ----------
+function burst(x, y, n, color, spd = 220, life = 0.6, size = 4, grav = 900) {
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * Math.PI * 2, s = Math.random() * spd;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - spd * 0.3, life, max: life, color, size: rand(size * 0.5, size), grav });
+  }
+}
+function dust(x, y) {
+  for (let k = 0; k < 6; k++)
+    particles.push({ x: x + rand(-12, 12), y, vx: rand(-80, 80), vy: rand(-60, -10), life: 0.35, max: 0.35, color: 'rgba(230,220,200,0.8)', size: rand(2, 4), grav: 200 });
+}
+function floatText(text, x, y, color = '#ffe066') { texts.push({ text, x, y, t: 1.4, color }); }
+
+// ---------- Update ----------
+function update(dt) {
+  // Global keys
+  if (pressed.KeyM) muted = !muted;
+  if (pressed.KeyF) toggleFullscreen();
+
+  if (state === 'title') {
+    if (pressed.Enter || pressed.Space) { reset(); state = 'count'; countdown = 3; sfx.beep(440); }
+    time += dt; updateParticles(dt);
+    return;
+  }
+  if (state === 'paused') {
+    if (pressed.Escape || pressed.KeyP || pressed.Enter || pressed.Space) state = pausedFrom;
+    return;
+  }
+  if (state === 'over') {
+    overT += dt;
+    updateParticles(dt);
+    shake = Math.max(0, shake - dt);
+    if (overT > 0.8 && (pressed.Enter || pressed.Space)) { reset(); state = 'count'; countdown = 3; sfx.beep(440); }
+    return;
+  }
+  if (pressed.Escape || pressed.KeyP) { pausedFrom = state; state = 'paused'; return; }
+
+  time += dt;
+  if (state === 'count') {
+    const before = Math.ceil(countdown);
+    countdown -= dt;
+    const after = Math.ceil(countdown);
+    if (after !== before) {
+      if (after > 0) sfx.beep(440);
+      else { sfx.beep(880); state = 'play'; floatText('GO!', W / 2, camY + H * 0.4, '#7CFF8A'); }
+    }
+  }
+
+  // Camera: constant climb that speeds up, plus catch-up when players climb fast
+  if (state === 'play') {
+    const camM = Math.max(0, heightM(camY + H));
+    scrollSpeed = Math.min(38 + camM * 0.4, 200);
+    camY -= scrollSpeed * dt;
+  }
+  const topY = Math.min(players[0].y, players[1].y);
+  const target = topY - H * 0.38;
+  if (target < camY) camY += (target - camY) * Math.min(1, 5 * dt);
+
+  generate();
+  if (stageIdx < STAGES.length && heightM(camY) >= STAGES[stageIdx].m) {
+    const st = STAGES[stageIdx++];
+    floatText(st.text, W / 2, camY + H * 0.2, st.color);
+    sfx.milestone();
+  }
+  updatePlatforms(dt);
+  for (const p of players) updatePlayer(p, dt);
+  updateHazards(dt);
+  updateParticles(dt);
+  shake = Math.max(0, shake - dt);
+
+  // Height score
+  const h = Math.max(0, Math.floor(heightM(topY + 44)));
+  if (h > height) {
+    height = h;
+    if (height >= nextMilestone) {
+      floatText(nextMilestone + ' m!', W / 2, camY + H * 0.3);
+      sfx.milestone();
+      nextMilestone += 50;
+    }
+  }
+
+  // Falling off the bottom
+  for (const p of players) if (p.y > camY + H + 10) return die(p, 'fell off the tower');
+}
+
+function updatePlatforms(dt) {
+  for (const p of platforms) {
+    p.t += dt;
+    const ox = p.x;
+    if (p.type === 'move') p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
+    if (p.crumbleT >= 0 && !p.falling) {
+      p.crumbleT -= dt;
+      if (p.crumbleT <= 0) {
+        p.falling = true; sfx.crumble();
+        for (let k = 0; k < 10; k++) burst(p.x + Math.random() * p.w, p.y + 8, 1, '#c49a5a', 120, 0.7, 5);
+      }
+    }
+    if (p.falling) { p.vy += GRAV * 0.6 * dt; p.y += p.vy * dt; }
+    if (p.bounceT > 0) p.bounceT -= dt;
+    p.dx = p.x - ox;
+    if (p.flame) {
+      const s = flameState(p);
+      if (s === 2 && p.flame.last !== 2 && p.y > camY && p.y < camY + H + 50) sfx.flame();
+      p.flame.last = s;
+    }
+  }
+  platforms = platforms.filter(p => p.y < camY + H + 250);
+}
+
+function updatePlayer(p, dt) {
+  const c = CONTROLS[p.i];
+  p.prevX = p.x; p.prevY = p.y;
+
+  // Ride whatever we're standing on
+  if (p.onGround && p.ground) {
+    if (p.ground.falling) { p.onGround = false; p.ground = null; }
+    else p.x += p.ground.isPlayer ? (p.ground.ref.x - p.ground.ref.prevX) : p.ground.dx;
+  }
+
+  const dir = (keys[c.right] ? 1 : 0) - (keys[c.left] ? 1 : 0);
+  if (dir) p.face = dir;
+  const accel = p.onGround ? 3200 : 2200;
+  const tvx = dir * MAX_VX;
+  if (p.vx < tvx) p.vx = Math.min(tvx, p.vx + accel * dt);
+  else if (p.vx > tvx) p.vx = Math.max(tvx, p.vx - accel * dt);
+
+  if (pressed[c.jump]) p.buf = 0.13;
+  // Pressed jump right after a plain spring bounce: upgrade it to the full launch
+  if (p.springT > 0) {
+    p.springT -= dt;
+    if (pressed[c.jump] && p.vy < 0) superBounce(p, p.springPad);
+  }
+  p.buf -= dt;
+  p.coyote = p.onGround ? 0.1 : p.coyote - dt;
+  if (p.buf > 0 && p.coyote > 0) {
+    p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.3;
+    sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
+  }
+  if (pressed[c.down] && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground') {
+    p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
+  }
+  p.dropT -= dt;
+
+  // Gravity (heavier when jump is released early, for variable jump height)
+  p.vy += GRAV * dt;
+  if (!keys[c.jump] && p.vy < 0) p.vy += GRAV * 1.4 * dt;
+  p.vy = Math.min(p.vy, MAX_FALL);
+
+  p.x += p.vx * dt;
+  if (p.x < WALL) { p.x = WALL; p.vx = 0; }
+  if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
+
+  const prevBottom = p.y + p.h;
+  p.y += p.vy * dt;
+  const wasGround = p.onGround;
+  p.onGround = false; p.ground = null;
+
+  if (p.vy >= 0) {
+    // One-way platforms
+    if (p.dropT <= 0) {
+      for (const pl of platforms) {
+        if (pl.falling) continue;
+        if (p.x + p.w - 4 > pl.x && p.x + 4 < pl.x + pl.w && prevBottom <= pl.y + 1 && p.y + p.h >= pl.y) {
+          land(p, pl, pl.y, wasGround);
+          break;
+        }
+      }
+    }
+    // Stand on your partner's head
+    const o = players[1 - p.i];
+    if (!p.onGround && o !== p) {
+      if (p.x + p.w - 6 > o.x && p.x + 6 < o.x + o.w && prevBottom <= Math.max(o.y, o.prevY) + 2 && p.y + p.h >= o.y) {
+        p.y = o.y - p.h; p.vy = 0; p.onGround = true;
+        p.ground = { isPlayer: true, ref: o, falling: false };
+        if (!wasGround) { p.sq = 0.75; sfx.land(); }
+      }
+    }
+  }
+
+  p.sq += (1 - p.sq) * Math.min(1, dt * 12);
+  p.blink -= dt; if (p.blink < -0.12) p.blink = rand(2, 5);
+}
+
+function superBounce(p, pl) {
+  p.vy = -SPRING_V; p.buf = 0; p.springT = 0; p.sq = 1.45;
+  sfx.spring(); burst(pl.x + pl.w / 2, pl.y, 16, '#7CFF8A', 260, 0.6, 5);
+  floatText('BOING!', p.x + p.w / 2, p.y - 20, '#7CFF8A');
+}
+
+function land(p, pl, y, wasGround) {
+  p.y = y - p.h; p.onGround = true; p.ground = pl;
+  if (pl.type === 'spring') {
+    p.onGround = false; p.ground = null; pl.bounceT = 0.25;
+    if (p.buf > 0) {
+      superBounce(p, pl);                     // jump pressed just before landing
+    } else {
+      p.vy = -JUMP_V; p.sq = 1.25;            // plain bounce, like a normal jump
+      p.springT = 0.15; p.springPad = pl;     // short window to press jump for the boost
+      tone(220, 500, 0.15, 'sine', 0.06);
+    }
+    return;
+  }
+  if (!wasGround) { p.sq = 0.72; sfx.land(); dust(p.x + p.w / 2, y); }
+  p.vy = 0;
+  if (pl.type === 'crumble' && pl.crumbleT < 0) pl.crumbleT = 0.7;
+}
+
+function updateHazards(dt) {
+  const m = heightM(camY);
+  // Fireballs start after 50 m and get more frequent
+  const fd = ramp(m, unlock.fireball, 300);
+  if (state === 'play' && m >= unlock.fireball) {
+    fireTimer -= dt;
+    if (fireTimer <= 0) {
+      const d = fd;
+      fireTimer = rand(lerp(7, 1.8, d), lerp(10, 3.5, d));
+      warnings.push({ x: rand(WALL + 20, W - WALL - 20), t: 1.1 });
+    }
+  }
+  for (const w of warnings) {
+    w.t -= dt;
+    if (w.t <= 0) { fireballs.push({ x: w.x, y: camY - 40, vy: 360 + fd * 260, r: 14 }); sfx.fireball(); }
+  }
+  warnings = warnings.filter(w => w.t > 0);
+  for (const f of fireballs) {
+    f.vy += 250 * dt; f.y += f.vy * dt;
+    if (Math.random() < 0.7) particles.push({ x: f.x + rand(-6, 6), y: f.y - 8, vx: rand(-30, 30), vy: rand(-80, -20), life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#ffb000' : '#ff4d00', size: rand(3, 6), grav: -100 });
+  }
+  fireballs = fireballs.filter(f => f.y < camY + H + 80);
+
+  // Collisions with hazards
+  for (const p of players) {
+    const px0 = p.x + 4, px1 = p.x + p.w - 4, py0 = p.y + 4, py1 = p.y + p.h;
+    for (const pl of platforms) {
+      if (pl.y < camY - 150 || pl.y > camY + H + 50) continue;
+      if (pl.spikes) {
+        const x0 = pl.x + pl.spikes.x0 + 3, x1 = pl.x + pl.spikes.x1 - 3;
+        if (px1 > x0 && px0 < x1 && py1 > pl.y - 12 && py0 < pl.y) return die(p, 'got spiked');
+      }
+      if (pl.flame && flameState(pl) === 2) {
+        const x0 = pl.x + pl.flame.x0 + 6, x1 = pl.x + pl.flame.x1 - 6;
+        if (px1 > x0 && px0 < x1 && py1 > pl.y - FLAME_H && py0 < pl.y) return die(p, 'got burned');
+      }
+    }
+    for (const f of fireballs) {
+      const cx = clamp(f.x, px0, px1), cy = clamp(f.y, py0, py1);
+      if ((cx - f.x) ** 2 + (cy - f.y) ** 2 < (f.r - 2) ** 2) return die(p, 'was hit by a fireball');
+    }
+  }
+}
+
+function updateParticles(dt) {
+  if (!particles) return;
+  for (const q of particles) { q.vy += q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; }
+  particles = particles.filter(q => q.life > 0);
+  if (texts) { for (const t of texts) { t.t -= dt; t.y -= 40 * dt; } texts = texts.filter(t => t.t > 0); }
+}
+
+function die(p, reason) {
+  if (state === 'over') return;
+  state = 'over'; overT = 0; shake = 0.45; p.dead = true;
+  deathMsg = `${p.name} ${reason}!`;
+  sfx.die();
+  const cy = Math.min(p.y + p.h / 2, camY + H - 20);
+  burst(p.x + p.w / 2, cy, 40, p.color, 420, 1.0, 7);
+  burst(p.x + p.w / 2, cy, 20, '#ffffff', 300, 0.6, 4);
+  if (height > best) { best = height; newBest = true; saveBest(); }
+}
+
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  } catch (e) {}
+}
+
+// ---------- Rendering ----------
+function skyColor(m) {
+  const stops = [[0, [40, 60, 120]], [120, [80, 40, 110]], [260, [30, 18, 60]], [450, [6, 6, 18]]];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [m0, c0] = stops[i], [m1, c1] = stops[i + 1];
+    if (m <= m1) { const t = clamp((m - m0) / (m1 - m0), 0, 1); return c0.map((v, k) => Math.round(lerp(v, c1[k], t))); }
+  }
+  return stops[stops.length - 1][1];
+}
+
+function drawBackground() {
+  const m = Math.max(0, heightM(camY + H / 2));
+  const c = skyColor(m), c2 = skyColor(m + 60);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, `rgb(${c2})`); g.addColorStop(1, `rgb(${c})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Stars fade in as you climb
+  const starA = clamp((m - 60) / 200, 0, 1) * 0.9 + 0.1;
+  for (let i = 0; i < 90; i++) {
+    const sx = hash(i, 7) * W;
+    let sy = (hash(i, 13) * H * 2 - camY * 0.08) % (H * 2);
+    if (sy < 0) sy += H * 2;
+    if (sy > H) continue;
+    const tw = 0.5 + 0.5 * Math.sin(time * 2 + i);
+    ctx.fillStyle = `rgba(255,255,255,${starA * (0.3 + 0.7 * tw) * 0.8})`;
+    ctx.fillRect(sx, sy, hash(i, 3) < 0.15 ? 2.5 : 1.5, hash(i, 3) < 0.15 ? 2.5 : 1.5);
+  }
+
+  // Back wall of the tower (parallax)
+  const bw = 64, bh = 32, par = camY * 0.5;
+  const row0 = Math.floor(par / bh) - 1;
+  ctx.globalAlpha = 0.28;
+  for (let r = row0; r < row0 + H / bh + 3; r++) {
+    const y = r * bh - par;
+    const off = (r & 1) ? bw / 2 : 0;
+    for (let x = -bw + off; x < W; x += bw) {
+      const s = 40 + hash(r, Math.round(x)) * 25;
+      ctx.fillStyle = `rgb(${s},${s * 0.9},${s * 1.1})`;
+      ctx.fillRect(x + 2, y + 2, bw - 4, bh - 4);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Windows in the back wall showing the sky
+  for (let k = Math.floor(par / 420) - 1; k < Math.floor(par / 420) + 4; k++) {
+    const y = k * 420 - par + 120;
+    const x = hash(k, 99) < 0.5 ? 180 : W - 260;
+    ctx.fillStyle = `rgba(${c2.map(v => Math.min(255, v + 40))},0.55)`;
+    ctx.beginPath(); ctx.moveTo(x, y + 150); ctx.lineTo(x, y + 40); ctx.arc(x + 40, y + 40, 40, Math.PI, 0); ctx.lineTo(x + 80, y + 150); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(x + 40, y); ctx.lineTo(x + 40, y + 150); ctx.moveTo(x, y + 80); ctx.lineTo(x + 80, y + 80); ctx.stroke();
+  }
+}
+
+function drawSideWalls() {
+  const bh = 26, bw = 40;
+  const r0 = Math.floor(camY / bh) - 1, r1 = r0 + Math.ceil(H / bh) + 2;
+  for (const side of [0, 1]) {
+    const x0 = side ? W - WALL : 0;
+    ctx.fillStyle = '#2a2433'; ctx.fillRect(x0, camY, WALL, H);
+    for (let r = r0; r <= r1; r++) {
+      const y = r * bh, off = (r & 1) ? bw / 2 : 0;
+      for (let x = x0 - bw + off; x < x0 + WALL; x += bw) {
+        const s = 70 + hash(r, x + side * 1000) * 30;
+        ctx.fillStyle = `rgb(${s},${s * 0.85},${s * 0.8})`;
+        const lx = Math.max(x + 1, x0), rx = Math.min(x + bw - 1, x0 + WALL);
+        if (rx > lx) ctx.fillRect(lx, y + 1, rx - lx, bh - 2);
+      }
+    }
+    // Inner edge shading
+    const g = ctx.createLinearGradient(side ? x0 : x0 + WALL, 0, side ? x0 + 14 : x0 + WALL - 14, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(side ? x0 : x0 + WALL - 14, camY, 14, H);
+  }
+  // Height markers every 25 m
+  ctx.font = 'bold 13px -apple-system, Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  const mTop = Math.ceil(heightM(camY + H) / 25) * 25, mMax = heightM(camY);
+  for (let mm = Math.max(25, mTop); mm <= mMax; mm += 25) {
+    const y = GROUND_Y - mm * PX_PER_M;
+    ctx.fillStyle = 'rgba(255,224,102,0.9)';
+    ctx.fillRect(4, y - 1, WALL - 8, 2); ctx.fillRect(W - WALL + 4, y - 1, WALL - 8, 2);
+    ctx.fillStyle = '#fff3c4';
+    ctx.fillText(mm + 'm', WALL / 2, y - 6); ctx.fillText(mm + 'm', W - WALL / 2, y - 6);
+  }
+  if (best > 0) {
+    const y = GROUND_Y - best * PX_PER_M;
+    if (y > camY - 10 && y < camY + H + 10) {
+      ctx.setLineDash([10, 8]); ctx.strokeStyle = 'rgba(124,255,138,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(WALL, y); ctx.lineTo(W - WALL, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(124,255,138,0.9)'; ctx.textAlign = 'left';
+      ctx.fillText('BEST ' + best + 'm', WALL + 8, y - 6);
+    }
+  }
+}
+
+function rr(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function drawPlatform(p) {
+  if (p.y < camY - 60 || p.y > camY + H + 80) return;
+  let x = p.x;
+  const y = p.y;
+  if (p.type === 'ground') {
+    ctx.fillStyle = '#4a3f55'; ctx.fillRect(p.x, y, p.w, p.h);
+    ctx.fillStyle = '#7d6e8a'; ctx.fillRect(p.x, y, p.w, 6);
+    ctx.fillStyle = '#ffffff22'; ctx.font = 'bold 18px -apple-system, Helvetica, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('— START —', W / 2, y + 40);
+    return;
+  }
+  if (p.crumbleT >= 0 && !p.falling) x += rand(-2, 2);
+  if (p.type === 'normal') {
+    ctx.fillStyle = '#6e6157'; rr(x, y, p.w, p.h, 4); ctx.fill();
+    ctx.fillStyle = '#b5a28d'; ctx.fillRect(x + 2, y, p.w - 4, 6);
+    ctx.fillStyle = '#e2d2bb'; ctx.fillRect(x + 2, y, p.w - 4, 2);
+    ctx.fillStyle = '#3f3530';
+    for (let k = 28; k < p.w - 6; k += 28) ctx.fillRect(x + k, y + 7, 2, p.h - 8);
+  } else if (p.type === 'move') {
+    ctx.fillStyle = '#34506e'; rr(x, y, p.w, p.h, 4); ctx.fill();
+    ctx.fillStyle = '#6a9bd0'; ctx.fillRect(x + 2, y, p.w - 4, 6);
+    ctx.fillStyle = '#a8d0ff'; ctx.fillRect(x + 2, y, p.w - 4, 2);
+    ctx.fillStyle = '#cfe4ff';
+    for (let k = 10; k < p.w - 4; k += 24) { ctx.beginPath(); ctx.arc(x + k, y + 12, 2, 0, 7); ctx.fill(); }
+    ctx.fillStyle = 'rgba(168,208,255,0.6)';
+    ctx.beginPath(); ctx.moveTo(x - 4, y + 9); ctx.lineTo(x - 12, y + 9); ctx.lineTo(x - 8, y + 4); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + p.w + 4, y + 9); ctx.lineTo(x + p.w + 12, y + 9); ctx.lineTo(x + p.w + 8, y + 4); ctx.fill();
+  } else if (p.type === 'crumble') {
+    ctx.globalAlpha = p.falling ? 0.7 : 1;
+    ctx.fillStyle = '#8a6a3c'; rr(x, y, p.w, p.h, 3); ctx.fill();
+    ctx.fillStyle = '#d4a865'; ctx.fillRect(x + 2, y, p.w - 4, 5);
+    ctx.strokeStyle = '#4e3a1e'; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let k = 18; k < p.w - 8; k += 30) { ctx.moveTo(x + k, y + 2); ctx.lineTo(x + k + 6, y + 9); ctx.lineTo(x + k + 2, y + p.h); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  } else if (p.type === 'spring') {
+    const sq = p.bounceT > 0 ? 6 : 0;
+    ctx.fillStyle = '#2f5d3a'; rr(x, y + 6, p.w, p.h - 6, 3); ctx.fill();
+    ctx.strokeStyle = '#c9d6cc'; ctx.lineWidth = 3; ctx.beginPath();
+    for (let k = 0; k < 4; k++) { const yy = y - 10 + sq + k * (16 - sq) / 4; ctx.moveTo(x + 18, yy); ctx.lineTo(x + p.w - 18, yy + 3); }
+    ctx.stroke();
+    ctx.fillStyle = '#7CFF8A'; rr(x + 6, y - 14 + sq, p.w - 12, 7, 3); ctx.fill();
+  }
+
+  if (p.spikes) {
+    const x0 = x + p.spikes.x0, len = p.spikes.x1 - p.spikes.x0;
+    const n = Math.max(1, Math.floor(len / 12)), sw = len / n;
+    ctx.fillStyle = '#dfe5ee'; ctx.strokeStyle = '#6e7889'; ctx.lineWidth = 1;
+    for (let k = 0; k < n; k++) {
+      ctx.beginPath(); ctx.moveTo(x0 + k * sw, y); ctx.lineTo(x0 + k * sw + sw / 2, y - 14); ctx.lineTo(x0 + (k + 1) * sw, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,60,60,0.8)';
+    for (let k = 0; k < n; k++) ctx.fillRect(x0 + k * sw + sw / 2 - 1, y - 14, 2, 3);
+  }
+  if (p.flame) {
+    const fx0 = x + p.flame.x0, fx1 = x + p.flame.x1, s = flameState(p);
+    ctx.fillStyle = '#1b1b1f'; ctx.fillRect(fx0, y - 3, fx1 - fx0, 5);
+    ctx.fillStyle = s ? '#ff6a00' : '#553322';
+    for (let k = fx0 + 4; k < fx1 - 3; k += 7) ctx.fillRect(k, y - 2, 3, 3);
+    if (s === 1) drawFlame(fx0, fx1, y, 14 + Math.sin(time * 40) * 4, 0.6);
+    if (s === 2) drawFlame(fx0, fx1, y, FLAME_H, 1);
+  }
+}
+
+function drawFlame(x0, x1, baseY, h, a) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient((x0 + x1) / 2, baseY - h * 0.3, 4, (x0 + x1) / 2, baseY - h * 0.3, h * 0.9 + 20);
+  glow.addColorStop(0, `rgba(255,120,0,${0.35 * a})`); glow.addColorStop(1, 'rgba(255,60,0,0)');
+  ctx.fillStyle = glow; ctx.fillRect(x0 - h, baseY - h * 1.4, x1 - x0 + 2 * h, h * 1.6);
+  const n = Math.max(2, Math.round((x1 - x0) / 14));
+  for (let k = 0; k < n; k++) {
+    const cx = x0 + (k + 0.5) * (x1 - x0) / n;
+    const hh = h * (0.75 + 0.25 * Math.sin(time * 23 + k * 2.1)) * (0.85 + 0.15 * Math.random());
+    const g = ctx.createLinearGradient(0, baseY, 0, baseY - hh);
+    g.addColorStop(0, `rgba(255,250,200,${a})`); g.addColorStop(0.35, `rgba(255,160,0,${a})`); g.addColorStop(1, 'rgba(255,40,0,0)');
+    ctx.fillStyle = g;
+    const sway = Math.sin(time * 9 + k) * 5;
+    ctx.beginPath(); ctx.moveTo(cx - 10, baseY);
+    ctx.quadraticCurveTo(cx - 12, baseY - hh * 0.55, cx + sway, baseY - hh);
+    ctx.quadraticCurveTo(cx + 12, baseY - hh * 0.55, cx + 10, baseY);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPlayer(p) {
+  if (p.dead) return;
+  const sx = 1 / Math.sqrt(p.sq), sy = p.sq;
+  const w = p.w * sx, h = p.h * sy;
+  const x = p.x + p.w / 2 - w / 2, y = p.y + p.h - h;
+  // shadow-ish outline
+  ctx.fillStyle = p.dark; rr(x - 2, y - 2, w + 4, h + 4, 12); ctx.fill();
+  ctx.fillStyle = p.color; rr(x, y, w, h, 10); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; rr(x + 4, y + 4, w * 0.35, h * 0.4, 6); ctx.fill();
+  // feet
+  ctx.fillStyle = p.dark;
+  const step = p.onGround && Math.abs(p.vx) > 20 ? Math.sin(time * 22) * 3 : 0;
+  ctx.fillRect(x + 4, y + h - 2 + step, 10, 4); ctx.fillRect(x + w - 14, y + h - 2 - step, 10, 4);
+  // eyes
+  const ex = x + w / 2 + p.face * 6, ey = y + h * 0.33;
+  const eh = p.blink < 0 ? 1.5 : 7;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.ellipse(ex - 7, ey, 5.5, eh, 0, 0, 7); ctx.ellipse(ex + 7, ey, 5.5, eh, 0, 0, 7); ctx.fill();
+  if (p.blink >= 0) {
+    ctx.fillStyle = '#111';
+    const look = p.vy < -100 ? -2 : p.vy > 300 ? 2 : 0;
+    ctx.beginPath(); ctx.arc(ex - 7 + p.face * 2, ey + look, 2.8, 0, 7); ctx.arc(ex + 7 + p.face * 2, ey + look, 2.8, 0, 7); ctx.fill();
+  }
+  // tag
+  ctx.fillStyle = p.color; ctx.font = 'bold 12px -apple-system, Helvetica, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(p.i ? 'P2' : 'P1', p.x + p.w / 2, y - 8);
+}
+
+function drawFireball(f) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(f.x, f.y, 2, f.x, f.y, f.r * 2.2);
+  g.addColorStop(0, 'rgba(255,255,220,1)'); g.addColorStop(0.35, 'rgba(255,170,0,0.95)'); g.addColorStop(1, 'rgba(255,40,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 2.2, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function render() {
+  ctx.save();
+  if (shake > 0) ctx.translate(rand(-1, 1) * shake * 16, rand(-1, 1) * shake * 16);
+  drawBackground();
+
+  ctx.save();
+  ctx.translate(0, -camY);
+  for (const p of platforms) drawPlatform(p);
+  for (const p of players) drawPlayer(p);
+  for (const f of fireballs) drawFireball(f);
+  for (const q of particles) {
+    ctx.globalAlpha = clamp(q.life / q.max, 0, 1);
+    ctx.fillStyle = q.color; ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
+  }
+  ctx.globalAlpha = 1;
+  drawSideWalls();
+  ctx.textAlign = 'center';
+  for (const t of texts) {
+    ctx.globalAlpha = clamp(t.t, 0, 1);
+    ctx.font = 'bold 46px -apple-system, Helvetica, sans-serif';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillStyle = t.color; ctx.fillText(t.text, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Fireball warnings at the top edge
+  for (const w of warnings) {
+    if (Math.floor(w.t * 10) % 2) continue;
+    ctx.fillStyle = '#ff4d4d';
+    ctx.beginPath(); ctx.moveTo(w.x, 14); ctx.lineTo(w.x - 14, 38); ctx.lineTo(w.x + 14, 38); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px -apple-system, Helvetica, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('!', w.x, 35);
+  }
+
+  // Danger glow when someone is near the bottom
+  if (state === 'play' && camY < -40) {
+    let danger = 0;
+    for (const p of players) danger = Math.max(danger, (p.y - (camY + H * 0.72)) / (H * 0.28));
+    danger = clamp(danger, 0, 1);
+    if (danger > 0) {
+      const g = ctx.createLinearGradient(0, H, 0, H - 160);
+      g.addColorStop(0, `rgba(255,30,30,${0.5 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(255,30,30,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, H - 160, W, 160);
+    }
+  }
+  ctx.restore();
+
+  drawHUD();
+}
+
+function shadowText(text, x, y, font, color, align = 'center') {
+  ctx.font = font; ctx.textAlign = align;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(text, x + 2, y + 3);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+}
+
+function drawHUD() {
+  const F = '-apple-system, "SF Pro Rounded", Helvetica, Arial, sans-serif';
+  if (state !== 'title') {
+    shadowText(height + ' m', W / 2, 70, `800 48px ${F}`, '#ffffff');
+    shadowText('BEST ' + best + ' m', WALL + 14, 34, `700 16px ${F}`, '#7CFF8A', 'left');
+    shadowText((muted ? 'SOUND OFF' : 'SOUND ON') + ' (M)  ·  PAUSE (P)', W - WALL - 14, 34, `600 13px ${F}`, 'rgba(255,255,255,0.7)', 'right');
+  }
+
+  if (state === 'count') {
+    const n = Math.ceil(countdown);
+    const f = countdown - Math.floor(countdown);
+    ctx.globalAlpha = 0.4 + 0.6 * f;
+    shadowText(String(n), W / 2, H * 0.42, `900 ${120 + 40 * f}px ${F}`, '#ffe066');
+    ctx.globalAlpha = 1;
+    shadowText('Get ready…', W / 2, H * 0.42 + 60, `700 24px ${F}`, '#ffffff');
+  }
+
+  if (state === 'title' || state === 'paused' || (state === 'over' && overT > 0.4)) {
+    ctx.fillStyle = 'rgba(8,8,20,0.66)'; ctx.fillRect(0, 0, W, H);
+  }
+
+  if (state === 'title') {
+    shadowText('TOWER DUO', W / 2, 190, `900 84px ${F}`, '#ffe066');
+    shadowText('Climb together. If one falls, you both fall.', W / 2, 240, `600 22px ${F}`, '#ffffff');
+
+    drawControlCard(W / 2 - 250, 300, 'PLAYER 1', '#ff5d73', ['W', 'A', 'S', 'D'], 'W jump · A/D move · S drop');
+    drawControlCard(W / 2 + 20, 300, 'PLAYER 2', '#4cc9f0', ['↑', '←', '↓', '→'], '↑ jump · ←/→ move · ↓ drop');
+
+    const lines = [
+      ['Platforms', 'grey = solid · blue = moving · sandy = crumbles · green = spring'],
+      ['Dangers', 'unlock as you climb: spikes, flame vents, fireballs'],
+      ['Springs', 'press jump as you land on one for a huge boost'],
+      ['Tip', 'you can stand on your partner’s head'],
+    ];
+    let y = 560;
+    for (const [a, b] of lines) {
+      shadowText(a, W / 2 - 300, y, `800 17px ${F}`, '#ffe066', 'left');
+      shadowText(b, W / 2 - 190, y, `500 17px ${F}`, '#e8e8f0', 'left');
+      y += 34;
+    }
+    if (best > 0) shadowText('Best height: ' + best + ' m', W / 2, 700, `700 22px ${F}`, '#7CFF8A');
+    const a = 0.6 + 0.4 * Math.sin(time * 4);
+    ctx.globalAlpha = a;
+    shadowText('Press ENTER or SPACE to start', W / 2, 780, `800 30px ${F}`, '#ffffff');
+    ctx.globalAlpha = 1;
+    shadowText('M sound  ·  P pause  ·  F full screen', W / 2, 830, `500 15px ${F}`, 'rgba(255,255,255,0.6)');
+  }
+
+  if (state === 'paused') {
+    shadowText('PAUSED', W / 2, H * 0.42, `900 72px ${F}`, '#ffffff');
+    shadowText('Press P or ENTER to continue', W / 2, H * 0.42 + 50, `600 22px ${F}`, '#dddddd');
+  }
+
+  if (state === 'over' && overT > 0.4) {
+    shadowText('GAME OVER', W / 2, H * 0.33, `900 80px ${F}`, '#ff5d73');
+    shadowText(deathMsg, W / 2, H * 0.33 + 50, `600 24px ${F}`, '#ffffff');
+    shadowText(height + ' m', W / 2, H * 0.33 + 150, `900 76px ${F}`, '#ffe066');
+    if (newBest) shadowText('NEW BEST!', W / 2, H * 0.33 + 195, `800 28px ${F}`, '#7CFF8A');
+    else shadowText('Best: ' + best + ' m', W / 2, H * 0.33 + 195, `600 22px ${F}`, '#7CFF8A');
+    if (overT > 0.8) {
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 4 + overT * 4);
+      shadowText('Press ENTER or SPACE to climb again', W / 2, H * 0.33 + 290, `800 28px ${F}`, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function drawControlCard(x, y, title, color, k, desc) {
+  const F = '-apple-system, Helvetica, Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; rr(x, y, 230, 220, 16); ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  shadowText(title, x + 115, y + 34, `800 22px ${F}`, color);
+  const key = (kx, ky, label) => {
+    ctx.fillStyle = '#e8e8f0'; rr(kx, ky, 46, 46, 8); ctx.fill();
+    ctx.fillStyle = '#9a9aac'; ctx.fillRect(kx + 4, ky + 40, 38, 4);
+    ctx.fillStyle = '#222'; ctx.font = `800 22px ${F}`; ctx.textAlign = 'center'; ctx.fillText(label, kx + 23, ky + 31);
+  };
+  key(x + 92, y + 56, k[0]);
+  key(x + 40, y + 108, k[1]); key(x + 92, y + 108, k[2]); key(x + 144, y + 108, k[3]);
+  shadowText(desc, x + 115, y + 190, `600 14px ${F}`, '#ddd');
+}
+
+// ---------- Loop ----------
+reset();
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now; acc += dt;
+  while (acc >= STEP) {
+    update(STEP);
+    for (const k in pressed) delete pressed[k];
+    acc -= STEP;
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
