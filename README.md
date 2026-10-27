@@ -4,16 +4,19 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Play
 - **Online:** open GitHub Pages — `https://3ecas.github.io/RCS/`. Players only ever use this address. Multiplayer connects behind the scenes to the matchmaking server on Render (`SERVER_URL` in `js/net.js`); the page wakes that server up as soon as it opens.
-- **On your computer:** double-click `index.html`. Solo and Split screen work; Multiplayer needs the Render server to be running.
+- **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
 
 ## Main menu
-Use the mouse, or the arrow keys + Enter. Esc goes back.
+Use the mouse, or ↑ ↓ + Enter. Esc goes back one step.
 
-- **Solo** — *Climb* alone, or *Race the bot*.
-- **Split screen** — 2–4 players on one keyboard, all on the same screen. Pick *Co-op* or *Versus*, then the number of players.
-- **Multiplayer** — play online with a friend, one player on each computer. Pick *Co-op* or *Versus*; the game searches for another player who is searching too, shows **Match Found!** and loads the level. If you picked different modes you're still matched — the player who started searching first decides.
+**Your cube colour:** at the top of the main menu, pick one of 10 colours with ◀ ▶ (or ← →). The browser remembers it.
 
-**Co-op:** climb together. If anyone falls off the bottom or hits a hazard, everyone loses. Your best height is saved in the browser.
+- **Local** — play on this computer:
+  - **Solo** — *Climb* alone, or *Race the bot*.
+  - **Co-op** — two players on one keyboard. Choose *Same team* or *Versus*, then each player picks a colour on the colour screen (player 1 with A D, player 2 with ← →; you can't both pick the same one), then **Play**.
+- **Multiplayer** — play online. Choose 1 or 2 players on this computer (so up to 4 in a match, e.g. 2 on each keyboard), then *Co-op* or *Versus*. The game finds another computer that is searching, shows **Match Found!** and loads the level. If you picked different modes you're still matched — the computer that started searching first decides. The server prefers partners whose cube colours don't clash, but never makes you wait because of a colour. On every screen your own cubes are full colour and the other computer's cubes are softer, so you can always tell yours apart (a clashing colour also gets a number, like "Pink 2").
+
+**Same team / Co-op:** climb together. If anyone falls off the bottom or hits a hazard, everyone loses. Your best height is saved in the browser.
 **Versus:** a race. The screen follows whoever is in the lead; fall behind the bottom edge (or hit a hazard) and you're out. Last one standing wins.
 
 ## Controls
@@ -22,14 +25,12 @@ Use the mouse, or the arrow keys + Enter. Esc goes back.
 |---|---|---|---|
 | Player 1 | W | A / D | S |
 | Player 2 | ↑ | ← / → | ↓ |
-| Player 3 | I | J / L | K |
-| Player 4 | T | F / H | G |
 
-Solo and online: WASD **or** the arrow keys. P pause (not online) · M sound · F full screen.
+Solo, and online with 1 player: WASD **or** the arrow keys. Online with 2 players: the first uses WASD, the second the arrow keys.
+
+**R** stops the game (stop menu); press **R** again to start over. Not available online. · M sound · F full screen.
 
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
-
-Some keyboards can't register many keys at once, so with 3–4 players a key press may occasionally be missed.
 
 ## Files
 ```

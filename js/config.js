@@ -22,14 +22,22 @@ const PAL = {
   spring: '#fff0a0', springD: '#ecd060',
   spike: '#ff7b9c', blade: '#6c5b7b', flame: '#ff9a76', flame2: '#ffe0a8', fire: '#ff8c69',
   good: '#4fb386',
-  players: [
-    { c: '#ff9aa2', d: '#e06c7a', name: 'Player 1' },
-    { c: '#86c8f5', d: '#4f9bd3', name: 'Player 2' },
-    { c: '#ffc078', d: '#e3923e', name: 'Player 3' },
-    { c: '#b5e48c', d: '#7fb84f', name: 'Player 4' },
-  ],
   bot: { c: '#d4cde3', d: '#9d93b5', name: 'Bot' },
 };
+
+// The 10 cube colours players can pick from (c = body, d = darker outline)
+const COLORS = [
+  { name: 'Pink',   c: '#ff9ac4', d: '#e0609b' },
+  { name: 'Coral',  c: '#ff8a7a', d: '#e0574a' },
+  { name: 'Orange', c: '#ffb066', d: '#e3842f' },
+  { name: 'Lemon',  c: '#ffe066', d: '#d4b12c' },
+  { name: 'Lime',   c: '#b4e46a', d: '#7fb535' },
+  { name: 'Mint',   c: '#6fdcaa', d: '#36ad78' },
+  { name: 'Teal',   c: '#5fd2d6', d: '#2aa3a8' },
+  { name: 'Sky',    c: '#7fbcff', d: '#4689dd' },
+  { name: 'Violet', c: '#b49aff', d: '#8164e0' },
+  { name: 'Mocha',  c: '#cfa98a', d: '#9e7656' },
+];
 // Background colour bands [top, bottom] that drift as you climb
 const BG = [
   ['#fff4e9', '#fde3e6'], ['#e9f7f1', '#d6f0e7'], ['#e8edff', '#d7e0fc'],

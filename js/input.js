@@ -5,10 +5,7 @@ const keys = {}, pressed = {};
 const CONTROLS = [
   { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS' },
   { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', down: 'ArrowDown' },
-  { left: 'KeyJ', right: 'KeyL', jump: 'KeyI', down: 'KeyK' },
-  { left: 'KeyF', right: 'KeyH', jump: 'KeyT', down: 'KeyG' },
 ];
-const KEYCAPS = [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→'], ['I', 'J', 'K', 'L'], ['T', 'F', 'G', 'H']];
 addEventListener('keydown', e => {
   if (e.metaKey) return; // keep Cmd+Q etc. working
   e.preventDefault();

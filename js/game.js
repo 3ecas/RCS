@@ -16,12 +16,13 @@ function update(dt) {
     if (state !== 'paused') updateParticles(dt);
     if (state === 'over') { overT += dt; shake = Math.max(0, shake - dt); }
     if (net.bannerT > 0) net.bannerT -= dt;
-    if (pressed.Escape) { escAction(); return; }
-    if (state === 'paused' && pressed.KeyP) { state = pausedFrom; return; }
+    if (state === 'paused' && pressed.KeyR) { startGame(); return; }   // R again: start over
+    if (pressed.Escape && state !== 'paused') { escAction(); return; }
     menuInput();
     return;
   }
-  if ((pressed.Escape || pressed.KeyP) && net.status !== 'playing') { pausedFrom = state; state = 'paused'; return; }
+  // R stops the game (stop menu). Not online — the other computer's game can't be stopped.
+  if (pressed.KeyR && net.status !== 'playing') { pausedFrom = state; state = 'paused'; ui.focus = 0; return; }
 
   time += dt;
   if (state === 'count') {
@@ -113,7 +114,10 @@ function updateWorld(dt) {
 }
 
 function humanInput(i) {
-  if (net.status === 'playing' || (playerCount === 1 && i === 0)) {
+  // Online with two people at this computer: the first uses WASD, the second the arrow keys
+  if (net.status === 'playing' && net.local > 1) i = players[i].slot;
+  else if (net.status === 'playing') i = 0;
+  if ((net.status === 'playing' && net.local === 1) || (net.status !== 'playing' && playerCount === 1 && i === 0)) {
     const a = CONTROLS[0], b = CONTROLS[1];
     return { left: keys[a.left] || keys[b.left], right: keys[a.right] || keys[b.right], jump: keys[a.jump] || keys[b.jump],
              jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down] };
@@ -282,7 +286,7 @@ function updateParticles(dt) {
 
 function die(p, reason) {
   if (state === 'over' || p.dead) return;
-  if (net.status === 'playing' && !p.remote) relay({ k: 'd', r: reason });   // tell my friend
+  if (net.status === 'playing' && !p.remote) relay({ k: 'd', i: p.i, r: reason });   // tell the other computer
   p.dead = true; shake = 0.35;
   deathMsg = `${p.name} ${reason}!`;
   sfx.die();

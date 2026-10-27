@@ -5,13 +5,14 @@
 //   node server/server.js 8790       (listens on 8790)
 //
 // Messages (JSON over WebSocket at /ws):
-//   client → server  {t:'find', mode:'coop'|'versus'}  start searching
+//   client → server  {t:'find', mode, colors:[0-9, …]}  start searching (colours of this computer's 1–2 players)
 //                    {t:'cancel'}                       stop searching
 //                    {t:'relay', d:{...}}               pass game data to your partner
 //                    {t:'again'}                        ready for a rematch
 //                    {t:'leave'}                        leave the match
 //   server → client  {t:'queue', counts:{coop, versus}}       how many are searching
-//                    {t:'match', you, seed, mode, startIn}     a match (or rematch) starts in startIn ms
+//                    {t:'match', you, seed, mode, startIn, roster}  a match (or rematch) starts in startIn ms;
+//                                                                    roster = [{color, owner, slot}] for every cube
 //                    {t:'peer', d:{...}}                       data from your partner
 //                    {t:'peerReady'}                           partner wants a rematch
 //                    {t:'left'}                                partner left
@@ -183,7 +184,7 @@ function leaveRoom(c) {
 function startRound(room) {
   room.ready.clear();
   const seed = crypto.randomInt(1, 2147483646);
-  room.players.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: room.mode, startIn: 4500 }));
+  room.players.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: room.mode, startIn: 4500, roster: room.roster }));
 }
 
 function onMessage(c, text) {
@@ -194,14 +195,24 @@ function onMessage(c, text) {
   if (m.t === 'find') {
     const mode = m.mode === 'versus' ? 'versus' : 'coop';
     unqueue(c); leaveRoom(c);
-    // Prefer someone searching the same mode; otherwise pair with anyone who's searching
-    // (the player who was waiting first decides the mode). Whoever waited is Player 1.
+    // Cube colours of the players on this computer (1 or 2 of them; colour numbers 0–9)
+    const colors = (Array.isArray(m.colors) ? m.colors : [0]).slice(0, 2).map(v => Math.max(0, Math.min(9, v | 0)));
+    c.colors = colors.length ? colors : [0];
+    // Who to pair with, best first: same mode + different colours, same mode, other mode + different
+    // colours, then anyone searching (the one who was waiting decides the mode). Never left waiting
+    // just because of a colour clash — each computer draws the others' cubes softer anyway.
     const otherMode = mode === 'coop' ? 'versus' : 'coop';
-    const other = queues[mode].find(o => o !== c && !o.closed) || queues[otherMode].find(o => o !== c && !o.closed);
+    const free = o => o !== c && !o.closed;
+    const clash = o => o.colors.some(x => c.colors.includes(x));
+    const other = queues[mode].find(o => free(o) && !clash(o)) || queues[mode].find(free)
+      || queues[otherMode].find(o => free(o) && !clash(o)) || queues[otherMode].find(free);
     if (other) {
       const roomMode = other.searching || mode;
       unqueue(other);
-      const room = { players: [other, c], mode: roomMode, ready: new Set() };
+      const room = { players: [other, c], mode: roomMode, ready: new Set() };   // whoever waited is computer 0
+      // Everyone in the match: colour, which computer they're on, and which keys there (slot)
+      room.roster = [];
+      room.players.forEach((cl, owner) => cl.colors.forEach((color, slot) => room.roster.push({ color, owner, slot })));
       other.room = c.room = room;
       startRound(room);
     } else {

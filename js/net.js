@@ -5,7 +5,8 @@
 // server on this computer) it connects back to that address; everywhere else — GitHub Pages, or
 // index.html opened from disk — it connects to SERVER_URL.
 const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
-const net = { ws: null, status: 'off', me: 0, counts: { coop: 0, versus: 0 }, peerReady: false, waitingAgain: false, sendT: 0, banner: '', bannerT: 0 };
+// me: which computer we are in the match (0 or 1). local: players on this computer. roster: everyone's colour and owner.
+const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, counts: { coop: 0, versus: 0 }, peerReady: false, waitingAgain: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
   const h = location.hostname;
@@ -40,6 +41,7 @@ const RETRY_FOR_MS = 75000;
 function startSearch() {
   netClose();
   state = 'search'; net.peerReady = false; net.waitingAgain = false;
+  net.local = onlineLocal;
   net.searchStart = performance.now();
   connectOnce();
 }
@@ -50,7 +52,10 @@ function connectOnce() {
   try { ws = new WebSocket(netUrl()); } catch (e) { netBanner('Could not reach the online server'); toMenu(); return; }
   net.ws = ws;
   let opened = false;
-  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', mode }); };
+  // Tell the server our cube colours, so it can prefer partners with different colours
+  const colors = [];
+  for (let k = 0; k < net.local; k++) colors.push(localColor(k));
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', mode, colors }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;
@@ -73,6 +78,7 @@ function onNet(m) {
   else if (m.t === 'match') {
     net.rematch = net.status === 'playing';
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.peerReady = false; net.waitingAgain = false; net.sendT = 0;
+    net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
     reset(m.seed);
     // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
     foundT = Math.min(1.5, m.startIn / 1000 - 1);
@@ -83,22 +89,25 @@ function onNet(m) {
   else if (m.t === 'peer') onPeer(m.d || {});
 }
 
-// Data from the other player's computer
+// Data from the other computer
 function onPeer(d) {
   if (!players || net.status !== 'playing') return;
-  const r = players.find(p => p.remote);
-  if (!r) return;
-  if (d.k === 's') {               // their position
-    r.net = { x: d.x, y: d.y, vx: d.vx, vy: d.vy, g: d.g, age: 0 };
-    r.face = d.f; r.sq = d.q; r.best = Math.max(r.best, d.b | 0);
-    if (!r.seen) { r.x = d.x; r.y = d.y; r.seen = true; }
+  if (d.k === 's') {               // positions of their cubes
+    for (const s of d.p || []) {
+      const r = players[s.i];
+      if (!r || !r.remote) continue;
+      r.net = { x: s.x, y: s.y, vx: s.vx, vy: s.vy, g: s.g, age: 0 };
+      r.face = s.f; r.sq = s.q; r.best = Math.max(r.best, s.b | 0);
+      if (!r.seen) { r.x = s.x; r.y = s.y; r.seen = true; }
+    }
   } else if (d.k === 'c') {        // they landed on a crumbling platform
     const pl = platforms.find(q => q.id === d.id);
     if (pl && pl.crumbleT < 0 && !pl.falling) pl.crumbleT = 0.7;
   } else if (d.k === 'f') {        // fireball warning (Player 1's computer decides these)
     warnings.push({ x: d.x, t: 1.1 });
-  } else if (d.k === 'd') {        // they died
-    if (state === 'play' || state === 'count') die(r, d.r || 'fell');
+  } else if (d.k === 'd') {        // one of their cubes died
+    const r = players[d.i];
+    if (r && r.remote && (state === 'play' || state === 'count')) die(r, d.r || 'fell');
   }
 }
 
@@ -116,14 +125,14 @@ function updateRemote(p, dt) {
   p.blink -= dt; if (p.blink < -0.12) p.blink = rand(2, 5);
 }
 
-// Send my cube's position ~30 times a second
+// Send the positions of the cubes on this computer ~30 times a second
 function netTick(dt) {
   if (net.status !== 'playing') return;
   net.sendT -= dt;
   if (net.sendT > 0) return;
   net.sendT = 1 / 30;
-  const p = players.find(q => !q.remote);
-  if (!p || p.dead) return;
   const r1 = v => Math.round(v * 10) / 10;
-  relay({ k: 's', x: r1(p.x), y: r1(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), g: p.onGround, f: p.face, q: Math.round(p.sq * 100) / 100, b: p.best });
+  const mine = players.filter(q => !q.remote && !q.dead);
+  if (!mine.length) return;
+  relay({ k: 's', p: mine.map(p => ({ i: p.i, x: r1(p.x), y: r1(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), g: p.onGround, f: p.face, q: Math.round(p.sq * 100) / 100, b: p.best })) });
 }
