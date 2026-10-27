@@ -3,7 +3,7 @@
 A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the scrolling screen, and dodge spikes, shurikens, wall flames and fireballs.
 
 ## Play
-- **Online:** open the game's Render address (e.g. `https://rcs.onrender.com`) or GitHub Pages (`https://3ecas.github.io/RCS/`). Everything works on Render; on GitHub Pages, Multiplayer connects to the Render server.
+- **Online:** open GitHub Pages — `https://3ecas.github.io/RCS/`. Players only ever use this address. Multiplayer connects behind the scenes to the matchmaking server on Render (`SERVER_URL` in `js/net.js`); the page wakes that server up as soon as it opens.
 - **On your computer:** double-click `index.html`. Solo and Split screen work; Multiplayer needs the Render server to be running.
 
 ## Main menu
@@ -59,7 +59,7 @@ The scripts are plain `<script>` files (not modules) so the game also runs when 
 ## Deploy on Render
 1. Push this repository to GitHub (`main` branch).
 2. In Render choose **New → Blueprint**, pick the **RCS** repository, leave Blueprint Path as `render.yaml`, and click **Apply**.
-3. Open the address Render shows. If it isn't `https://rcs.onrender.com`, put your address in `SERVER_URL` in `js/net.js` (as `wss://…/ws`) so GitHub Pages and local copies connect to it.
+3. Open the address Render shows. The live server is `https://rcs-d5wp.onrender.com`; if that ever changes, put the new address in `SERVER_URL` in `js/net.js` (as `wss://…/ws`) so GitHub Pages and local copies connect to it.
 
 Every push to `main` redeploys automatically. Free Render services fall asleep after ~15 minutes without visitors; the first connection then takes up to a minute (the game shows "Connecting to the server…").
 

@@ -4,7 +4,7 @@
 // Where the online server lives. When the game is opened from the Render server itself (or a test
 // server on this computer) it connects back to that address; everywhere else — GitHub Pages, or
 // index.html opened from disk — it connects to SERVER_URL.
-const SERVER_URL = 'wss://rcs.onrender.com/ws';
+const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 const net = { ws: null, status: 'off', me: 0, counts: { coop: 0, versus: 0 }, peerReady: false, waitingAgain: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
@@ -14,28 +14,53 @@ function netUrl() {
     return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
   return SERVER_URL;
 }
+
+// Free Render servers fall asleep when nobody is playing. Knock on the door as soon as the page opens,
+// so the server is usually awake by the time someone clicks Multiplayer.
+(function wakeServer() {
+  try {
+    const health = netUrl().replace(/^ws/, 'http').replace(/\/ws$/, '/health');
+    fetch(health, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+  } catch (e) {}
+})();
 function netSend(obj) { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(obj)); }
 function relay(d) { netSend({ t: 'relay', d }); }
 function netBanner(text) { net.banner = text; net.bannerT = 5; }
 
 function netClose() {
+  clearTimeout(net.retry);
   const ws = net.ws;
   net.ws = null; net.status = 'off';
   if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} }
 }
 
+// Start searching. If the server can't be reached (e.g. it's still waking up), keep retrying
+// every few seconds for about a minute before giving up.
+const RETRY_FOR_MS = 75000;
 function startSearch() {
   netClose();
-  state = 'search'; net.status = 'connecting'; net.peerReady = false; net.waitingAgain = false;
+  state = 'search'; net.peerReady = false; net.waitingAgain = false;
+  net.searchStart = performance.now();
+  connectOnce();
+}
+
+function connectOnce() {
+  net.status = 'connecting';
   let ws;
   try { ws = new WebSocket(netUrl()); } catch (e) { netBanner('Could not reach the online server'); toMenu(); return; }
   net.ws = ws;
-  ws.onopen = () => { net.status = 'searching'; netSend({ t: 'find', mode }); };
+  let opened = false;
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', mode }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;
+    net.ws = null;
+    if (!opened && state === 'search' && performance.now() - net.searchStart < RETRY_FOR_MS) {
+      net.retry = setTimeout(() => { if (state === 'search' && !net.ws) connectOnce(); }, 3000);
+      return;
+    }
     const wasPlaying = net.status === 'playing';
-    net.ws = null; net.status = 'off';
+    net.status = 'off';
     netBanner(wasPlaying ? 'Connection lost' : 'Could not reach the online server');
     toMenu();
   };
