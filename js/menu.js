@@ -1,4 +1,4 @@
-// RCS — Menus and buttons: main menu, Local (Solo / Co-op), Multiplayer, help, stop and end screens.
+// RCS — Menus and buttons: main menu (Solo / Multiplayer), help, the online room, stop and end screens.
 'use strict';
 
 function startGame() { reset(); state = 'count'; countdown = 3; sfx.beep(440); }
@@ -20,28 +20,37 @@ function layoutButtons() {
   if (state === 'title' && ui.help) return [B('help-close', 'GOT IT', '', cx - 100, 776, 200, 56, { color: PAL.good })];
   const icons = cornerIcons();
   if (state === 'title') {
-    if (ui.page === 'local') return [...icons,
-      B('solo', 'SOLO', 'Climb alone — how high can you go?', cx - 210, 320, 420, 96, { color: PAL.good }),
-      B('coop', 'CO-OP', 'Two players, one keyboard, same team', cx - 210, 436, 420, 96, { color: COLORS[7].d }),
-      B('back', 'BACK', '', cx - 100, 580, 200, 56),
-    ];
     return [...icons,   // main menu
       // colour picker arrows (mouse, or ← → keys); not part of the up/down button focus
       B('col-prev', '◀', '', cx - 132, 84, 56, 56, { nofocus: true, color: COLORS[myColor].d }),
       B('col-next', '▶', '', cx + 76, 84, 56, 56, { nofocus: true, color: COLORS[myColor].d }),
-      B('local', 'LOCAL', 'Solo or co-op on this keyboard', cx - 210, 350, 420, 96, { color: PAL.good }),
+      B('solo', 'SOLO', 'Climb alone — how high can you go?', cx - 210, 350, 420, 96, { color: PAL.good }),
       B('multi', 'MULTIPLAYER', 'Race up to 10 players online', cx - 210, 466, 420, 96, { color: PAL.spike }),
     ];
   }
-  if (state === 'search') return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];
+  if (state === 'search') {
+    // The room: get ready (or not), or leave
+    if (!net.room) return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];
+    const ready = iAmReady();
+    return [...icons,
+      B('ready', ready ? 'READY ✓' : 'READY', '', cx - 260, 650, 250, 64, { color: PAL.good, selected: ready }),
+      B('cancel', 'LEAVE', '', cx + 10, 650, 250, 64),
+    ];
+  }
   if (state === 'paused') return [...icons,
     B('resume', 'RESUME', '', cx - 310, H * 0.5, 200, 60, { color: PAL.good }),
     B('restart', 'START OVER', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
   if (state === 'over' && overT > 0.8) {
-    // Online the next round starts by itself; you can only leave the room
-    if (net.status === 'playing') return [...icons, B('menu', 'LEAVE', '', cx - 125, 716, 250, 60)];
+    // Online: get ready for the next race, or leave the room
+    if (net.status === 'playing') {
+      const ready = iAmReady();
+      return [...icons,
+        B('ready', ready ? 'READY ✓' : 'READY', '', cx - 260, 712, 250, 60, { color: PAL.good, selected: ready }),
+        B('menu', 'LEAVE', '', cx + 10, 712, 250, 60),
+      ];
+    }
     return [...icons,
       B('again', 'PLAY AGAIN', '', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
       B('menu', 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
@@ -96,17 +105,15 @@ function goPage(page, focus = 0) { ui.page = page; ui.focus = focus; }
 
 function activate(id) {
   switch (id) {
-    case 'local': goPage('local'); break;
     case 'multi': mode = 'versus'; startSearch(); break;       // online is always a race: last one standing wins
-    case 'back': goPage('main'); break;
-    case 'solo': mode = 'coop'; playerCount = 1; startGame(); break;
-    case 'coop': mode = 'coop'; playerCount = 2; startGame(); break;
+    case 'solo': mode = 'solo'; startGame(); break;
     case 'col-prev': changeColor(-1); break;
     case 'col-next': changeColor(1); break;
     case 'help': ui.help = true; ui.focus = 0; break;
     case 'help-close': ui.help = false; ui.focus = 0; break;
     case 'mute': toggleMute(); break;
-    case 'cancel': netSend({ t: 'cancel' }); netClose(); toMenu(); break;
+    case 'cancel': leaveOnline(); break;
+    case 'ready': toggleReady(); break;
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;
     case 'menu': if (net.status === 'playing') leaveOnline(); else toMenu(); break;
@@ -116,7 +123,7 @@ function activate(id) {
 
 // ESC: go back one step
 function escAction() {
-  if (state === 'title') { if (ui.help) ui.help = false; else if (ui.page !== 'main') goPage('main'); }
+  if (state === 'title') { if (ui.help) ui.help = false; }
   else if (state === 'search') activate('cancel');
   else if (state === 'over' && overT > 0.8) activate('menu');
 }

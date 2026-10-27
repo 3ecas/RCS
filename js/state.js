@@ -13,14 +13,13 @@ function saveColor() { try { localStorage.setItem('rcs.color', String(myColor));
 // Your name (typed above the colour picker), remembered by the browser. Shown in online games.
 let playerName = '';
 try { playerName = (localStorage.getItem('rcs.name') || '').slice(0, 12); } catch (e) {}
-// Colour of the n-th player on this computer: player 1 is yours; player 2 (co-op) gets a clearly different one
+// Colour of the n-th player on this computer (there's only ever one now: yours)
 const localColor = n => (myColor + n * 3) % COLORS.length;
 
 // ---------- World state ----------
 let state = 'title', pausedFrom = 'play';
-// Game mode: 'coop' (climb together, one falls = both lose) or 'versus' (race; fall behind = you lose)
-let mode = 'coop', winner = -1;
-let playerCount = 1;            // players on this keyboard: 1 (Solo) or 2 (Co-op)
+// Game mode: 'solo' (climb alone) or 'versus' (online race: last one standing wins)
+let mode = 'solo', winner = -1;
 // Button menus: which page we're on, which button has keyboard focus, and the mouse
 const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false };
 let foundT = 0;                           // "Match found" screen timer
@@ -83,8 +82,8 @@ function reset(seed) {
     }
     return;
   }
-  // Local: 1 (Solo) or 2 (Co-op) players on this keyboard
-  for (let i = 0; i < playerCount; i++) players.push(mkPlayer(i, spawnX(i, playerCount)));
+  // Solo: just you
+  players.push(mkPlayer(0, spawnX(0, 1)));
 }
 let nextPid = 1;
 const alive = () => players.filter(p => !p.dead);

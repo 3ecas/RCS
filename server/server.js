@@ -1,19 +1,21 @@
-// RCS online server: serves the game (index.html, css/, js/) and runs a shared room where up to 10 players race in rounds.
+// RCS online server: serves the game (index.html, css/, js/) and runs a shared room where up to 10 players get ready and race.
 // No dependencies — uses only Node's built-in modules (Node 18+).
 //
 //   node server/server.js            (listens on $PORT, or 10000)
 //   node server/server.js 8790       (listens on 8790)
 //
 // Messages (JSON over WebSocket at /ws):
-//   client → server  {t:'find', colors:[0-9, …], name}   join the shared room (this computer's cube colours, player name)
-//                    {t:'cancel'} / {t:'leave'}         leave the room
+//   client → server  {t:'find', v, colors:[0-9, …], name}   join the shared room (protocol version, cube colours, name)
+//                    {t:'ready', on}                    ready (or not) for the next race
+//                    {t:'leave'}                        leave the room
 //                    {t:'relay', d:{...}}               pass game data to the other computers in the race
 //                    {t:'roundOver', round}             this computer's race has ended (one cube left)
-//   server → client  {t:'lobby', phase, players, computers, max, startsIn}  room status (lobby / playing / break)
+//   server → client  {t:'room', phase, players:[{name, colors, ready, racing}], me, max, round}  the room
 //                    {t:'match', you, seed, mode, startIn, roster, round}    a race starts in startIn ms;
 //                                                        roster = [{color, owner, slot, name, id}] for every cube
 //                    {t:'peer', d:{...}}                data from another computer
 //                    {t:'gone', owner}                  a computer left the race (the others carry on)
+//                    {t:'old'}                          this copy of the game is out of date — refresh
 
 'use strict';
 const http = require('http');
@@ -153,90 +155,72 @@ setInterval(() => {
 
 // ---------- Rooms ----------
 // Everyone who clicks Multiplayer goes into the same room (a new room only opens once one is full,
-// MAX_PLAYERS cubes). A room runs races in a loop:
-//   lobby   — waiting for a 2nd player; once there are 2, LOBBY_WAIT_MS countdown (more can join)
-//   playing — a race is on; anyone joining now waits and plays from the next round
-//   break   — the race ended (leaderboard); the next round starts after NEXT_ROUND_MS
+// MAX_PLAYERS cubes). In the room everyone presses READY; when every player in the room is ready
+// (and there are at least 2), a race starts with all of them. After the race the room goes back to
+// the ready list. Anyone joining while a race is on waits in the room and can get ready for the next.
 const MAX_PLAYERS = 10;
-const LOBBY_WAIT_MS = 8000;
-const NEXT_ROUND_MS = 10000;
+const PROTOCOL = 3;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
-const members = r => [...r.players, ...r.waiting];
 
-// Tell everyone in the room what's happening and when the next race starts
+// Send each player the room: who's in it, who's ready, who's racing, and which one is them
 function roomStatus(r) {
-  const all = members(r);
-  const msg = {
-    t: 'lobby', phase: r.phase, players: cubesIn(all), computers: all.length, max: MAX_PLAYERS,
-    startsIn: r.startsAt ? Math.max(0, r.startsAt - Date.now()) : null,
-  };
-  for (const c of all) c.send(msg);
+  const list = r.members.map(c => ({ name: c.name, colors: c.colors, ready: r.ready.has(c), racing: r.racers.includes(c) }));
+  r.members.forEach((c, i) => c.send({ t: 'room', phase: r.phase, players: list, me: i, max: MAX_PLAYERS, round: r.round }));
 }
-
-function schedule(r, ms) {
-  clearTimeout(r.timer);
-  r.startsAt = Date.now() + ms;
-  r.timer = setTimeout(() => startRound(r), ms);
-}
-function unschedule(r) { clearTimeout(r.timer); r.timer = null; r.startsAt = null; }
 
 function joinRoom(c) {
-  let r = rooms.find(x => cubesIn(members(x)) + c.colors.length <= MAX_PLAYERS);
-  if (!r) { r = { players: [], waiting: [], phase: 'lobby', timer: null, startsAt: null, round: 0, mode: 'versus' }; rooms.push(r); }
+  let r = rooms.find(x => cubesIn(x.members) + c.colors.length <= MAX_PLAYERS);
+  if (!r) { r = { members: [], racers: [], ready: new Set(), phase: 'lobby', round: 0, mode: 'versus' }; rooms.push(r); }
   c.room = r;
-  if (r.phase === 'playing') r.waiting.push(c);     // joins from the next round
-  else r.players.push(c);
-  if (r.phase === 'lobby' && members(r).length >= 2 && !r.timer) schedule(r, LOBBY_WAIT_MS);
-  if (r.phase === 'lobby' && cubesIn(members(r)) >= MAX_PLAYERS) { startRound(r); return; }
+  r.members.push(c);
   roomStatus(r);
 }
 
-function startRound(r) {
-  unschedule(r);
-  r.players = members(r).filter(c => !c.closed);
-  r.waiting = [];
-  if (r.players.length < 2) { r.phase = 'lobby'; roomStatus(r); return; }
+// Start when everyone in the room is ready (and there are at least 2)
+function maybeStart(r) {
+  if (r.phase !== 'lobby' || r.members.length < 2 || !r.members.every(c => r.ready.has(c))) return false;
   r.phase = 'playing';
   r.round++;
+  r.racers = [...r.members];
+  r.ready.clear();
   // Everyone in the race: colour, computer (owner), keys there (slot), name, and a stable id for win counts
   const roster = [];
-  r.players.forEach((cl, owner) => {
+  r.racers.forEach((cl, owner) => {
     cl.owner = owner;
     cl.colors.forEach((color, slot) => roster.push({ color, owner, slot, name: slot === 0 ? cl.name || '' : '', id: cl.id + ':' + slot }));
   });
   const seed = crypto.randomInt(1, 2147483646);
-  r.players.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: r.mode, startIn: 4500, roster, round: r.round }));
+  r.racers.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: r.mode, startIn: 4500, roster, round: r.round }));
+  roomStatus(r);
+  return true;
 }
 
-// A computer reports its race ended (one cube left standing): show the leaderboard, then go again
+// A computer reports its race has ended (one cube left standing): back to the ready list
 function roundOver(c, round) {
   const r = c.room;
-  if (!r || r.phase !== 'playing' || round !== r.round || !r.players.includes(c)) return;
-  r.phase = 'break';
-  if (members(r).length >= 2) schedule(r, NEXT_ROUND_MS);
-  else { r.phase = 'lobby'; unschedule(r); }
+  if (!r || r.phase !== 'playing' || round !== r.round || !r.racers.includes(c)) return;
+  r.phase = 'lobby';
+  r.racers = [];
   roomStatus(r);
+  maybeStart(r);
 }
 
-// A computer leaves (cancelled, left, or disconnected). The others carry on.
+// A computer leaves (left, or disconnected). The others carry on.
 function leaveRoom(c) {
   const r = c.room;
   if (!r) return;
   c.room = null;
-  const racing = r.phase === 'playing' && r.players.includes(c);
-  r.players = r.players.filter(o => o !== c);
-  r.waiting = r.waiting.filter(o => o !== c);
-  if (!members(r).length) { unschedule(r); rooms.splice(rooms.indexOf(r), 1); return; }
-  if (racing) for (const o of r.players) o.send({ t: 'gone', owner: c.owner });
-  if (r.phase === 'playing' && !r.players.length) {            // everyone racing left; only waiters remain
-    r.phase = 'lobby';
-    if (members(r).length >= 2) schedule(r, LOBBY_WAIT_MS);
-  } else if (r.phase !== 'playing' && members(r).length < 2) {
-    r.phase = 'lobby'; unschedule(r);
-  }
+  const racing = r.phase === 'playing' && r.racers.includes(c);
+  r.members = r.members.filter(o => o !== c);
+  r.racers = r.racers.filter(o => o !== c);
+  r.ready.delete(c);
+  if (!r.members.length) { rooms.splice(rooms.indexOf(r), 1); return; }
+  if (racing) for (const o of r.racers) o.send({ t: 'gone', owner: c.owner });
+  if (r.phase === 'playing' && !r.racers.length) r.phase = 'lobby';   // everyone racing left
   roomStatus(r);
+  maybeStart(r);
 }
 
 function onMessage(c, text) {
@@ -245,6 +229,8 @@ function onMessage(c, text) {
   if (!m || typeof m !== 'object') return;
 
   if (m.t === 'find') {
+    // An old copy of the game (e.g. cached by the browser) can't play with the current one
+    if (m.v !== PROTOCOL) { c.send({ t: 'old' }); return; }
     leaveRoom(c);
     // Cube colours of the players on this computer (1 or 2 of them; colour numbers 0–9)
     const colors = (Array.isArray(m.colors) ? m.colors : [0]).slice(0, 2).map(v => Math.max(0, Math.min(9, v | 0)));
@@ -252,12 +238,17 @@ function onMessage(c, text) {
     // The name the player typed: letters, numbers, spaces and a few symbols, at most 12 characters
     c.name = String(m.name || '').replace(/[^\p{L}\p{N} _.'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 12);
     joinRoom(c);
+  } else if (m.t === 'ready') {
+    const r = c.room;
+    if (!r) return;
+    if (m.on) r.ready.add(c); else r.ready.delete(c);
+    if (!maybeStart(r)) roomStatus(r);
   } else if (m.t === 'cancel' || m.t === 'leave') {
     leaveRoom(c);
   } else if (m.t === 'relay') {
     const r = c.room;
-    if (!r || r.phase === 'lobby') return;
-    for (const o of r.players) if (o !== c) o.send({ t: 'peer', d: m.d });
+    if (!r || r.phase !== 'playing' || !r.racers.includes(c)) return;
+    for (const o of r.racers) if (o !== c) o.send({ t: 'peer', d: m.d });
   } else if (m.t === 'roundOver') {
     roundOver(c, m.round);
   }

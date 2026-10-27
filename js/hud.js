@@ -23,7 +23,7 @@ const localCube = k => COLORS[localColor(k)];
 function onlineKeysText() {
   const mine = players.filter(p => !p.remote);
   if (mine.length <= 1) return `You are ${COLORS[localColor(0)].name.toUpperCase()} — use WASD or the arrow keys`;
-  return mine.map(p => `${p.name}: ${p.slot ? 'arrow keys' : 'WASD'}`).join('   ·   ');
+  return mine.map(p => p.name).join(', ');
 }
 
 function drawButton(b, focused) {
@@ -72,7 +72,7 @@ function drawResults() {
   } else text('DRAW!', W / 2, 218, 60, PAL.ink, 'center', 900);
   // Ranking: the winner, then whoever was knocked out last, and so on
   const ranked = [...players].sort((a, b) => (b.i === winner) - (a.i === winner) || (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
-  const x = W / 2 - 250, w = 500, top = 262, rh = Math.min(38, 400 / ranked.length);
+  const x = W / 2 - 250, w = 500, top = 262, rh = Math.min(38, 360 / ranked.length);
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x, top, w, 40 + ranked.length * rh);
   text('LEADERBOARD', x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
   text('HEIGHT', x + w - 110, top + 27, 12, PAL.inkSoft, 'right', 800);
@@ -103,9 +103,7 @@ function drawHelp() {
   line('Jump up the tower and stay ahead of the screen as it scrolls up.');
   line('Falling off the bottom or touching a danger ends your run.'); yy += 10;
   head('Controls');
-  line('Player 1:  W jump  ·  A D move  ·  S drop through a platform');
-  line('Player 2 (co-op):  ↑ jump  ·  ← → move  ·  ↓ drop');
-  line('Solo and online: WASD or the arrow keys'); yy += 10;
+  line('W or ↑  jump   ·   A D or ← →  move   ·   S or ↓  drop through a platform'); yy += 10;
   head('Platforms');
   const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['crumbles', PAL.crumble, PAL.crumbleD], ['spring', PAL.spring, PAL.springD]];
   items.forEach(([label, c, cd], k) => {
@@ -118,17 +116,44 @@ function drawHelp() {
   head('Dangers (they appear as you climb)');
   line('Spikes, spinning shurikens, flames from the walls, falling fireballs.'); yy += 10;
   head('Modes');
-  line('Solo — climb alone.   Co-op — two players, one keyboard, same team.');
+  line('Solo — climb alone. How high can you go?');
   line('Multiplayer — a random online race with up to 10 players.');
   line('Last one standing wins; if you’re out, you keep watching.'); yy += 10;
   head('Keys');
   line('R  stop (R again to start over)   ·   M  sound   ·   F  full screen');
 }
 
-// Seconds until the room's next race starts (or null)
-function roomSecs() {
-  const L = net.lobby;
-  return L && L.startsIn != null ? Math.max(0, Math.ceil((L.startsIn - (performance.now() - L.at)) / 1000)) : null;
+// One line about the room: who we're waiting for
+function roomLine() {
+  const R = net.room;
+  if (!R) return 'Joining the room…';
+  if (R.phase === 'playing') return 'A race is on — get ready for the next one';
+  const n = R.players.length, waiting = R.players.map((p, i) => ({ p, i })).filter(x => !x.p.ready);
+  if (n < 2) return 'Waiting for more players to join…';
+  if (!waiting.length) return 'Everyone’s ready — starting!';
+  if (waiting.length <= 3) return 'Waiting for ' + waiting.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to get ready';
+  return `${n - waiting.length}/${n} ready — the race starts when everyone is ready`;
+}
+
+// The room screen: everyone in it, who's ready, who's racing
+function drawRoom() {
+  const R = net.room;
+  text('ROOM', W / 2, 112, 54, PAL.ink, 'center', 900);
+  text(roomLine(), W / 2, 152, 17, PAL.good, 'center', 900);
+  if (!R) return;
+  const x = W / 2 - 250, w = 500, top = 180, rh = 38;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x, top, w, 40 + R.players.length * rh);
+  text(`PLAYERS  ${R.players.length}/${R.max}`, x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
+  R.players.forEach((p, k) => {
+    const y = top + 40 + k * rh, mid = y + rh / 2 + 6, C = COLORS[p.colors[0]];
+    if (k === R.me) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }   // you
+    ctx.fillStyle = C.d; ctx.fillRect(x + 22, y + rh / 2 - 10, 20, 20);
+    ctx.fillStyle = C.c; ctx.fillRect(x + 24, y + rh / 2 - 8, 16, 16);
+    text(roomName(p) + (k === R.me ? '  (you)' : ''), x + 58, mid, 17, PAL.ink, 'left', 800);
+    if (p.racing) text('racing', x + w - 20, mid, 15, PAL.inkSoft, 'right', 800);
+    else if (p.ready) text('✓ READY', x + w - 20, mid, 15, PAL.good, 'right', 900);
+    else text('not ready', x + w - 20, mid, 15, PAL.inkSoft, 'right', 700);
+  });
 }
 
 function drawBanner(y) {
@@ -192,44 +217,21 @@ function drawHUD() {
       text('Climb the tower. Don’t fall behind.', W / 2, 300, 17, PAL.inkSoft, 'center', 600);
       if (best > 0) text('Best height: ' + best + ' m', W / 2, 610, 16, PAL.good, 'center', 800);
       drawBanner(650);
-    } else if (ui.page === 'local') {
-      cube(W / 2 - 60, 110 + bob, 44, localCube(0));
-      cube(W / 2 + 16, 110 - bob, 44, localCube(1));
-      text('LOCAL', W / 2, 228, 58, PAL.ink, 'center', 900);
-      text('Play on this computer', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
+
     }
   }
 
   if (state === 'title' && ui.help) drawHelp();
 
   if (state === 'search') {
-    const nl = net.local || 1;
-    for (let k = 0; k < nl; k++) cube(W / 2 - 22 - (nl - 1) * 38 + k * 76, 250 - Math.abs(Math.sin(time * 5 + k * 1.6)) * 30, 44, localCube(k));
-    text('SEARCHING', W / 2, 370, 54, PAL.ink, 'center', 900);
-    const dots = '.'.repeat(1 + Math.floor(time * 2) % 3);
-    if (net.status === 'connecting') {
-      text('Connecting to the server' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
+    if (net.room) drawRoom();
+    else {
+      // Still connecting / joining
+      cube(W / 2 - 22, 250 - Math.abs(Math.sin(time * 5)) * 30, 44, localCube(0));
+      text('CONNECTING', W / 2, 370, 50, PAL.ink, 'center', 900);
+      const dots = '.'.repeat(1 + Math.floor(time * 2) % 3);
+      text(net.status === 'connecting' ? 'Connecting to the server' + dots : 'Joining the room' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
       text('The first connection can take up to a minute while the server wakes up.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
-    } else {
-      const L = net.lobby, secs = roomSecs();
-      if (L && L.phase === 'playing') {
-        // A race is already on in the room: you're in, and play from the next round
-        text(`You’re in the room — ${L.players} players`, W / 2, 425, 24, PAL.good, 'center', 900);
-        text('A race is on right now. You’ll join the next round.', W / 2, 458, 15, PAL.inkSoft, 'center', 700);
-      } else if (L && L.computers >= 2 && secs != null) {
-        // Others are here: count down while more can still hop in
-        text(`${L.players} players in the room`, W / 2, 425, 26, PAL.good, 'center', 900);
-        text(`Starting in ${secs}s — more can still join (up to ${L.max})`, W / 2, 458, 15, PAL.inkSoft, 'center', 700);
-      } else {
-        text('Waiting for players' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
-        text('The race starts as soon as someone else joins.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
-      }
-      // One box per player slot, filled as players join
-      const filled = L ? L.players : (net.local || 1), max = L ? L.max : 10;
-      for (let i = 0; i < max; i++) {
-        ctx.fillStyle = i < filled ? PAL.good : PAL.wallLine;
-        ctx.fillRect(W / 2 - max * 13 + i * 26 + 4, 486, 18, 18);
-      }
     }
   }
 
@@ -243,7 +245,7 @@ function drawHUD() {
       text(p.remote ? p.name : 'YOU', x, 336, n > 6 ? 11 : 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
     });
     text(net.rematch ? 'NEW ROUND!' : 'MATCH FOUND!', W / 2, 420, 64 * pop, PAL.good, 'center', 900);
-    text(mode === 'versus' ? 'Versus — race to the top' : 'Co-op — climb together', W / 2, 466, 20, PAL.ink, 'center', 800);
+    text('Race — last one standing wins', W / 2, 466, 20, PAL.ink, 'center', 800);
     text(onlineKeysText(), W / 2, 500, 17, localCube(0).d, 'center', 900);
     text('Loading level' + '.'.repeat(1 + Math.floor(time * 3) % 3), W / 2, 540, 16, PAL.inkSoft, 'center', 700);
   }
@@ -264,13 +266,8 @@ function drawHUD() {
       if (newBest) text('NEW BEST!', W / 2, y0 + 184, 26, PAL.good, 'center', 900);
       else text('Best: ' + best + ' m', W / 2, y0 + 184, 21, PAL.good, 'center', 800);
     }
-    // Online: the room goes again by itself
-    if (net.status === 'playing') {
-      const L = net.lobby, secs = roomSecs();
-      const msg = L && L.phase === 'break' && secs != null ? `Next round in ${secs}s` + (L.players > players.length ? ` — ${L.players - players.length} more joining` : '')
-        : L && L.phase === 'lobby' ? 'Waiting for more players to join…' : 'Next round coming up…';
-      text(msg, W / 2, 694, 18, PAL.good, 'center', 900);
-    }
+    // Online: the next race starts once everyone in the room is ready
+    if (net.status === 'playing') text(roomLine(), W / 2, 694, 17, PAL.good, 'center', 900);
   }
 
   // Buttons for whatever screen we're on

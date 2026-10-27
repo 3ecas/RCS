@@ -2,6 +2,7 @@
 'use strict';
 
 const keys = {}, pressed = {};
+// Your cube can be moved with either set of keys
 const CONTROLS = [
   { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS' },
   { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', down: 'ArrowDown' },

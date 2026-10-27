@@ -4,26 +4,19 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Play
 - **Online:** open GitHub Pages — `https://3ecas.github.io/RCS/`. Players only ever use this address. Multiplayer connects behind the scenes to the matchmaking server on Render (`SERVER_URL` in `js/net.js`); the page wakes that server up as soon as it opens.
-- **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
+- **On your computer:** double-click `index.html`. Solo works; Multiplayer needs the Render server to be running.
 
 ## Main menu
-Minimal on purpose: type **your name** and pick **your cube colour** at the top (◀ ▶ or ← →, 10 colours; both are remembered), then choose:
+Minimal on purpose: type **your name** and pick **your cube colour** at the top (◀ ▶ or ← →, 10 colours; both are remembered), then:
 
-- **Local** — on this computer:
-  - **Solo** — climb alone. How high can you go?
-  - **Co-op** — two players on one keyboard, same team. If one falls, both lose. Player 2 gets a colour that's different from yours.
-- **Multiplayer** — everyone who clicks it goes into **the same room** (up to 10 players; a second room only opens when one is full). Races run in rounds: once there are 2 players a short countdown lets more join, then **Match Found!** loads the level. If you join while a race is on, you're in the room and play from the next round. If you're knocked out you keep watching. When only one player is left the round ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins — wins are kept per player for as long as they stay). The next round starts by itself after 10 seconds with everyone in the room; press **Leave** to go. Your own cube is full colour and everyone else's is softer; repeated names get a number ("Bernie 2"). If someone leaves mid-race, the rest carry on.
+- **Solo** — climb alone. How high can you go?
+- **Multiplayer** — one player per computer, up to 10 in a room. Everyone who clicks it goes into **the same room** (a second room only opens when one is full). The room screen lists every player; each one presses **READY**, and the race starts when **everyone** in the room is ready (at least 2). Everyone races the same tower. If you're knocked out you keep watching. When only one player is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Press **READY** again for the next race, or **LEAVE**. If you join while a race is on, you wait in the room and can get ready for the next one. Your own cube is full colour and everyone else's is softer; repeated names get a number ("Bernie 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 
 Top-right corner: **?** opens the instructions, the **speaker** turns sound on/off (remembered).
 
 ## Controls
-
-| | Jump | Move | Drop through |
-|---|---|---|---|
-| Player 1 | W | A / D | S |
-| Player 2 (co-op) | ↑ | ← / → | ↓ |
-
-Solo and online: WASD **or** the arrow keys. **R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
+Move with **A D** or **← →**, jump with **W** or **↑**, drop through a platform with **S** or **↓**.
+**R** stops the game in Solo (press **R** again to start over) · **M** sound · **F** full screen.
 
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 
@@ -71,7 +64,7 @@ In the repository's **Settings → Pages**, deploy from the `main` branch, root 
 ```
 node server/server.js 8791
 ```
-Open <http://localhost:8791> in two or more browser windows and press Multiplayer in each.
+Open <http://localhost:8791> in two or more browser windows, press Multiplayer in each, then READY.
 
 ## Easy tweaks
 - `ROW_GAP` (js/config.js) — height between platform rows (120 = 3 m)

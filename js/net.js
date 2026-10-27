@@ -5,10 +5,11 @@
 // server on this computer) it connects back to that address; everywhere else — GitHub Pages, or
 // index.html opened from disk — it connects to SERVER_URL.
 const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
-// me: which computer we are in the match (0 or 1). local: players on this computer. roster: everyone's colour and owner.
-// lobby: while searching, how many players have joined and when the match starts.
-// round: which race in the room this is; sentOver: told the server this race has ended.
-const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, lobby: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
+// me: which computer we are in the race. roster: every cube's colour, owner and name.
+// room: the shared room (who's in it, who's ready). round: which race in the room this is;
+// sentOver: told the server this race has ended.
+const PROTOCOL = 3;   // must match the server's; an outdated copy of the game is told to refresh
+const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, room: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
   const h = location.hostname;
@@ -42,7 +43,7 @@ function netClose() {
 const RETRY_FOR_MS = 75000;
 function startSearch() {
   netClose();
-  state = 'search'; net.lobby = null;
+  state = 'search'; net.room = null;
   net.local = 1;                 // one player per computer
   net.searchStart = performance.now();
   connectOnce();
@@ -57,7 +58,7 @@ function connectOnce() {
   // Tell the server our cube colours, so it can prefer partners with different colours
   const colors = [];
   for (let k = 0; k < net.local; k++) colors.push(localColor(k));
-  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', mode, colors, name: playerName }); };
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, colors, name: playerName }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;
@@ -75,6 +76,13 @@ function connectOnce() {
 
 function leaveOnline() { netSend({ t: 'leave' }); netClose(); toMenu(); }
 
+// The room: am I ready? Toggle it.
+const meInRoom = () => net.room && net.room.players[net.room.me];
+const iAmReady = () => !!(meInRoom() && meInRoom().ready);
+function toggleReady() { netSend({ t: 'ready', on: !iAmReady() }); }
+// Name to show for a room member (their colour if they didn't type one)
+const roomName = p => p.name || COLORS[p.colors[0]].name;
+
 // Our race has ended: tell the server once, so the room can start the next round
 function reportRoundOver() {
   if (net.status !== 'playing' || net.sentOver) return;
@@ -83,7 +91,8 @@ function reportRoundOver() {
 }
 
 function onNet(m) {
-  if (m.t === 'lobby') net.lobby = { ...m, at: performance.now() };
+  if (m.t === 'room') net.room = m;
+  else if (m.t === 'old') { netClose(); netBanner('The game was updated — please refresh the page'); toMenu(); }
   else if (m.t === 'match') {
     net.rematch = net.status === 'playing';
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;

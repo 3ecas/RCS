@@ -113,21 +113,15 @@ function updateWorld(dt) {
   jets = jets.filter(j => j.y < cut);
 }
 
-function humanInput(i) {
-  // Online with two people at this computer: the first uses WASD, the second the arrow keys
-  if (net.status === 'playing' && net.local > 1) i = players[i].slot;
-  else if (net.status === 'playing') i = 0;
-  if ((net.status === 'playing' && net.local === 1) || (net.status !== 'playing' && playerCount === 1 && i === 0)) {
-    const a = CONTROLS[0], b = CONTROLS[1];
-    return { left: keys[a.left] || keys[b.left], right: keys[a.right] || keys[b.right], jump: keys[a.jump] || keys[b.jump],
-             jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down] };
-  }
-  const c = CONTROLS[i];
-  return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
+// One player per computer: WASD or the arrow keys both work
+function humanInput() {
+  const a = CONTROLS[0], b = CONTROLS[1];
+  return { left: keys[a.left] || keys[b.left], right: keys[a.right] || keys[b.right], jump: keys[a.jump] || keys[b.jump],
+           jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down] };
 }
 
 function updatePlayer(p, dt) {
-  const inp = humanInput(p.i);
+  const inp = humanInput();
   p.prevX = p.x; p.prevY = p.y;
 
   // Ride whatever we're standing on

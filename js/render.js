@@ -45,7 +45,7 @@ function drawWalls() {
     ctx.fillStyle = PAL.inkSoft;
     ctx.fillText(mm + 'm', WALL / 2, y - 6); ctx.fillText(mm + 'm', W - WALL / 2, y - 6);
   }
-  if (best > 0 && mode === 'coop') {
+  if (best > 0 && mode === 'solo') {
     const y = GROUND_Y - best * PX_PER_M;
     if (y > camY - 10 && y < camY + H + 10) {
       ctx.setLineDash([8, 8]); ctx.strokeStyle = PAL.good; ctx.globalAlpha = 0.6; ctx.lineWidth = 2;
