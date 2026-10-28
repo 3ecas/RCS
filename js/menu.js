@@ -23,7 +23,12 @@ function layoutButtons() {
   if (state === 'title') {
     if (ui.page === 'local') return [...icons,
       B('solo', 'SOLO', 'Climb alone — how high can you go?', cx - 210, 320, 420, 96, { color: PAL.good }),
-      B('split', 'SPLIT SCREEN', 'Two players, one keyboard, same team', cx - 210, 436, 420, 96, { color: COLORS[7].d }),
+      B('split', 'SPLIT SCREEN', 'Two players on one keyboard', cx - 210, 436, 420, 96, { color: COLORS[7].d }),
+      B('back', 'BACK', '', cx - 100, 580, 200, 56),
+    ];
+    if (ui.page === 'split') return [...icons,
+      B('split-coop', 'CO-OP', 'Climb together — if one falls, both lose', cx - 210, 320, 420, 96, { color: PAL.good }),
+      B('split-race', 'RACE', 'Race each other — last one standing wins', cx - 210, 436, 420, 96, { color: PAL.spike }),
       B('back', 'BACK', '', cx - 100, 580, 200, 56),
     ];
     if (ui.page === 'setup') {
@@ -33,12 +38,7 @@ function layoutButtons() {
         B(`c${who}-next`, '▶', '', pcx + 72, 318, 50, 50, { nofocus: true, color: COLORS[localColor(who)].d }),
       ];
       const pcs = setupPanels();
-      // Split screen: same team or race
-      const modes = ui.setup !== 'split' ? [] : [
-        B('team', 'SAME TEAM', 'If one falls, both lose', cx - 215, 124, 210, 60, { color: PAL.good, selected: ui.splitMode === 'team', nofocus: true }),
-        B('race', 'RACE', 'Last one standing wins', cx + 5, 124, 210, 60, { color: PAL.spike, selected: ui.splitMode === 'race', nofocus: true }),
-      ];
-      return [...icons, ...modes, ...pcs.flatMap((pcx, who) => arrows(who, pcx)),
+      return [...icons, ...pcs.flatMap((pcx, who) => arrows(who, pcx)),
         B('play', ui.setup === 'multi' ? 'JOIN' : 'PLAY', '', cx - 150, 630, 300, 70, { color: PAL.good }),
         B('back', 'BACK', '', cx - 100, 720, 200, 52),
       ];
@@ -146,22 +146,23 @@ function openSetup(kind) {
 }
 
 // Where BACK / Esc goes from each menu page
-const parentPage = () => ui.page === 'setup' ? (ui.setup === 'multi' ? 'main' : 'local') : 'main';
+const parentPage = () => ui.page === 'setup' ? { multi: 'main', solo: 'local', split: 'split' }[ui.setup]
+  : ui.page === 'split' ? 'local' : 'main';
 
 function activate(id) {
   switch (id) {
     case 'local': goPage('local'); break;
     case 'multi': openSetup('multi'); break;
     case 'solo': openSetup('solo'); break;
-    case 'split': openSetup('split'); break;
+    case 'split': goPage('split'); break;
+    case 'split-coop': ui.splitMode = 'team'; openSetup('split'); break;
+    case 'split-race': ui.splitMode = 'race'; openSetup('split'); break;
     case 'back': goPage(parentPage()); break;
     case 'play':
       if (ui.setup === 'multi') { mode = 'versus'; playerCount = 1; startSearch(); }   // online: last one standing wins
       else if (ui.setup === 'split') { mode = ui.splitMode === 'race' ? 'versus' : 'split'; playerCount = 2; startGame(); }
       else { mode = 'solo'; playerCount = 1; startGame(); }
       break;
-    case 'team': ui.splitMode = 'team'; break;
-    case 'race': ui.splitMode = 'race'; break;
     case 'c0-prev': changeColor(0, -1); break;
     case 'c0-next': changeColor(0, 1); break;
     case 'c1-prev': changeColor(1, -1); break;

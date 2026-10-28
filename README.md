@@ -9,7 +9,7 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 ## Menus
 - **Local** — on this computer:
   - **Solo** — climb alone. How high can you go?
-  - **Split screen** — two players on one keyboard. Choose **Same team** (if one falls, both lose) or **Race** (the screen follows the leader; fall behind or hit a danger and you're out — last one standing wins, with a leaderboard and win count).
+  - **Split screen** — two players on one keyboard. Then choose **Co-op** (climb together: if one falls, both lose) or **Race** (the screen follows the leader; fall behind or hit a danger and you're out — last one standing wins, with a leaderboard and win count).
 - **Multiplayer** — online, one player per computer, up to 10 in a room.
 
 After picking a mode you get a **setup screen**: each player types a **name** and picks a **cube colour** (◀ ▶, 10 colours). In split screen both players are side by side — player 1 changes colour with A D, player 2 with ← →, and you can't pick the same colour. Names and colours are remembered. Then **Play** (or **Join** for multiplayer).

@@ -144,7 +144,7 @@ function drawHelp() {
   head('Dangers (they appear as you climb)');
   line('Spikes, spinning shurikens, flames from the walls, falling fireballs.'); yy += 10;
   head('Modes');
-  line('Local — Solo, or Split screen: two players on one keyboard, same team or race.');
+  line('Local — Solo, or Split screen: two players on one keyboard, co-op or race.');
   line('Multiplayer — a random online race with up to 10 players.');
   line('Last one standing wins; if you’re out, you keep watching.'); yy += 10;
   head('Keys');
@@ -238,21 +238,20 @@ function drawHUD() {
       text('Climb the tower. Don’t fall behind.', W / 2, 298, 17, PAL.inkSoft, 'center', 600);
       if (best > 0) text('Best height: ' + best + ' m', W / 2, 600, 16, PAL.good, 'center', 800);
       drawBanner(640);
-    } else if (ui.page === 'local') {
+    } else if (ui.page === 'local' || ui.page === 'split') {
       cube(W / 2 - 60, 110 + bob, 44, localCube(0));
       cube(W / 2 + 16, 110 - bob, 44, localCube(1));
-      text('LOCAL', W / 2, 228, 58, PAL.ink, 'center', 900);
-      text('Play on this computer', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
+      text(ui.page === 'local' ? 'LOCAL' : 'SPLIT SCREEN', W / 2, 228, ui.page === 'local' ? 58 : 50, PAL.ink, 'center', 900);
+      text(ui.page === 'local' ? 'Play on this computer' : 'Two players on one keyboard', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
     } else if (ui.page === 'setup') {
       const title = { solo: 'SOLO', split: 'SPLIT SCREEN', multi: 'MULTIPLAYER' }[ui.setup];
-      if (ui.setup === 'split') {
-        // The SAME TEAM / RACE switch sits under the title (drawn with the buttons)
-        text(title, W / 2, 98, 44, PAL.ink, 'center', 900);
-      } else {
-        const sub = { solo: 'Pick your name and colour', multi: 'Pick your name and colour, then join the room' }[ui.setup];
-        text(title, W / 2, 120, 48, PAL.ink, 'center', 900);
-        text(sub, W / 2, 160, 16, PAL.inkSoft, 'center', 700);
-      }
+      const sub = {
+        solo: 'Pick your name and colour',
+        split: ui.splitMode === 'race' ? 'Race — last one standing wins. Pick names and colours.' : 'Co-op — if one falls, both lose. Pick names and colours.',
+        multi: 'Pick your name and colour, then join the room',
+      }[ui.setup];
+      text(ui.setup === 'split' ? (ui.splitMode === 'race' ? 'SPLIT SCREEN RACE' : 'SPLIT SCREEN CO-OP') : title, W / 2, 120, ui.setup === 'split' ? 40 : 48, PAL.ink, 'center', 900);
+      text(sub, W / 2, 160, 16, PAL.inkSoft, 'center', 700);
       setupPanels().forEach((pcx, who) => drawPlayerPanel(pcx, who));
       if (ui.setup === 'multi') drawBanner(588);
     }
