@@ -1,6 +1,19 @@
 // RCS — Building the tower: platforms, spikes, shurikens and wall flames.
 'use strict';
 
+// A new tower: the starting floor, then rows of platforms up to just above the screen
+function startWorld() {
+  platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, crumbleT: -1, falling: false }];
+  gen = { prev: null, prevHaz: false };   // last main-path platform, and whether the last row had a hazard
+  rowK = 1;
+  generate();
+}
+
+// Where each player starts: spread evenly across the floor (closer together when there are many)
+function spawnPos(i, n) {
+  return { x: W / 2 - PS / 2 + (i - (n - 1) / 2) * Math.min(90, (W - 2 * WALL - PS - 20) / Math.max(1, n - 1)), y: GROUND_Y - PS };
+}
+
 function generate() {
   while (GROUND_Y - rowK * ROW_GAP > camY - 300) {
     const nudge = R() < ROW_WOBBLE ? wrand(-14, 14) : 0;
@@ -78,8 +91,8 @@ function genRow(y) {
 }
 
 // lo/hi: the horizontal lane this platform must stay inside
-function makePlatform(cx, y, w, d, lo, hi, allowHaz) {
-  const m = heightM(y);
+// m: how far into the level (metres) — sets which obstacles can appear
+function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
   const p = { id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: wrand(0, 10), crumbleT: -1, falling: false, vy: 0, bounceT: 0 };
   const r = R();
   const pMove = m >= unlock.move ? lerp(0.08, 0.28, ramp(m, unlock.move, 250)) : 0;

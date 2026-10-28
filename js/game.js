@@ -32,19 +32,11 @@ function update(dt) {
     const after = Math.ceil(countdown);
     if (after !== before) {
       if (after > 0) sfx.beep(440);
-      else { sfx.beep(880); state = 'play'; floatText('GO!', W / 2, camY + H * 0.4, PAL.good); }
+      else { sfx.beep(880); state = 'play'; floatText('GO!', camX + W / 2, camY + H * 0.4, PAL.good); }
     }
   }
 
-  // Camera: constant climb that speeds up, plus catch-up when players climb fast
-  if (state === 'play') {
-    const camM = Math.max(0, heightM(camY + H));
-    scrollSpeed = Math.min(38 + camM * 0.4, 200);
-    camY -= scrollSpeed * dt;
-  }
-  const topY = Math.min(...alive().map(p => p.y));
-  const target = topY - H * 0.38;
-  if (target < camY) camY += (target - camY) * Math.min(1, 5 * dt);
+  updateCamera(dt);
 
   generate();
   updateWorld(dt);
@@ -61,12 +53,12 @@ function update(dt) {
   updateParticles(dt);
   shake = Math.max(0, shake - dt);
 
-  for (const p of alive()) p.best = Math.max(p.best, Math.floor(heightM(p.y + PS)));
-  const h = Math.max(0, Math.floor(heightM(topY + PS)));
+  for (const p of alive()) p.best = Math.max(p.best, Math.floor(playerProgress(p)));
+  const h = Math.max(0, ...alive().map(p => Math.floor(playerProgress(p))));
   if (h > height) {
     height = h;
     if (height >= nextMilestone) {
-      floatText(nextMilestone + ' m!', W / 2, camY + H * 0.3);
+      floatText(nextMilestone + ' m!', camX + W / 2, camY + H * 0.3);
       sfx.milestone();
       nextMilestone += 50;
     }
@@ -74,16 +66,51 @@ function update(dt) {
 
   for (const p of alive()) {
     if (p.remote) continue;          // their computer decides when they fall
-    if (p.y > camY + H + 10) die(p, mode === 'versus' ? 'fell behind' : 'fell off the tower');
+    const why = outReason(p);
+    if (why) die(p, why);
     if (state === 'over') return;
   }
 }
 
+// ---- Tower-specific pieces (js/horizontal.js replaces these for the side-scroller) ----
+
+// The screen climbs at a speed that rises with height, and catches up when players climb fast
+function updateCamera(dt) {
+  if (state === 'play') {
+    const camM = Math.max(0, heightM(camY + H));
+    scrollSpeed = Math.min(38 + camM * 0.4, 200);
+    camY -= scrollSpeed * dt;
+  }
+  const topY = Math.min(...alive().map(p => p.y));
+  const target = topY - H * 0.38;
+  if (target < camY) camY += (target - camY) * Math.min(1, 5 * dt);
+}
+// How far a player has got (metres)
+function playerProgress(p) { return heightM(p.y + PS); }
+// How far the screen has got (metres) — sets which obstacles appear
+function levelM() { return heightM(camY); }
+// Is this player off the screen? Returns why, or null
+function outReason(p) {
+  return p.y > camY + H + 10 ? (mode === 'versus' ? 'fell behind' : 'fell off the tower') : null;
+}
+// Keep a player between the side walls
+function clampX(p) {
+  if (p.x < WALL) { p.x = WALL; p.vx = 0; }
+  if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
+}
+// Has something scrolled far enough off-screen to be thrown away?
+function offScreen(x, y, w) { return y >= camY + H + 250; }
+// Where a falling fireball comes from (its warning shows at the top of the screen)
+function fireballX() { return Math.round(rand(WALL + 20, W - WALL - 20)); }
+
 function updateWorld(dt) {
   for (const p of platforms) {
     p.t += dt;
-    const ox = p.x;
-    if (p.type === 'move') p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
+    const ox = p.x, oy = p.y;
+    if (p.type === 'move') {
+      if (p.axis === 'y') p.y = p.baseY + Math.sin(p.t * p.spd) * p.amp;   // up-and-down (side-scroller)
+      else p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
+    }
     if (p.crumbleT >= 0 && !p.falling) {
       p.crumbleT -= dt;
       if (p.crumbleT <= 0) {
@@ -94,6 +121,7 @@ function updateWorld(dt) {
     if (p.falling) { p.vy += GRAV * 0.6 * dt; p.y += p.vy * dt; }
     if (p.bounceT > 0) p.bounceT -= dt;
     p.dx = p.x - ox;
+    p.dy = p.falling ? 0 : p.y - oy;
   }
   for (const b of blades) {
     b.x += b.vx * dt;
@@ -107,10 +135,9 @@ function updateWorld(dt) {
     if (s === 2 && j.last !== 2 && j.y > camY && j.y < camY + H) sfx.flame();
     j.last = s;
   }
-  const cut = camY + H + 250;
-  platforms = platforms.filter(p => p.y < cut);
-  blades = blades.filter(b => b.y < cut);
-  jets = jets.filter(j => j.y < cut);
+  platforms = platforms.filter(p => !offScreen(p.x, p.y, p.w));
+  blades = blades.filter(b => !offScreen(b.hi, b.y, 0));
+  jets = jets.filter(j => !offScreen(W, j.y, 0));
 }
 
 // Split screen: player 1 uses WASD, player 2 the arrow keys. Otherwise either set moves your cube.
@@ -131,7 +158,8 @@ function updatePlayer(p, dt) {
   // Ride whatever we're standing on
   if (p.onGround && p.ground) {
     if (p.ground.falling) { p.onGround = false; p.ground = null; }
-    else p.x += p.ground.isPlayer ? (p.ground.ref.x - p.ground.ref.prevX) : p.ground.dx;
+    else if (p.ground.isPlayer) p.x += p.ground.ref.x - p.ground.ref.prevX;
+    else { p.x += p.ground.dx; p.y += p.ground.dy || 0; }
   }
 
   const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
@@ -164,8 +192,7 @@ function updatePlayer(p, dt) {
   p.vy = Math.min(p.vy, MAX_FALL);
 
   p.x += p.vx * dt;
-  if (p.x < WALL) { p.x = WALL; p.vx = 0; }
-  if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
+  clampX(p);
 
   const prevBottom = p.y + p.h;
   p.y += p.vy * dt;
@@ -227,14 +254,14 @@ function land(p, pl, wasGround) {
 }
 
 function updateHazards(dt) {
-  const m = heightM(camY);
+  const m = levelM();
   const fd = ramp(m, unlock.fireball, 300);
   // Online, only Player 1's computer decides fireballs and tells the other one
   if (state === 'play' && m >= unlock.fireball && !(net.status === 'playing' && net.me !== 0)) {
     fireTimer -= dt;
     if (fireTimer <= 0) {
       fireTimer = rand(lerp(7, 1.8, fd), lerp(10, 3.5, fd));
-      const x = Math.round(rand(WALL + 20, W - WALL - 20));
+      const x = fireballX();
       warnings.push({ x, t: 1.1 });
       if (net.status === 'playing') relay({ k: 'f', x });
     }
@@ -291,15 +318,15 @@ function die(p, reason) {
   const left = alive();
   if (mode === 'versus' && left.length > 1) {
     // Knocked out, but the race goes on — and you keep watching until one is left
-    const cy = Math.min(p.y + p.h / 2, camY + H - 20);
-    burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
-    floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
+    const cy = Math.min(p.y + p.h / 2, camY + H - 20), cx = clamp(p.x + p.w / 2, camX + 20, camX + W - 20);
+    burst(cx, cy, 18, p.color, 360, 0.9, 9);
+    floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, camX + W / 2, camY + H * 0.5, p.dark, 34);
     return;
   }
   state = 'over'; overT = 0;
-  const cy = Math.min(p.y + p.h / 2, camY + H - 20);
-  burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
-  burst(p.x + p.w / 2, cy, 8, p.dark, 260, 0.7, 6);
+  const cy = Math.min(p.y + p.h / 2, camY + H - 20), cx = clamp(p.x + p.w / 2, camX + 20, camX + W - 20);
+  burst(cx, cy, 18, p.color, 360, 0.9, 9);
+  burst(cx, cy, 8, p.dark, 260, 0.7, 6);
   if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[left[0].uid] = winsOf(left[0]) + 1; }
   else if (height > best) { best = height; newBest = true; saveBest(); }
 }

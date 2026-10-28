@@ -63,7 +63,7 @@ function drawPlatform(p) {
     ctx.fillStyle = PAL.ground; ctx.fillRect(p.x, y, p.w, p.h);
     ctx.fillStyle = PAL.groundD; ctx.fillRect(p.x, y, p.w, 5);
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('START', W / 2, y + 40);
+    ctx.fillText('START', p.x + p.w / 2, y + 40);
     return;
   }
   let x = p.x;
@@ -74,7 +74,8 @@ function drawPlatform(p) {
   if (p.type === 'move') {
     // faint track showing how far it slides
     ctx.fillStyle = 'rgba(127,207,176,0.35)';
-    ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
+    if (p.axis === 'y') ctx.fillRect(p.x + p.w / 2 - 1, p.baseY - p.amp, 2, 2 * p.amp + p.h);   // bobs up and down
+    else ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
   }
   if (p.type === 'crumble') {
     ctx.globalAlpha = p.falling ? 0.6 : 1;
@@ -175,7 +176,7 @@ function render() {
   drawBackground();
 
   ctx.save();
-  ctx.translate(0, -camY);
+  ctx.translate(-camX, -camY);
   for (const p of platforms) drawPlatform(p);
   for (const b of blades) drawBlade(b);
   for (const p of players) drawPlayer(p);
@@ -205,24 +206,27 @@ function render() {
   for (const w of warnings) {
     if (Math.floor(w.t * 10) % 2) continue;
     ctx.fillStyle = PAL.fire;
-    ctx.beginPath(); ctx.moveTo(w.x, 14); ctx.lineTo(w.x - 13, 36); ctx.lineTo(w.x + 13, 36); ctx.closePath(); ctx.fill();
+    const wx = w.x - camX;
+    ctx.beginPath(); ctx.moveTo(wx, 14); ctx.lineTo(wx - 13, 36); ctx.lineTo(wx + 13, 36); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `900 14px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('!', w.x, 33);
+    ctx.fillText('!', wx, 33);
   }
 
-  // Danger glow when someone is near the bottom
-  if (state === 'play' && camY < -40) {
-    let danger = 0;
-    for (const p of alive()) danger = Math.max(danger, (p.y - (camY + H * 0.72)) / (H * 0.28));
-    danger = clamp(danger, 0, 1);
-    if (danger > 0) {
-      const g = ctx.createLinearGradient(0, H, 0, H - 150);
-      g.addColorStop(0, `rgba(255,123,156,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(255,123,156,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, H - 150, W, 150);
-    }
-  }
+  if (state === 'play') drawDanger();
   ctx.restore();
   drawHUD();
+}
+
+// Red glow at the bottom when someone is about to fall off the screen
+function drawDanger() {
+  if (camY >= -40) return;
+  let danger = 0;
+  for (const p of alive()) danger = Math.max(danger, (p.y - (camY + H * 0.72)) / (H * 0.28));
+  danger = clamp(danger, 0, 1);
+  if (danger <= 0) return;
+  const g = ctx.createLinearGradient(0, H, 0, H - 150);
+  g.addColorStop(0, `rgba(255,123,156,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(255,123,156,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, H - 150, W, 150);
 }
 
 function text(str, x, y, size, color, align = 'center', weight = 800) {

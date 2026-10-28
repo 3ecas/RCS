@@ -5,7 +5,8 @@
 //   node server/server.js 8790       (listens on 8790)
 //
 // Messages (JSON over WebSocket at /ws):
-//   client → server  {t:'find', v, colors:[0-9, …], name}   join the shared room (protocol version, cube colours, name)
+//   client → server  {t:'find', v, layout, colors:[0-9, …], name}   join a room (protocol version, 'v' tower or 'h' side-scroller,
+//                                                                   cube colours, name)
 //                    {t:'ready', on}                    ready (or not) for the next race
 //                    {t:'leave'}                        leave the room
 //                    {t:'relay', d:{...}}               pass game data to the other computers in the race
@@ -43,6 +44,7 @@ const server = http.createServer((req, res) => {
   try { url = decodeURIComponent((req.url || '/').split('?')[0]); } catch (e) { url = '/'; }
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok'); return; }
   if (url === '/' || url === '/index.html') return sendFile(res, path.join(ROOT, 'index.html'));
+  if (url === '/horizontal.html') return sendFile(res, path.join(ROOT, 'horizontal.html'));   // the side-scroller
   // Only files inside css/ and js/ with a known type — never the server code or anything else
   const file = path.normalize(path.join(ROOT, url));
   const inPublic = PUBLIC_DIRS.some(d => file.startsWith(path.join(ROOT, d) + path.sep));
@@ -171,8 +173,9 @@ function roomStatus(r) {
 }
 
 function joinRoom(c) {
-  let r = rooms.find(x => cubesIn(x.members) + c.colors.length <= MAX_PLAYERS);
-  if (!r) { r = { members: [], racers: [], ready: new Set(), phase: 'lobby', round: 0, mode: 'versus' }; rooms.push(r); }
+  // The tower and the side-scroller are different games, so each has its own rooms
+  let r = rooms.find(x => x.layout === c.layout && cubesIn(x.members) + c.colors.length <= MAX_PLAYERS);
+  if (!r) { r = { members: [], racers: [], ready: new Set(), phase: 'lobby', round: 0, mode: 'versus', layout: c.layout }; rooms.push(r); }
   c.room = r;
   r.members.push(c);
   roomStatus(r);
@@ -236,6 +239,7 @@ function onMessage(c, text) {
     const colors = (Array.isArray(m.colors) ? m.colors : [0]).slice(0, 2).map(v => Math.max(0, Math.min(9, v | 0)));
     c.colors = colors.length ? colors : [0];
     // The name the player typed: letters, numbers, spaces and a few symbols, at most 12 characters
+    c.layout = m.layout === 'h' ? 'h' : 'v';      // tower ('v') or side-scroller ('h')
     c.name = String(m.name || '').replace(/[^\p{L}\p{N} _.'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 12);
     joinRoom(c);
   } else if (m.t === 'ready') {

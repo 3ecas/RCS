@@ -2,8 +2,9 @@
 'use strict';
 
 let best = 0;
-try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
-function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
+const BEST_KEY = LAYOUT === 'h' ? 'rcs.best.h' : 'towerduo.best';   // separate records for each version
+try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+function saveBest() { try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
 
 // Names and cube colours for player 1 (you) and player 2 (split screen), picked on the setup screen
 // after choosing a mode, and remembered by the browser
@@ -37,7 +38,8 @@ let foundT = 0;                           // "Match found" screen timer
 const wins = {};
 const winsOf = p => wins[p.uid] || 0;
 let players, platforms, blades, jets, particles, fireballs, warnings, texts;
-let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
+// camY / camX: the camera's top-left in the world (camX stays 0 in the tower; camY stays 0 in the side-scroller)
+let camY, camX = 0, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
 let outCount = 0;               // order players are knocked out in (for the leaderboard)
 
@@ -56,23 +58,23 @@ function mkPlayer(i, x, colorIdx = localColor(i)) {
 function reset(seed) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
   nextPid = 1;
-  camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
+  camY = 0; camX = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;
   particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
-  platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, t: 0, crumbleT: -1, falling: false }];
-  // Generator memory: last main-path platform, and whether the last row had a hazard
-  gen = { prev: null, prevHaz: false };
-  rowK = 1;
-  generate();
+  startWorld();       // the starting floor and the first stretch of level (js/level.js, or js/horizontal.js)
   players = [];
-  // Spread the cubes evenly across the floor (closer together when there are many)
-  const spawnX = (i, n) => W / 2 - PS / 2 + (i - (n - 1) / 2) * Math.min(90, (W - 2 * WALL - PS - 20) / Math.max(1, n - 1));
+  const place = (p, n) => {
+    const s = spawnPos(p.i, n);
+    p.x = p.prevX = s.x; p.y = p.prevY = s.y;
+    p.face = LAYOUT === 'h' || s.x < W / 2 ? 1 : -1;
+    return p;
+  };
   if (net.status === 'playing' && net.roster) {
     // Online: everyone in the match, in the server's order. Cubes from the other computer
     // are moved by that computer and drawn softer, so yours always stand out.
     const n = net.roster.length;
     net.roster.forEach((r, i) => {
-      const p = mkPlayer(i, spawnX(i, n), r.color);
+      const p = place(mkPlayer(i, 0, r.color), n);
       p.remote = r.owner !== net.me;
       p.slot = r.slot;                         // on its own computer: 0 = WASD, 1 = arrow keys
       p.uid = r.id || 'p' + i;                 // stable id across rounds (for win counts)
@@ -93,7 +95,7 @@ function reset(seed) {
     return;
   }
   // Local: just you (Solo), or you and player 2 (Split screen)
-  for (let i = 0; i < playerCount; i++) players.push(mkPlayer(i, spawnX(i, playerCount)));
+  for (let i = 0; i < playerCount; i++) players.push(place(mkPlayer(i, 0), playerCount));
 }
 let nextPid = 1;
 const alive = () => players.filter(p => !p.dead);

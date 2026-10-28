@@ -27,7 +27,7 @@ function onlineKeysText() {
 }
 
 function drawButton(b, focused) {
-  if (b.icon || b.label === '?') return drawIcon(b, focused);
+  if (b.icon || b.label === '?' || b.id === 'layout') return drawIcon(b, focused);
   const c = b.color || PAL.ink;
   const lift = focused && !b.disabled ? -3 : 0;
   ctx.globalAlpha = b.disabled ? 0.55 : 1;
@@ -55,6 +55,7 @@ function drawIcon(b, focused) {
   ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   if (b.label === '?') { text('?', cx, cy + 9, 26, PAL.ink, 'center', 900); return; }
+  if (b.id === 'layout') { text(b.label, cx, cy + 8, 24, PAL.ink, 'center', 900); return; }   // switch version
   ctx.fillStyle = PAL.ink;
   ctx.fillRect(cx - 12, cy - 5, 7, 10);                       // speaker box
   ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 3, cy - 11); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx - 5, cy + 5); ctx.closePath(); ctx.fill();
@@ -101,7 +102,7 @@ function drawResults() {
   const x = W / 2 - 250, w = 500, top = 262, rh = Math.min(38, 360 / ranked.length);
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x, top, w, 40 + ranked.length * rh);
   text('LEADERBOARD', x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
-  text('HEIGHT', x + w - 110, top + 27, 12, PAL.inkSoft, 'right', 800);
+  text(SCORE_LABEL, x + w - 110, top + 27, 12, PAL.inkSoft, 'right', 800);
   text('WINS', x + w - 20, top + 27, 12, PAL.inkSoft, 'right', 800);
   ranked.forEach((p, k) => {
     const y = top + 40 + k * rh, mid = y + rh / 2 + 6;
@@ -127,7 +128,8 @@ function drawHelp() {
   const head = t => { text(t, L, yy, 16, PAL.ink, 'left', 900); yy += 24; };
   const line = (t, c = PAL.inkSoft) => { text(t, L, yy, 15, c, 'left', 600); yy += 22; };
   head('The goal');
-  line('Jump up the tower and stay ahead of the screen as it scrolls up.');
+  line(LAYOUT === 'h' ? 'Run and jump to the right and stay ahead of the screen as it scrolls.'
+    : 'Jump up the tower and stay ahead of the screen as it scrolls up.');
   line('Falling off the bottom or touching a danger ends your run.'); yy += 10;
   head('Controls');
   line('Solo & online:  W or ↑ jump  ·  A D or ← → move  ·  S or ↓ drop through');
@@ -235,8 +237,8 @@ function drawHUD() {
       cube(W / 2 - 60, 150 + bob, 44, localCube(0));
       cube(W / 2 + 16, 150 - bob, 44, localCube(1));
       text('RCS', W / 2, 262, 72, PAL.ink, 'center', 900);
-      text('Climb the tower. Don’t fall behind.', W / 2, 298, 17, PAL.inkSoft, 'center', 600);
-      if (best > 0) text('Best height: ' + best + ' m', W / 2, 600, 16, PAL.good, 'center', 800);
+      text(LAYOUT === 'h' ? 'Run right. Don’t fall behind.' : 'Climb the tower. Don’t fall behind.', W / 2, 298, 17, PAL.inkSoft, 'center', 600);
+      if (best > 0) text('Best ' + SCORE_LABEL.toLowerCase() + ': ' + best + ' m', W / 2, 600, 16, PAL.good, 'center', 800);
       drawBanner(640);
     } else if (ui.page === 'local' || ui.page === 'split') {
       cube(W / 2 - 60, 110 + bob, 44, localCube(0));

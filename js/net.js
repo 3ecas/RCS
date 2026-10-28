@@ -58,7 +58,7 @@ function connectOnce() {
   // Tell the server our cube colours, so it can prefer partners with different colours
   const colors = [];
   for (let k = 0; k < net.local; k++) colors.push(localColor(k));
-  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, colors, name: playerName }); };
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, layout: LAYOUT, colors, name: playerName }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;
@@ -118,7 +118,7 @@ function playersLeft(owner) {
     burst(p.x + p.w / 2, p.y + p.h / 2, 10, p.color, 200, 0.6, 6);
   }
   if (!gone.length) return;
-  floatText(gone.map(p => p.name).join(' & ') + ' left', W / 2, camY + H * 0.45, PAL.inkSoft, 26);
+  floatText(gone.map(p => p.name).join(' & ') + ' left', camX + W / 2, camY + H * 0.45, PAL.inkSoft, 26);
   // In a race, if only one cube is left standing, it wins
   const left = alive();
   if (mode === 'versus' && (state === 'play' || state === 'count') && left.length === 1) {

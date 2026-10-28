@@ -10,7 +10,11 @@ const ICON = 44;
 function cornerIcons() {
   const y = 14, x = W - WALL - 14 - ICON;
   const icons = [{ id: 'mute', label: '', icon: 'sound', x, y, w: ICON, h: ICON, nofocus: true }];
-  if (state === 'title') icons.unshift({ id: 'help', label: '?', x: x - ICON - 10, y, w: ICON, h: ICON, nofocus: true });
+  if (state === 'title') {
+    icons.unshift({ id: 'help', label: '?', x: x - ICON - 10, y, w: ICON, h: ICON, nofocus: true });
+    // Switch between the tower (↕) and the side-scroller (↔)
+    if (ui.page === 'main' && !ui.help) icons.unshift({ id: 'layout', label: LAYOUT === 'h' ? '↕' : '↔', x: x - 2 * (ICON + 10), y, w: ICON, h: ICON, nofocus: true });
+  }
   return icons;
 }
 
@@ -168,6 +172,7 @@ function activate(id) {
     case 'c1-prev': changeColor(1, -1); break;
     case 'c1-next': changeColor(1, 1); break;
     case 'help': ui.help = true; ui.focus = 0; break;
+    case 'layout': location.href = LAYOUT === 'h' ? 'index.html' : 'horizontal.html'; break;
     case 'help-close': ui.help = false; ui.focus = 0; break;
     case 'mute': toggleMute(); break;
     case 'cancel': leaveOnline(); break;

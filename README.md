@@ -6,6 +6,12 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 - **Online:** open GitHub Pages — `https://3ecas.github.io/RCS/`. Players only ever use this address. Multiplayer connects behind the scenes to the matchmaking server on Render (`SERVER_URL` in `js/net.js`); the page wakes that server up as soon as it opens.
 - **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
 
+## Two versions
+- **The tower** — `index.html`: climb up; the screen scrolls upward.
+- **Sideways** — `horizontal.html`: a side-scroller on a wide screen. Run and jump to the right across platforms over a gap; the screen keeps scrolling right. Falling into the gap or falling behind the left edge knocks you out. Same menus, modes, names, colours and dangers (no wall flames; moving platforms bob up and down).
+
+Switch between them with the **↔ / ↕** icon in the top-right corner of the main menu. Online, each version has its own rooms. Best distance and best height are saved separately.
+
 ## Menus
 - **Local** — on this computer:
   - **Solo** — climb alone. How high can you go?
@@ -37,7 +43,8 @@ Springs: press jump right as you land on one for a big launch; otherwise it's a 
 
 ## Files
 ```
-index.html        the page: loads the stylesheet and the scripts below, in order
+index.html        the tower: loads the stylesheet and the scripts below, in order
+horizontal.html   the sideways version: the same scripts plus js/horizontal.js
 css/style.css     page layout
 js/config.js      settings: sizes, physics, colours, when obstacles appear
 js/utils.js       small maths and colour helpers
@@ -53,6 +60,7 @@ js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, menus and buttons
 js/name.js        the name boxes on the setup screen
+js/horizontal.js  the sideways version: its level, camera and drawing (only horizontal.html loads it)
 js/main.js        starts the game loop
 server/server.js  online server: serves the game and pairs up players (no dependencies)
 render.yaml       Render setup

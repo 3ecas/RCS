@@ -1,7 +1,10 @@
 // RCS — Game settings: sizes, physics, colours and when each obstacle appears.
 'use strict';
 
-const W = 800, H = 900, WALL = 40;
+// Which version this page is: 'v' = the tower (index.html), 'h' = the side-scroller (horizontal.html)
+const LAYOUT = window.RCS_LAYOUT === 'horizontal' ? 'h' : 'v';
+const W = LAYOUT === 'h' ? 1600 : 800, H = 900, WALL = 40;
+const SCORE_LABEL = LAYOUT === 'h' ? 'DISTANCE' : 'HEIGHT';
 const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;
 const PX_PER_M = 40;
 const GROUND_Y = H - 70;
