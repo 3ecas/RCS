@@ -33,7 +33,12 @@ function layoutButtons() {
         B(`c${who}-next`, '▶', '', pcx + 72, 318, 50, 50, { nofocus: true, color: COLORS[localColor(who)].d }),
       ];
       const pcs = setupPanels();
-      return [...icons, ...pcs.flatMap((pcx, who) => arrows(who, pcx)),
+      // Split screen: same team or race
+      const modes = ui.setup !== 'split' ? [] : [
+        B('team', 'SAME TEAM', 'If one falls, both lose', cx - 215, 124, 210, 60, { color: PAL.good, selected: ui.splitMode === 'team', nofocus: true }),
+        B('race', 'RACE', 'Last one standing wins', cx + 5, 124, 210, 60, { color: PAL.spike, selected: ui.splitMode === 'race', nofocus: true }),
+      ];
+      return [...icons, ...modes, ...pcs.flatMap((pcx, who) => arrows(who, pcx)),
         B('play', ui.setup === 'multi' ? 'JOIN' : 'PLAY', '', cx - 150, 630, 300, 70, { color: PAL.good }),
         B('back', 'BACK', '', cx - 100, 720, 200, 52),
       ];
@@ -152,8 +157,11 @@ function activate(id) {
     case 'back': goPage(parentPage()); break;
     case 'play':
       if (ui.setup === 'multi') { mode = 'versus'; playerCount = 1; startSearch(); }   // online: last one standing wins
-      else { mode = ui.setup; playerCount = ui.setup === 'split' ? 2 : 1; startGame(); }
+      else if (ui.setup === 'split') { mode = ui.splitMode === 'race' ? 'versus' : 'split'; playerCount = 2; startGame(); }
+      else { mode = 'solo'; playerCount = 1; startGame(); }
       break;
+    case 'team': ui.splitMode = 'team'; break;
+    case 'race': ui.splitMode = 'race'; break;
     case 'c0-prev': changeColor(0, -1); break;
     case 'c0-next': changeColor(0, 1); break;
     case 'c1-prev': changeColor(1, -1); break;

@@ -293,7 +293,7 @@ function die(p, reason) {
     // Knocked out, but the race goes on — and you keep watching until one is left
     const cy = Math.min(p.y + p.h / 2, camY + H - 20);
     burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
-    floatText(p.remote ? `${p.name} is out!` : 'You’re out!', W / 2, camY + H * 0.5, p.dark, 34);
+    floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
     return;
   }
   state = 'over'; overT = 0;

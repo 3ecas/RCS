@@ -17,7 +17,7 @@ function textRow(items, y, size, weight = 900, gap = 18) {
 function textRows(items, y, size, gap = 18, rowGap = size + 8) {
   for (let k = 0; k < items.length; k += 5) textRow(items.slice(k, k + 5), y + (k / 5) * rowGap, size, 900, gap);
 }
-const tag = p => p.bot ? 'BOT' : net.status === 'playing' ? p.name.toUpperCase() : 'P' + (p.i + 1);
+const tag = p => p.name.toUpperCase();
 const localCube = k => COLORS[localColor(k)];
 // Online: who plays with which keys on this computer
 function onlineKeysText() {
@@ -39,8 +39,9 @@ function drawButton(b, focused) {
   const tc = b.selected ? '#ffffff' : focused ? c : PAL.ink;
   const mid = b.y + lift + b.h / 2;
   if (b.sub) {
-    text(b.label, b.x + b.w / 2, mid - 2, b.h > 88 ? 30 : 24, tc, 'center', 900);
-    text(b.sub, b.x + b.w / 2, mid + 24, 14, b.selected ? 'rgba(255,255,255,0.92)' : PAL.inkSoft, 'center', 700);
+    const small = b.h < 70;   // compact two-line button
+    text(b.label, b.x + b.w / 2, mid + (small ? 0 : -2), b.h > 88 ? 30 : small ? 19 : 24, tc, 'center', 900);
+    text(b.sub, b.x + b.w / 2, mid + (small ? 18 : 24), small ? 12 : 14, b.selected ? 'rgba(255,255,255,0.92)' : PAL.inkSoft, 'center', 700);
   } else {
     text(b.label, b.x + b.w / 2, mid + 8, b.h > 60 ? 24 : 19, tc, 'center', 900);
   }
@@ -92,7 +93,8 @@ function drawResults() {
   const wp = players.find(p => p.i === winner);
   if (wp) {
     cube(W / 2 - 30, 92, 60, { c: wp.color, d: wp.dark });
-    text(wp.remote ? wp.name.toUpperCase() + ' WINS!' : 'YOU WIN!', W / 2, 218, 54, wp.dark, 'center', 900);
+    const mine = net.status === 'playing' && !wp.remote;   // online: you won
+    text(mine ? 'YOU WIN!' : wp.name.toUpperCase() + ' WINS!', W / 2, 218, 54, wp.dark, 'center', 900);
   } else text('DRAW!', W / 2, 218, 60, PAL.ink, 'center', 900);
   // Ranking: the winner, then whoever was knocked out last, and so on
   const ranked = [...players].sort((a, b) => (b.i === winner) - (a.i === winner) || (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
@@ -103,11 +105,12 @@ function drawResults() {
   text('WINS', x + w - 20, top + 27, 12, PAL.inkSoft, 'right', 800);
   ranked.forEach((p, k) => {
     const y = top + 40 + k * rh, mid = y + rh / 2 + 6;
-    if (!p.remote) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }   // you
+    const you = net.status === 'playing' && !p.remote;
+    if (you) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }
     text(String(k + 1), x + 34, mid, 18, k ? PAL.inkSoft : PAL.good, 'right', 900);
     ctx.fillStyle = p.dark; ctx.fillRect(x + 50, y + rh / 2 - 9, 18, 18);
     ctx.fillStyle = p.color; ctx.fillRect(x + 52, y + rh / 2 - 7, 14, 14);
-    text(p.name + (p.remote ? '' : '  (you)'), x + 82, mid, 17, PAL.ink, 'left', 800);
+    text(p.name + (you ? '  (you)' : ''), x + 82, mid, 17, PAL.ink, 'left', 800);
     text(p.best + ' m', x + w - 110, mid, 16, PAL.ink, 'right', 800);
     text(String(winsOf(p)), x + w - 20, mid, 16, PAL.ink, 'right', 900);
   });
@@ -141,7 +144,7 @@ function drawHelp() {
   head('Dangers (they appear as you climb)');
   line('Spikes, spinning shurikens, flames from the walls, falling fireballs.'); yy += 10;
   head('Modes');
-  line('Local — Solo (climb alone) or Split screen (two players, one keyboard, same team).');
+  line('Local — Solo, or Split screen: two players on one keyboard, same team or race.');
   line('Multiplayer — a random online race with up to 10 players.');
   line('Last one standing wins; if you’re out, you keep watching.'); yy += 10;
   head('Keys');
@@ -242,10 +245,14 @@ function drawHUD() {
       text('Play on this computer', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
     } else if (ui.page === 'setup') {
       const title = { solo: 'SOLO', split: 'SPLIT SCREEN', multi: 'MULTIPLAYER' }[ui.setup];
-      const sub = { solo: 'Pick your name and colour', split: 'Two players, one keyboard, same team — pick names and colours',
-                    multi: 'Pick your name and colour, then join the room' }[ui.setup];
-      text(title, W / 2, 120, 48, PAL.ink, 'center', 900);
-      text(sub, W / 2, 160, 16, PAL.inkSoft, 'center', 700);
+      if (ui.setup === 'split') {
+        // The SAME TEAM / RACE switch sits under the title (drawn with the buttons)
+        text(title, W / 2, 98, 44, PAL.ink, 'center', 900);
+      } else {
+        const sub = { solo: 'Pick your name and colour', multi: 'Pick your name and colour, then join the room' }[ui.setup];
+        text(title, W / 2, 120, 48, PAL.ink, 'center', 900);
+        text(sub, W / 2, 160, 16, PAL.inkSoft, 'center', 700);
+      }
       setupPanels().forEach((pcx, who) => drawPlayerPanel(pcx, who));
       if (ui.setup === 'multi') drawBanner(588);
     }

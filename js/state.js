@@ -24,12 +24,13 @@ const localColor = n => n === 0 ? myColor : p2Color;
 // ---------- World state ----------
 let state = 'title', pausedFrom = 'play';
 // Game mode: 'solo' (climb alone), 'split' (two players, one keyboard, same team: if one falls both lose)
-// or 'versus' (online race: last one standing wins)
+// or 'versus' (a race, online or split screen: last one standing wins)
 let mode = 'solo', winner = -1;
 let playerCount = 1;            // players on this keyboard: 1, or 2 in split screen
 // Button menus: which page we're on, which button has keyboard focus, and the mouse
 // setup: which mode the setup screen (names + colours) is for: 'solo', 'split' or 'multi'
-const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false, setup: 'solo' };
+// splitMode: split screen played as one 'team' or as a 'race'
+const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false, setup: 'solo', splitMode: 'team' };
 let foundT = 0;                           // "Match found" screen timer
 
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
@@ -44,7 +45,7 @@ function mkPlayer(i, x, colorIdx = localColor(i)) {
   const typed = i === 0 ? playerName : i === 1 ? p2Name : '';
   const P = { ...COLORS[colorIdx], name: typed.trim() || 'Player ' + (i + 1) };
   return {
-    speedMul: 1,
+    speedMul: 1, uid: 'L' + i,           // uid: for win counts (online players get the server's id)
     i, x, y: GROUND_Y - PS, w: PS, h: PS, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - PS,
     onGround: true, ground: null, coyote: 0, buf: 0, face: x < W / 2 ? 1 : -1, sq: 1, dropT: 0,
     blink: rand(1, 4), dead: false, springT: 0, springPad: null, best: 0,
