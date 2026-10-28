@@ -8,7 +8,10 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Two versions
 - **The tower** — `index.html`: climb up; the screen scrolls upward.
-- **Sideways** — `horizontal.html`: a side-scroller on a wide screen. Run and jump to the right across platforms over a gap; the screen keeps scrolling right. Falling into the gap or falling behind the left edge knocks you out. Same menus, modes, names, colours and dangers (no wall flames; moving platforms bob up and down).
+- **Sideways** — `horizontal.html`: a side-scroller on a wide screen. Run and jump to the right across platforms over a gap; the screen keeps scrolling right. Falling into the gap or falling behind the left edge knocks you out. Same menus, modes, names and colours. Lots of obstacles: spikes, pillars to jump over, saws going up and down in the gaps, shurikens, crumbling and bobbing platforms, fireballs. Every few platforms there's a section that makes you go back and forth:
+  - **Wall climb** — a tall wall blocks the way; zig-zag up ledges that alternate left and right, cross the top, drop down the other side.
+  - **Switchback descent** — a wall hangs from the sky; go down through stacked floors with gaps at alternating ends (right, left, right…) and pass under it.
+  The screen stops in front of these sections until someone gets past, so going backwards is safe.
 
 Switch between them with the **↔ / ↕** icon in the top-right corner of the main menu. Online, each version has its own rooms. Best distance and best height are saved separately.
 

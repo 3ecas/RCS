@@ -124,10 +124,17 @@ function updateWorld(dt) {
     p.dy = p.falling ? 0 : p.y - oy;
   }
   for (const b of blades) {
-    b.x += b.vx * dt;
-    if (b.x < b.lo) { b.x = b.lo; b.vx = -b.vx; }
-    if (b.x > b.hi) { b.x = b.hi; b.vx = -b.vx; }
-    b.ang += dt * 9 * Math.sign(b.vx);
+    if (b.axis === 'y') {                 // saw going up and down (side-scroller gaps)
+      b.y += b.vy * dt;
+      if (b.y < b.lo) { b.y = b.lo; b.vy = -b.vy; }
+      if (b.y > b.hi) { b.y = b.hi; b.vy = -b.vy; }
+      b.ang += dt * 9;
+    } else {
+      b.x += b.vx * dt;
+      if (b.x < b.lo) { b.x = b.lo; b.vx = -b.vx; }
+      if (b.x > b.hi) { b.x = b.hi; b.vx = -b.vx; }
+      b.ang += dt * 9 * Math.sign(b.vx);
+    }
   }
   for (const j of jets) {
     j.t += dt;
@@ -136,7 +143,8 @@ function updateWorld(dt) {
     j.last = s;
   }
   platforms = platforms.filter(p => !offScreen(p.x, p.y, p.w));
-  blades = blades.filter(b => !offScreen(b.hi, b.y, 0));
+  blades = blades.filter(b => !offScreen(b.axis === 'y' ? b.x : b.hi, b.y, 0));
+  walls = walls.filter(b => !offScreen(b.x, b.y, b.w));
   jets = jets.filter(j => !offScreen(W, j.y, 0));
 }
 
@@ -181,7 +189,7 @@ function updatePlayer(p, dt) {
     p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
     sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
   }
-  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground') {
+  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.solid) {
     p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
   }
   p.dropT -= dt;
@@ -191,13 +199,16 @@ function updatePlayer(p, dt) {
   if (!inp.jump && p.vy < 0) p.vy += GRAV * 1.4 * dt;
   p.vy = Math.min(p.vy, MAX_FALL);
 
+  const beforeX = p.x;
   p.x += p.vx * dt;
   clampX(p);
+  solidX(p, beforeX);
 
-  const prevBottom = p.y + p.h;
+  const prevBottom = p.y + p.h, beforeY = p.y;
   p.y += p.vy * dt;
   const wasGround = p.onGround;
   p.onGround = false; p.ground = null;
+  solidY(p, beforeY, wasGround);
 
   if (p.vy >= 0) {
     // One-way platforms
@@ -224,6 +235,25 @@ function updatePlayer(p, dt) {
 
   p.sq += (1 - p.sq) * Math.min(1, dt * 12);
   p.blink -= dt; if (p.blink < -0.12) p.blink = rand(2, 5);
+}
+
+// Solid blocks (walls, floors, pillars): push the player back out sideways…
+function solidX(p, beforeX) {
+  for (const b of walls) {
+    if (p.y + p.h <= b.y + 1 || p.y >= b.y + b.h || p.x + p.w <= b.x || p.x >= b.x + b.w) continue;
+    if (beforeX + p.w <= b.x + 1) p.x = b.x - p.w;
+    else if (beforeX >= b.x + b.w - 1) p.x = b.x + b.w;
+    else continue;
+    p.vx = 0;
+  }
+}
+// …and up or down: land on top, or bump your head underneath
+function solidY(p, beforeY, wasGround) {
+  for (const b of walls) {
+    if (p.x + p.w <= b.x + 1 || p.x >= b.x + b.w - 1 || p.y + p.h <= b.y || p.y >= b.y + b.h) continue;
+    if (beforeY + p.h <= b.y + 1) land(p, b, wasGround);
+    else if (beforeY >= b.y + b.h - 1) { p.y = b.y + b.h; if (p.vy < 0) p.vy = 0; }
+  }
 }
 
 function superBounce(p, pl) {

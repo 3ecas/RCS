@@ -131,7 +131,21 @@ function drawBlade(b) {
   ctx.restore();
   // faint patrol track
   ctx.fillStyle = 'rgba(108,91,123,0.12)';
-  ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
+  if (b.axis === 'y') ctx.fillRect(b.x - 1, b.lo, 2, b.hi - b.lo);
+  else ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
+}
+
+// A solid block (wall, floor or pillar) — side-scroller only
+function drawSolid(b) {
+  if (b.x + b.w < camX - 20 || b.x > camX + W + 20) return;
+  const top = Math.max(b.y, camY - 20), bot = Math.min(b.y + b.h, camY + H + 20);
+  if (bot <= top) return;
+  ctx.fillStyle = '#b9abd8'; ctx.fillRect(b.x, top, b.w, bot - top);
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';                    // brick lines
+  for (let y = Math.ceil(b.y / 30) * 30 + 15; y < bot; y += 30) if (y > top) ctx.fillRect(b.x + 3, y, b.w - 6, 2);
+  ctx.fillStyle = '#9b8ac6'; ctx.fillRect(b.x, top, 3, bot - top); ctx.fillRect(b.x + b.w - 3, top, 3, bot - top);
+  if (b.y >= top) { ctx.fillStyle = '#ddd4f1'; ctx.fillRect(b.x, b.y, b.w, 4); }   // lit top edge
+  if (b.y + b.h <= bot) { ctx.fillStyle = '#9b8ac6'; ctx.fillRect(b.x, b.y + b.h - 4, b.w, 4); }
 }
 
 function drawJet(j) {
@@ -178,6 +192,7 @@ function render() {
   ctx.save();
   ctx.translate(-camX, -camY);
   for (const p of platforms) drawPlatform(p);
+  for (const b of walls) drawSolid(b);
   for (const b of blades) drawBlade(b);
   for (const p of players) drawPlayer(p);
   for (const f of fireballs) {

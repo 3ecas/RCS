@@ -37,7 +37,8 @@ let foundT = 0;                           // "Match found" screen timer
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
 const wins = {};
 const winsOf = p => wins[p.uid] || 0;
-let players, platforms, blades, jets, particles, fireballs, warnings, texts;
+// walls: solid blocks you can't run or jump through (side-scroller only; empty in the tower)
+let players, platforms, blades, jets, particles, fireballs, warnings, texts, walls = [];
 // camY / camX: the camera's top-left in the world (camX stays 0 in the tower; camY stays 0 in the side-scroller)
 let camY, camX = 0, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
@@ -60,7 +61,7 @@ function reset(seed) {
   nextPid = 1;
   camY = 0; camX = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;
-  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; walls = [];
   startWorld();       // the starting floor and the first stretch of level (js/level.js, or js/horizontal.js)
   players = [];
   const place = (p, n) => {

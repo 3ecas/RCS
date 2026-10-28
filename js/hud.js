@@ -144,7 +144,10 @@ function drawHelp() {
   yy += 26;
   line('Springs: press jump just as you land for a huge boost.'); yy += 10;
   head('Dangers (they appear as you climb)');
-  line('Spikes, spinning shurikens, flames from the walls, falling fireballs.'); yy += 10;
+  line(LAYOUT === 'h' ? 'Spikes, pillars, up-and-down saws, shurikens, fireballs — and walls: zig-zag up and over,'
+    : 'Spikes, spinning shurikens, flames from the walls, falling fireballs.');
+  if (LAYOUT === 'h') line('or switchback down through floors to get under them. The screen waits for you there.');
+  yy += 10;
   head('Modes');
   line('Local — Solo, or Split screen: two players on one keyboard, co-op or race.');
   line('Multiplayer — a random online race with up to 10 players.');
