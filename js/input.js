@@ -2,7 +2,7 @@
 'use strict';
 
 const keys = {}, pressed = {};
-// Your cube can be moved with either set of keys
+// Player 1 = WASD, player 2 = arrow keys (in Solo and online, either set moves your cube)
 const CONTROLS = [
   { left: 'KeyA', right: 'KeyD', jump: 'KeyW', down: 'KeyS' },
   { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', down: 'ArrowDown' },

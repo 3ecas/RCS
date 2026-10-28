@@ -5,23 +5,31 @@ let best = 0;
 try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
 function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
 
-// Your cube colour (picked at the top of the main menu), remembered by the browser
-let myColor = 0;
-try { const c = parseInt(localStorage.getItem('rcs.color'), 10); if (c >= 0 && c < COLORS.length) myColor = c; } catch (e) {}
-function saveColor() { try { localStorage.setItem('rcs.color', String(myColor)); } catch (e) {} }
-
-// Your name (typed above the colour picker), remembered by the browser. Shown in online games.
-let playerName = '';
-try { playerName = (localStorage.getItem('rcs.name') || '').slice(0, 12); } catch (e) {}
-// Colour of the n-th player on this computer (there's only ever one now: yours)
-const localColor = n => (myColor + n * 3) % COLORS.length;
+// Names and cube colours for player 1 (you) and player 2 (split screen), picked on the setup screen
+// after choosing a mode, and remembered by the browser
+let myColor = 0, p2Color = 7, playerName = '', p2Name = '';
+try {
+  const c1 = parseInt(localStorage.getItem('rcs.color'), 10), c2 = parseInt(localStorage.getItem('rcs.color2'), 10);
+  if (c1 >= 0 && c1 < COLORS.length) myColor = c1;
+  if (c2 >= 0 && c2 < COLORS.length) p2Color = c2;
+  playerName = (localStorage.getItem('rcs.name') || '').slice(0, 12);
+  p2Name = (localStorage.getItem('rcs.name2') || '').slice(0, 12);
+} catch (e) {}
+if (p2Color === myColor) p2Color = (myColor + 3) % COLORS.length;
+function saveColor() {
+  try { localStorage.setItem('rcs.color', String(myColor)); localStorage.setItem('rcs.color2', String(p2Color)); } catch (e) {}
+}
+const localColor = n => n === 0 ? myColor : p2Color;
 
 // ---------- World state ----------
 let state = 'title', pausedFrom = 'play';
-// Game mode: 'solo' (climb alone) or 'versus' (online race: last one standing wins)
+// Game mode: 'solo' (climb alone), 'split' (two players, one keyboard, same team: if one falls both lose)
+// or 'versus' (online race: last one standing wins)
 let mode = 'solo', winner = -1;
+let playerCount = 1;            // players on this keyboard: 1, or 2 in split screen
 // Button menus: which page we're on, which button has keyboard focus, and the mouse
-const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false };
+// setup: which mode the setup screen (names + colours) is for: 'solo', 'split' or 'multi'
+const ui = { page: 'main', focus: 0, mx: -1, my: -1, mouseMoved: false, click: null, help: false, setup: 'solo' };
 let foundT = 0;                           // "Match found" screen timer
 
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
@@ -33,7 +41,8 @@ let fireTimer, shake, scrollSpeed, newBest;
 let outCount = 0;               // order players are knocked out in (for the leaderboard)
 
 function mkPlayer(i, x, colorIdx = localColor(i)) {
-  const P = { ...COLORS[colorIdx], name: i === 0 && playerName ? playerName : 'Player ' + (i + 1) };
+  const typed = i === 0 ? playerName : i === 1 ? p2Name : '';
+  const P = { ...COLORS[colorIdx], name: typed.trim() || 'Player ' + (i + 1) };
   return {
     speedMul: 1,
     i, x, y: GROUND_Y - PS, w: PS, h: PS, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - PS,
@@ -82,8 +91,8 @@ function reset(seed) {
     }
     return;
   }
-  // Solo: just you
-  players.push(mkPlayer(0, spawnX(0, 1)));
+  // Local: just you (Solo), or you and player 2 (Split screen)
+  for (let i = 0; i < playerCount; i++) players.push(mkPlayer(i, spawnX(i, playerCount)));
 }
 let nextPid = 1;
 const alive = () => players.filter(p => !p.dead);

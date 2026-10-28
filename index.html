@@ -8,8 +8,9 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<!-- Your name, shown above the colour picker on the main menu -->
-<input id="name" maxlength="12" placeholder="Your name" autocomplete="off" spellcheck="false" aria-label="Your name">
+<!-- Name boxes for player 1 and player 2, shown on the setup screen (placed by js/name.js) -->
+<input id="name1" class="name-box" maxlength="12" placeholder="Name" autocomplete="off" spellcheck="false" aria-label="Player 1 name">
+<input id="name2" class="name-box" maxlength="12" placeholder="Name" autocomplete="off" spellcheck="false" aria-label="Player 2 name">
 <!-- Plain scripts (not modules) so the game also runs when index.html is opened straight from disk. Order matters. -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>

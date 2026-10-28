@@ -1,4 +1,5 @@
-// RCS — Menus and buttons: main menu (Solo / Multiplayer), help, the online room, stop and end screens.
+// RCS — Menus and buttons: main menu (Local / Multiplayer), Local (Solo / Split screen), the setup screen
+// (names + colours), help, the online room, stop and end screens.
 'use strict';
 
 function startGame() { reset(); state = 'count'; countdown = 3; sfx.beep(440); }
@@ -20,12 +21,26 @@ function layoutButtons() {
   if (state === 'title' && ui.help) return [B('help-close', 'GOT IT', '', cx - 100, 776, 200, 56, { color: PAL.good })];
   const icons = cornerIcons();
   if (state === 'title') {
+    if (ui.page === 'local') return [...icons,
+      B('solo', 'SOLO', 'Climb alone — how high can you go?', cx - 210, 320, 420, 96, { color: PAL.good }),
+      B('split', 'SPLIT SCREEN', 'Two players, one keyboard, same team', cx - 210, 436, 420, 96, { color: COLORS[7].d }),
+      B('back', 'BACK', '', cx - 100, 580, 200, 56),
+    ];
+    if (ui.page === 'setup') {
+      // One panel per player: ◀ ▶ beside the cube (mouse, or keys); not part of the button focus
+      const arrows = (who, pcx) => [
+        B(`c${who}-prev`, '◀', '', pcx - 122, 318, 50, 50, { nofocus: true, color: COLORS[localColor(who)].d }),
+        B(`c${who}-next`, '▶', '', pcx + 72, 318, 50, 50, { nofocus: true, color: COLORS[localColor(who)].d }),
+      ];
+      const pcs = setupPanels();
+      return [...icons, ...pcs.flatMap((pcx, who) => arrows(who, pcx)),
+        B('play', ui.setup === 'multi' ? 'JOIN' : 'PLAY', '', cx - 150, 630, 300, 70, { color: PAL.good }),
+        B('back', 'BACK', '', cx - 100, 720, 200, 52),
+      ];
+    }
     return [...icons,   // main menu
-      // colour picker arrows (mouse, or ← → keys); not part of the up/down button focus
-      B('col-prev', '◀', '', cx - 132, 84, 56, 56, { nofocus: true, color: COLORS[myColor].d }),
-      B('col-next', '▶', '', cx + 76, 84, 56, 56, { nofocus: true, color: COLORS[myColor].d }),
-      B('solo', 'SOLO', 'Climb alone — how high can you go?', cx - 210, 350, 420, 96, { color: PAL.good }),
-      B('multi', 'MULTIPLAYER', 'Race up to 10 players online', cx - 210, 466, 420, 96, { color: PAL.spike }),
+      B('local', 'LOCAL', 'Solo or split screen on this computer', cx - 210, 340, 420, 96, { color: PAL.good }),
+      B('multi', 'MULTIPLAYER', 'Race up to 10 players online', cx - 210, 456, 420, 96, { color: PAL.spike }),
     ];
   }
   if (state === 'search') {
@@ -62,16 +77,25 @@ const inside = (b, x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y +
 // Buttons that keyboard focus moves between (icons and colour arrows are mouse / shortcut keys only)
 const focusable = bs => bs.filter(b => !b.nofocus);
 
+// Centre x of each player panel on the setup screen (two side by side for split screen)
+const setupPanels = () => ui.setup === 'split' ? [W / 2 - 165, W / 2 + 165] : [W / 2];
+
 function menuInput() {
   const bs = layoutButtons();
   const click = ui.click; ui.click = null;
   if (state === 'title' && pressed.Slash) { ui.help = !ui.help; ui.focus = 0; return; }   // ? key
   const fb = focusable(bs), n = fb.length, prev = ui.focus;
   if (ui.focus >= n) ui.focus = 0;
-  // On the main menu ← → (or A D) change your colour; elsewhere they move between buttons like ↑ ↓
-  const colorKeys = state === 'title' && !ui.help && ui.page === 'main';
-  if (colorKeys && (pressed.ArrowLeft || pressed.KeyA)) changeColor(-1);
-  if (colorKeys && (pressed.ArrowRight || pressed.KeyD)) changeColor(1);
+  // Setup screen: ← → / A D change colours (split screen: A D for player 1, ← → for player 2).
+  // Elsewhere ← → move between buttons like ↑ ↓.
+  const colorKeys = state === 'title' && !ui.help && ui.page === 'setup';
+  if (colorKeys) {
+    const two = ui.setup === 'split';
+    if (pressed.KeyA || (!two && pressed.ArrowLeft)) changeColor(0, -1);
+    if (pressed.KeyD || (!two && pressed.ArrowRight)) changeColor(0, 1);
+    if (two && pressed.ArrowLeft) changeColor(1, -1);
+    if (two && pressed.ArrowRight) changeColor(1, 1);
+  }
   const fwd = pressed.ArrowDown || pressed.KeyS || pressed.Tab || (!colorKeys && (pressed.ArrowRight || pressed.KeyD));
   const bwd = pressed.ArrowUp || pressed.KeyW || (!colorKeys && (pressed.ArrowLeft || pressed.KeyA));
   if (n && fwd) ui.focus = (ui.focus + 1) % n;
@@ -94,8 +118,12 @@ function gameClicks() {
   if (click && cornerIcons().some(b => inside(b, click.x, click.y))) toggleMute();
 }
 
-function changeColor(step) {
-  myColor = (myColor + step + COLORS.length) % COLORS.length;
+// Change player 1's (who = 0) or player 2's (who = 1) colour. In split screen the two can't match.
+function changeColor(who, step) {
+  const other = who === 0 ? p2Color : myColor;
+  let c = who === 0 ? myColor : p2Color;
+  do { c = (c + step + COLORS.length) % COLORS.length; } while (ui.setup === 'split' && c === other);
+  if (who === 0) myColor = c; else p2Color = c;
   saveColor();
   reset();            // refresh the cubes standing behind the menu
   sfx.beep(700);
@@ -103,12 +131,33 @@ function changeColor(step) {
 
 function goPage(page, focus = 0) { ui.page = page; ui.focus = focus; }
 
+// Open the setup screen (names + colours) for a mode
+function openSetup(kind) {
+  ui.setup = kind;
+  if (kind === 'split' && p2Color === myColor) { p2Color = (myColor + 3) % COLORS.length; saveColor(); }
+  playerCount = kind === 'split' ? 2 : 1;
+  reset();
+  goPage('setup', 0);    // focus starts on PLAY / JOIN
+}
+
+// Where BACK / Esc goes from each menu page
+const parentPage = () => ui.page === 'setup' ? (ui.setup === 'multi' ? 'main' : 'local') : 'main';
+
 function activate(id) {
   switch (id) {
-    case 'multi': mode = 'versus'; startSearch(); break;       // online is always a race: last one standing wins
-    case 'solo': mode = 'solo'; startGame(); break;
-    case 'col-prev': changeColor(-1); break;
-    case 'col-next': changeColor(1); break;
+    case 'local': goPage('local'); break;
+    case 'multi': openSetup('multi'); break;
+    case 'solo': openSetup('solo'); break;
+    case 'split': openSetup('split'); break;
+    case 'back': goPage(parentPage()); break;
+    case 'play':
+      if (ui.setup === 'multi') { mode = 'versus'; playerCount = 1; startSearch(); }   // online: last one standing wins
+      else { mode = ui.setup; playerCount = ui.setup === 'split' ? 2 : 1; startGame(); }
+      break;
+    case 'c0-prev': changeColor(0, -1); break;
+    case 'c0-next': changeColor(0, 1); break;
+    case 'c1-prev': changeColor(1, -1); break;
+    case 'c1-next': changeColor(1, 1); break;
     case 'help': ui.help = true; ui.focus = 0; break;
     case 'help-close': ui.help = false; ui.focus = 0; break;
     case 'mute': toggleMute(); break;
@@ -123,7 +172,7 @@ function activate(id) {
 
 // ESC: go back one step
 function escAction() {
-  if (state === 'title') { if (ui.help) ui.help = false; }
+  if (state === 'title') { if (ui.help) ui.help = false; else if (ui.page !== 'main') goPage(parentPage()); }
   else if (state === 'search') activate('cancel');
   else if (state === 'over' && overT > 0.8) activate('menu');
 }

@@ -113,15 +113,19 @@ function updateWorld(dt) {
   jets = jets.filter(j => j.y < cut);
 }
 
-// One player per computer: WASD or the arrow keys both work
-function humanInput() {
+// Split screen: player 1 uses WASD, player 2 the arrow keys. Otherwise either set moves your cube.
+function humanInput(i) {
+  if (playerCount === 2 && net.status !== 'playing') {
+    const c = CONTROLS[i];
+    return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
+  }
   const a = CONTROLS[0], b = CONTROLS[1];
   return { left: keys[a.left] || keys[b.left], right: keys[a.right] || keys[b.right], jump: keys[a.jump] || keys[b.jump],
            jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down] };
 }
 
 function updatePlayer(p, dt) {
-  const inp = humanInput();
+  const inp = humanInput(p.i);
   p.prevX = p.x; p.prevY = p.y;
 
   // Ride whatever we're standing on

@@ -3,11 +3,11 @@ html, body { margin: 0; height: 100%; background: #f6eef6; overflow: hidden; }
 body { display: flex; align-items: center; justify-content: center; }
 canvas { display: block; }
 
-/* Name box on the main menu: placed over the canvas by js/name.js */
-#name {
+/* Name boxes on the setup screen: placed over the canvas by js/name.js */
+.name-box {
   position: fixed; display: none; box-sizing: border-box; text-align: center;
   border: 2px solid #c7badf; background: rgba(255, 255, 255, 0.9); color: #5b4b6b; outline: none;
   font-family: ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif; font-weight: 800;
 }
-#name:focus { border-color: #5b4b6b; }
-#name::placeholder { color: rgba(91, 75, 107, 0.45); }
+.name-box:focus { border-color: #5b4b6b; }
+.name-box::placeholder { color: rgba(91, 75, 107, 0.45); }

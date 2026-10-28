@@ -1,24 +1,36 @@
-// RCS — The name box above the colour picker: an HTML text field kept lined up with the canvas.
+// RCS — The name boxes on the setup screen: HTML text fields kept lined up with the canvas.
 'use strict';
 
-const nameBox = document.getElementById('name');
-nameBox.value = playerName;
-nameBox.addEventListener('input', () => {
-  playerName = nameBox.value.replace(/\s+/g, ' ').trimStart().slice(0, 12);
-  try { localStorage.setItem('rcs.name', playerName.trim()); } catch (e) {}
+const nameBoxes = [document.getElementById('name1'), document.getElementById('name2')];
+nameBoxes[0].value = playerName;
+nameBoxes[1].value = p2Name;
+nameBoxes.forEach((box, who) => {
+  box.addEventListener('input', () => {
+    const v = box.value.replace(/\s+/g, ' ').trimStart().slice(0, 12);
+    if (who === 0) playerName = v; else p2Name = v;
+    try { localStorage.setItem(who === 0 ? 'rcs.name' : 'rcs.name2', v.trim()); } catch (e) {}
+  });
+  box.addEventListener('blur', () => {
+    if (who === 0) { playerName = playerName.trim(); box.value = playerName; }
+    else { p2Name = p2Name.trim(); box.value = p2Name; }
+    reset();
+  });
 });
-nameBox.addEventListener('blur', () => { playerName = playerName.trim(); nameBox.value = playerName; reset(); });
 
-// Called every frame: show the box only on the main menu, at the right spot and size
+// Called every frame: show a box for each player on the setup screen, at the top of their panel
 function placeNameBox() {
-  const show = state === 'title' && ui.page === 'main' && !ui.help;
-  nameBox.style.display = show ? 'block' : 'none';
-  if (!show) { if (document.activeElement === nameBox) nameBox.blur(); return; }
+  const panels = state === 'title' && ui.page === 'setup' && !ui.help ? setupPanels() : [];
   const r = canvas.getBoundingClientRect(), s = r.width / W;
-  const bw = 230, bh = 40, bx = W / 2 - bw / 2, by = 22;
-  nameBox.style.left = r.left + bx * s + 'px';
-  nameBox.style.top = r.top + by * s + 'px';
-  nameBox.style.width = bw * s + 'px';
-  nameBox.style.height = bh * s + 'px';
-  nameBox.style.fontSize = 18 * s + 'px';
+  nameBoxes.forEach((box, who) => {
+    const pcx = panels[who];
+    box.style.display = pcx === undefined ? 'none' : 'block';
+    if (pcx === undefined) { if (document.activeElement === box) box.blur(); return; }
+    const bw = 230, bh = 40;
+    box.placeholder = ui.setup === 'split' ? `Player ${who + 1} name` : 'Your name';
+    box.style.left = r.left + (pcx - bw / 2) * s + 'px';
+    box.style.top = r.top + 240 * s + 'px';
+    box.style.width = bw * s + 'px';
+    box.style.height = bh * s + 'px';
+    box.style.fontSize = 18 * s + 'px';
+  });
 }
