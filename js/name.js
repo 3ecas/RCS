@@ -20,15 +20,15 @@ nameBoxes.forEach((box, who) => {
 // Called every frame: show a box for each player on the setup screen, at the top of their panel
 function placeNameBox() {
   const panels = state === 'title' && ui.page === 'setup' && !ui.help ? setupPanels() : [];
-  const r = canvas.getBoundingClientRect(), s = r.width / W;
+  const r = canvas.getBoundingClientRect(), s = r.width / VW;
   nameBoxes.forEach((box, who) => {
     const pcx = panels[who];
     box.style.display = pcx === undefined ? 'none' : 'block';
     if (pcx === undefined) { if (document.activeElement === box) box.blur(); return; }
     const bw = 230, bh = 40;
     box.placeholder = ui.setup === 'split' ? `Player ${who + 1} name` : 'Your name';
-    box.style.left = r.left + (pcx - bw / 2) * s + 'px';
-    box.style.top = r.top + 240 * s + 'px';
+    box.style.left = r.left + (OX + pcx - bw / 2) * s + 'px';
+    box.style.top = r.top + (OY + 240) * s + 'px';
     box.style.width = bw * s + 'px';
     box.style.height = bh * s + 'px';
     box.style.fontSize = 18 * s + 'px';

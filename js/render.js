@@ -9,18 +9,18 @@ function bgAt(m) {
 
 function drawBackground() {
   const [top, bot] = bgAt(heightM(camY + H / 2));
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  const g = ctx.createLinearGradient(0, -OY, 0, H + OY);
   g.addColorStop(0, top); g.addColorStop(1, bot);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(-OX, -OY, VW, VH);   // the whole window
   // Soft floating squares (parallax)
-  const span = H * 2;
+  const span = VH * 2;
   for (let k = 0; k < 14; k++) {
     const s = 30 + hash(k, 3) * 90;
     const x = WALL + hash(k, 1) * (W - 2 * WALL);
     let y = (hash(k, 2) * span - camY * 0.25) % span;
     if (y < 0) y += span;
-    y -= s;
-    if (y > H) continue;
+    y -= s + OY;
+    if (y > H + OY) continue;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(hash(k, 4) * 0.8 + time * 0.05 * (hash(k, 5) - 0.5));
@@ -31,10 +31,18 @@ function drawBackground() {
 }
 
 function drawWalls() {
+  // The side walls, carried on out to the edges of the window (and above / below on tall windows)
+  const top = camY - OY, tall = VH;
   ctx.fillStyle = PAL.wall;
-  ctx.fillRect(0, camY, WALL, H); ctx.fillRect(W - WALL, camY, WALL, H);
+  ctx.fillRect(-OX, top, OX + WALL, tall); ctx.fillRect(W - WALL, top, WALL + OX, tall);
+  if (OX > 0) {   // faint stone courses on the wide parts
+    ctx.fillStyle = 'rgba(199,186,223,0.45)';
+    for (let y = Math.floor(top / 60) * 60; y < top + tall; y += 60) {
+      ctx.fillRect(-OX, y, OX, 2); ctx.fillRect(W, y, OX, 2);
+    }
+  }
   ctx.fillStyle = PAL.wallLine;
-  ctx.fillRect(WALL - 3, camY, 3, H); ctx.fillRect(W - WALL, camY, 3, H);
+  ctx.fillRect(WALL - 3, top, 3, tall); ctx.fillRect(W - WALL, top, 3, tall);
   // Height markers every 25 m
   ctx.font = `700 12px ${FONT}`; ctx.textAlign = 'center';
   const mTop = Math.ceil(heightM(camY + H) / 25) * 25, mMax = heightM(camY);
@@ -57,13 +65,13 @@ function drawWalls() {
 }
 
 function drawPlatform(p) {
-  if (p.y < camY - 60 || p.y > camY + H + 80) return;
+  if (p.y < camY - OY - 60 || p.y > camY + H + OY + 80) return;
   const y = p.y;
   if (p.type === 'ground') {
     ctx.fillStyle = PAL.ground; ctx.fillRect(p.x, y, p.w, p.h);
     ctx.fillStyle = PAL.groundD; ctx.fillRect(p.x, y, p.w, 5);
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('START', p.x + p.w / 2, y + 40);
+    ctx.fillText('START', W / 2, y + 40);
     return;
   }
   let x = p.x;
@@ -73,8 +81,7 @@ function drawPlatform(p) {
   if (p.type === 'move') {
     // faint track showing how far it slides
     ctx.fillStyle = 'rgba(127,207,176,0.35)';
-    if (p.axis === 'y') ctx.fillRect(p.x + p.w / 2 - 1, p.baseY - p.amp, 2, 2 * p.amp + p.h);   // bobs up and down
-    else ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
+    ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
   }
   if (p.type === 'tilt') {
     // Seesaw: a post and pivot pin, and the plank turned around the pivot (centre of its top)
@@ -117,7 +124,7 @@ function drawSpringI(x, y, w, sq) {
 }
 
 function drawBlade(b) {
-  if (b.y < camY - 40 || b.y > camY + H + 40) return;
+  if (b.y < camY - OY - 40 || b.y > camY + H + OY + 40) return;
   ctx.save();
   ctx.translate(b.x, b.y); ctx.rotate(b.ang);
   ctx.fillStyle = PAL.blade;
@@ -133,25 +140,11 @@ function drawBlade(b) {
   ctx.restore();
   // faint patrol track
   ctx.fillStyle = 'rgba(108,91,123,0.12)';
-  if (b.axis === 'y') ctx.fillRect(b.x - 1, b.lo, 2, b.hi - b.lo);
-  else ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
-}
-
-// A solid block (wall, floor or pillar) — side-scroller only
-function drawSolid(b) {
-  if (b.x + b.w < camX - 20 || b.x > camX + W + 20) return;
-  const top = Math.max(b.y, camY - 20), bot = Math.min(b.y + b.h, camY + H + 20);
-  if (bot <= top) return;
-  ctx.fillStyle = '#b9abd8'; ctx.fillRect(b.x, top, b.w, bot - top);
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';                    // brick lines
-  for (let y = Math.ceil(b.y / 30) * 30 + 15; y < bot; y += 30) if (y > top) ctx.fillRect(b.x + 3, y, b.w - 6, 2);
-  ctx.fillStyle = '#9b8ac6'; ctx.fillRect(b.x, top, 3, bot - top); ctx.fillRect(b.x + b.w - 3, top, 3, bot - top);
-  if (b.y >= top) { ctx.fillStyle = '#ddd4f1'; ctx.fillRect(b.x, b.y, b.w, 4); }   // lit top edge
-  if (b.y + b.h <= bot) { ctx.fillStyle = '#9b8ac6'; ctx.fillRect(b.x, b.y + b.h - 4, b.w, 4); }
+  ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
 }
 
 function drawJet(j) {
-  if (j.y < camY - 40 || j.y > camY + H + 40) return;
+  if (j.y < camY - OY - 40 || j.y > camY + H + OY + 40) return;
   const s = jetState(j), L = j.side === 'L';
   const wallX = L ? WALL : W - WALL;
   // nozzle on the wall
@@ -192,9 +185,8 @@ function render() {
   drawBackground();
 
   ctx.save();
-  ctx.translate(-camX, -camY);
+  ctx.translate(0, -camY);
   for (const p of platforms) drawPlatform(p);
-  for (const b of walls) drawSolid(b);
   for (const b of blades) drawBlade(b);
   for (const p of players) drawPlayer(p);
   for (const f of fireballs) {
@@ -223,12 +215,18 @@ function render() {
   for (const w of warnings) {
     if (Math.floor(w.t * 10) % 2) continue;
     ctx.fillStyle = PAL.fire;
-    const wx = w.x - camX;
-    ctx.beginPath(); ctx.moveTo(wx, 14); ctx.lineTo(wx - 13, 36); ctx.lineTo(wx + 13, 36); ctx.closePath(); ctx.fill();
+    const wx = w.x;
+    const wy = 14 - OY;   // top of the window
+    ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(wx - 13, wy + 22); ctx.lineTo(wx + 13, wy + 22); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `900 14px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('!', wx, 33);
+    ctx.fillText('!', wx, wy + 19);
   }
 
+  // Tall windows show a bit below the tower's bottom edge: that's out, so shade it
+  if (OY > 0) {
+    ctx.fillStyle = 'rgba(91,75,107,0.14)'; ctx.fillRect(-OX, H, VW, OY);
+    ctx.fillStyle = 'rgba(255,123,156,0.35)'; ctx.fillRect(-OX, H - 1, VW, 2);
+  }
   if (state === 'play') drawDanger();
   ctx.restore();
   drawHUD();
@@ -243,7 +241,7 @@ function drawDanger() {
   if (danger <= 0) return;
   const g = ctx.createLinearGradient(0, H, 0, H - 150);
   g.addColorStop(0, `rgba(255,123,156,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(255,123,156,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, H - 150, W, 150);
+  ctx.fillStyle = g; ctx.fillRect(-OX, H - 150, VW, 150);
 }
 
 function text(str, x, y, size, color, align = 'center', weight = 800) {

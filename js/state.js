@@ -2,9 +2,8 @@
 'use strict';
 
 let best = 0;
-const BEST_KEY = LAYOUT === 'h' ? 'rcs.best.h' : 'towerduo.best';   // separate records for each version
-try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
-function saveBest() { try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
+try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
+function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
 
 // Names and cube colours for player 1 (you) and player 2 (split screen), picked on the setup screen
 // after choosing a mode, and remembered by the browser
@@ -37,10 +36,9 @@ let foundT = 0;                           // "Match found" screen timer
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
 const wins = {};
 const winsOf = p => wins[p.uid] || 0;
-// walls: solid blocks you can't run or jump through (side-scroller only; empty in the tower)
-let players, platforms, blades, jets, particles, fireballs, warnings, texts, walls = [];
-// camY / camX: the camera's top-left in the world (camX stays 0 in the tower; camY stays 0 in the side-scroller)
-let camY, camX = 0, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
+let players, platforms, blades, jets, particles, fireballs, warnings, texts;
+// camY: the top of the screen in the world
+let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
 let outCount = 0;               // order players are knocked out in (for the leaderboard)
 
@@ -59,15 +57,15 @@ function mkPlayer(i, x, colorIdx = localColor(i)) {
 function reset(seed) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
   nextPid = 1;
-  camY = 0; camX = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
+  camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;
-  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; walls = [];
-  startWorld();       // the starting floor and the first stretch of level (js/level.js, or js/horizontal.js)
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
+  startWorld();       // the starting floor and the first rows of platforms (js/level.js)
   players = [];
   const place = (p, n) => {
     const s = spawnPos(p.i, n);
     p.x = p.prevX = s.x; p.y = p.prevY = s.y;
-    p.face = LAYOUT === 'h' || s.x < W / 2 ? 1 : -1;
+    p.face = s.x < W / 2 ? 1 : -1;
     return p;
   };
   if (net.status === 'playing' && net.roster) {

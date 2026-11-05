@@ -15,7 +15,7 @@ function spawnPos(i, n) {
 }
 
 function generate() {
-  while (GROUND_Y - rowK * ROW_GAP > camY - 300) {
+  while (GROUND_Y - rowK * ROW_GAP > camY - OY - 300) {   // build a little past the top of the window
     const nudge = R() < ROW_WOBBLE ? wrand(-14, 14) : 0;
     genRow(GROUND_Y - rowK * ROW_GAP + nudge);
     rowK++;

@@ -32,7 +32,7 @@ function update(dt) {
     const after = Math.ceil(countdown);
     if (after !== before) {
       if (after > 0) sfx.beep(440);
-      else { sfx.beep(880); state = 'play'; floatText('GO!', camX + W / 2, camY + H * 0.4, PAL.good); }
+      else { sfx.beep(880); state = 'play'; floatText('GO!', W / 2, camY + H * 0.4, PAL.good); }
     }
   }
 
@@ -58,7 +58,7 @@ function update(dt) {
   if (h > height) {
     height = h;
     if (height >= nextMilestone) {
-      floatText(nextMilestone + ' m!', camX + W / 2, camY + H * 0.3);
+      floatText(nextMilestone + ' m!', W / 2, camY + H * 0.3);
       sfx.milestone();
       nextMilestone += 50;
     }
@@ -72,7 +72,7 @@ function update(dt) {
   }
 }
 
-// ---- Tower-specific pieces (js/horizontal.js replaces these for the side-scroller) ----
+// ---- How the tower scrolls and where its edges are ----
 
 // The screen climbs at a speed that rises with height, and catches up when players climb fast
 function updateCamera(dt) {
@@ -99,7 +99,7 @@ function clampX(p) {
   if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
 }
 // Has something scrolled far enough off-screen to be thrown away?
-function offScreen(x, y, w) { return y >= camY + H + 250; }
+function offScreen(x, y, w) { return y >= camY + H + OY + 250; }
 // Where a falling fireball comes from (its warning shows at the top of the screen)
 function fireballX() { return Math.round(rand(WALL + 20, W - WALL - 20)); }
 
@@ -107,10 +107,7 @@ function updateWorld(dt) {
   for (const p of platforms) {
     p.t += dt;
     const ox = p.x, oy = p.y;
-    if (p.type === 'move') {
-      if (p.axis === 'y') p.y = p.baseY + Math.sin(p.t * p.spd) * p.amp;   // up-and-down (side-scroller)
-      else p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
-    }
+    if (p.type === 'move') p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
     if (p.type === 'tilt') updateTilt(p, dt);
     if (p.falling) { p.vy += GRAV * 0.6 * dt; p.y += p.vy * dt; }
     if (p.bounceT > 0) p.bounceT -= dt;
@@ -118,17 +115,10 @@ function updateWorld(dt) {
     p.dy = p.falling ? 0 : p.y - oy;
   }
   for (const b of blades) {
-    if (b.axis === 'y') {                 // saw going up and down (side-scroller gaps)
-      b.y += b.vy * dt;
-      if (b.y < b.lo) { b.y = b.lo; b.vy = -b.vy; }
-      if (b.y > b.hi) { b.y = b.hi; b.vy = -b.vy; }
-      b.ang += dt * 9;
-    } else {
-      b.x += b.vx * dt;
-      if (b.x < b.lo) { b.x = b.lo; b.vx = -b.vx; }
-      if (b.x > b.hi) { b.x = b.hi; b.vx = -b.vx; }
-      b.ang += dt * 9 * Math.sign(b.vx);
-    }
+    b.x += b.vx * dt;
+    if (b.x < b.lo) { b.x = b.lo; b.vx = -b.vx; }
+    if (b.x > b.hi) { b.x = b.hi; b.vx = -b.vx; }
+    b.ang += dt * 9 * Math.sign(b.vx);
   }
   for (const j of jets) {
     j.t += dt;
@@ -137,8 +127,7 @@ function updateWorld(dt) {
     j.last = s;
   }
   platforms = platforms.filter(p => !offScreen(p.x, p.y, p.w));
-  blades = blades.filter(b => !offScreen(b.axis === 'y' ? b.x : b.hi, b.y, 0));
-  walls = walls.filter(b => !offScreen(b.x, b.y, b.w));
+  blades = blades.filter(b => !offScreen(b.hi, b.y, 0));
   jets = jets.filter(j => !offScreen(W, j.y, 0));
 }
 
@@ -210,7 +199,7 @@ function updatePlayer(p, dt) {
     p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
     sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
   }
-  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.solid) {
+  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground') {
     p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
   }
   p.dropT -= dt;
@@ -220,16 +209,13 @@ function updatePlayer(p, dt) {
   if (!inp.jump && p.vy < 0) p.vy += GRAV * 1.4 * dt;
   p.vy = Math.min(p.vy, MAX_FALL);
 
-  const beforeX = p.x;
   p.x += p.vx * dt;
   clampX(p);
-  solidX(p, beforeX);
 
-  const prevBottom = p.y + p.h, beforeY = p.y;
+  const prevBottom = p.y + p.h;
   p.y += p.vy * dt;
   const wasGround = p.onGround;
   p.onGround = false; p.ground = null;
-  solidY(p, beforeY, wasGround);
 
   if (p.vy >= 0) {
     // One-way platforms
@@ -264,25 +250,6 @@ function updatePlayer(p, dt) {
 
   p.sq += (1 - p.sq) * Math.min(1, dt * 12);
   p.blink -= dt; if (p.blink < -0.12) p.blink = rand(2, 5);
-}
-
-// Solid blocks (walls, floors, pillars): push the player back out sideways…
-function solidX(p, beforeX) {
-  for (const b of walls) {
-    if (p.y + p.h <= b.y + 1 || p.y >= b.y + b.h || p.x + p.w <= b.x || p.x >= b.x + b.w) continue;
-    if (beforeX + p.w <= b.x + 1) p.x = b.x - p.w;
-    else if (beforeX >= b.x + b.w - 1) p.x = b.x + b.w;
-    else continue;
-    p.vx = 0;
-  }
-}
-// …and up or down: land on top, or bump your head underneath
-function solidY(p, beforeY, wasGround) {
-  for (const b of walls) {
-    if (p.x + p.w <= b.x + 1 || p.x >= b.x + b.w - 1 || p.y + p.h <= b.y || p.y >= b.y + b.h) continue;
-    if (beforeY + p.h <= b.y + 1) land(p, b, wasGround);
-    else if (beforeY >= b.y + b.h - 1) { p.y = b.y + b.h; if (p.vy < 0) p.vy = 0; }
-  }
 }
 
 function superBounce(p, pl) {
@@ -323,7 +290,7 @@ function updateHazards(dt) {
   }
   for (const w of warnings) {
     w.t -= dt;
-    if (w.t <= 0) { fireballs.push({ x: w.x, y: camY - 40, vy: 360 + fd * 260, r: 13 }); sfx.fireball(); }
+    if (w.t <= 0) { fireballs.push({ x: w.x, y: camY - OY - 40, vy: 360 + fd * 260, r: 13 }); sfx.fireball(); }
   }
   warnings = warnings.filter(w => w.t > 0);
   for (const f of fireballs) { f.vy += 250 * dt; f.y += f.vy * dt; }
@@ -373,15 +340,15 @@ function die(p, reason) {
   const left = alive();
   if (mode === 'versus' && left.length > 1) {
     // Knocked out, but the race goes on — and you keep watching until one is left
-    const cy = Math.min(p.y + p.h / 2, camY + H - 20), cx = clamp(p.x + p.w / 2, camX + 20, camX + W - 20);
-    burst(cx, cy, 18, p.color, 360, 0.9, 9);
-    floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, camX + W / 2, camY + H * 0.5, p.dark, 34);
+    const cy = Math.min(p.y + p.h / 2, camY + H - 20);
+    burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
+    floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
     return;
   }
   state = 'over'; overT = 0;
-  const cy = Math.min(p.y + p.h / 2, camY + H - 20), cx = clamp(p.x + p.w / 2, camX + 20, camX + W - 20);
-  burst(cx, cy, 18, p.color, 360, 0.9, 9);
-  burst(cx, cy, 8, p.dark, 260, 0.7, 6);
+  const cy = Math.min(p.y + p.h / 2, camY + H - 20);
+  burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
+  burst(p.x + p.w / 2, cy, 8, p.dark, 260, 0.7, 6);
   if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[left[0].uid] = winsOf(left[0]) + 1; }
   else if (height > best) { best = height; newBest = true; saveBest(); }
 }

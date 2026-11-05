@@ -22,7 +22,7 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 // Mouse → game coordinates (the canvas is scaled to fit the window)
 function toGame(e) {
   const r = canvas.getBoundingClientRect();
-  return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  return { x: (e.clientX - r.left) * VW / r.width - OX, y: (e.clientY - r.top) * VH / r.height - OY };
 }
 canvas.addEventListener('mousemove', e => { const g = toGame(e); ui.mx = g.x; ui.my = g.y; ui.mouseMoved = true; });
 canvas.addEventListener('mousedown', e => { ui.click = toGame(e); audioInit(); });

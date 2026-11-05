@@ -6,15 +6,6 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 - **Online:** open GitHub Pages — `https://3ecas.github.io/RCS/`. Players only ever use this address. Multiplayer connects behind the scenes to the matchmaking server on Render (`SERVER_URL` in `js/net.js`); the page wakes that server up as soon as it opens.
 - **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
 
-## Two versions
-- **The tower** — `index.html`: climb up; the screen scrolls upward.
-- **Sideways** — `horizontal.html`: a side-scroller on a wide screen. Run and jump to the right across platforms over a gap; the screen keeps scrolling right. Falling into the gap or falling behind the left edge knocks you out. Same menus, modes, names and colours. Lots of obstacles: spikes, pillars to jump over, saws going up and down in the gaps, shurikens, seesaw and bobbing platforms, fireballs. Every few platforms there's a section that makes you go back and forth:
-  - **Wall climb** — a tall wall blocks the way; zig-zag up ledges that alternate left and right, cross the top, drop down the other side.
-  - **Switchback descent** — a wall hangs from the sky; go down through stacked floors with gaps at alternating ends (right, left, right…) and pass under it.
-  The screen stops in front of these sections until someone gets past, so going backwards is safe.
-
-Switch between them with the **↔ / ↕** icon in the top-right corner of the main menu. Online, each version has its own rooms. Best distance and best height are saved separately.
-
 ## Menus
 - **Local** — on this computer:
   - **Solo** — climb alone. How high can you go?
@@ -37,6 +28,8 @@ Top-right corner: **?** opens the instructions, the **speaker** turns sound on/o
 
 **R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
 
+The game **fills the whole window** at any size or shape: on a wide screen you see more of the tower walls on the sides, on a tall one more sky above. The play area itself is the same for everyone, so no one gets an advantage from a bigger screen.
+
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 
 ## The tower
@@ -46,12 +39,11 @@ Springs: press jump right as you land on one for a big launch; otherwise it's a 
 
 ## Files
 ```
-index.html        the tower: loads the stylesheet and the scripts below, in order
-horizontal.html   the sideways version: the same scripts plus js/horizontal.js
+index.html        the page: loads the stylesheet and the scripts below, in order
 css/style.css     page layout
 js/config.js      settings: sizes, physics, colours, when obstacles appear
 js/utils.js       small maths and colour helpers
-js/canvas.js      the canvas, scaled to fit the window
+js/canvas.js      the canvas, filling the whole window
 js/input.js       keyboard and mouse
 js/audio.js       sound effects (generated, no sound files)
 js/state.js       game state, players, starting a new tower
@@ -63,7 +55,6 @@ js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, menus and buttons
 js/name.js        the name boxes on the setup screen
-js/horizontal.js  the sideways version: its level, camera and drawing (only horizontal.html loads it)
 js/main.js        starts the game loop
 server/server.js  online server: serves the game and pairs up players (no dependencies)
 render.yaml       Render setup
