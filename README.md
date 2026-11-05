@@ -8,11 +8,13 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Starting a game (the lobby)
 There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
-- **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **Solo** or **Multiplayer**. Two players: **Co-op** (if one falls, both lose), **Race** (last one standing wins, with a leaderboard and win count) or Multiplayer (greyed out: online is one player per computer). The screen then starts scrolling up this same tower.
+- **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **Solo** or **Multiplayer**. Two players: **Co-op** (if one falls, both lose), **Race** (last one standing wins, with a leaderboard and win count) or Multiplayer (greyed out: online is one player per computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
 - **Sound** platform: land on it to switch sound on or off.
-- **Colour pads** (a row of 10 coloured platforms): land on one to paint your cube that colour. Two players can't share a colour. Colours are remembered, and each cube is named after its colour.
+- **Colour column** (10 coloured pads stacked up the left side): climb it — each pad you land on paints your cube that colour — and jump off at the one you want. Two players can't share a colour. Colours are remembered, and each cube is named after its colour.
 - **Player 2:** hold any arrow key for 3 seconds and player 2 pops up on the floor. **Esc** removes them.
 - **?** (key or corner icon) shows the instructions.
+
+After a game, **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
 
 **Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full). The room screen lists every player; each one presses **READY**, and the race starts when **everyone** in the room is ready (at least 2). Everyone races the same tower. If you're knocked out you keep watching. When only one player is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Press **READY** again for the next race, or **LEAVE**. If you join while a race is on, you wait in the room and can get ready for the next one. Your own cube is full colour and everyone else's is softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 

@@ -2,7 +2,8 @@
 // - mode platforms (SOLO / MULTIPLAYER, or CO-OP / RACE / MULTIPLAYER with two players): everyone stands
 //   on one for 3 seconds to start — the screen then starts scrolling up this same tower
 // - a SOUND platform: land on it to turn the sound on or off
-// - a row of colour pads: land on one to paint your cube that colour
+// - a column of colour pads up the left side: climb it, landing on a pad paints your cube that colour;
+//   jump off at the colour you want
 // Player 1 plays with W A S D. Holding an arrow key for 3 seconds adds player 2 (Esc removes them).
 'use strict';
 
@@ -14,22 +15,26 @@ const lobbyModes = () => playerCount === 2 ? ['coop', 'race', 'multi'] : ['solo'
 const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'MULTIPLAYER', sound: 'SOUND' };
 const MENU_SUB = { solo: 'climb alone', coop: 'if one falls, both lose', race: 'last one standing wins', multi: 'online race' };
 
-// Build the lobby's two rows: mode + sound platforms (row 1), colour pads (row 2)
+// The colour column: one pad per colour, stacked up the left wall. Pads are PAD_GAP apart — a short hop
+// reaches the next one, a full jump skips one. LOBBY_LEFT: where the rest of the lobby (and the tower's
+// first screen) starts, to the right of the column.
+const PAD_X = WALL + 12, PAD_W = 74, PAD_GAP = 78, LOBBY_LEFT = PAD_X + PAD_W + 44;
+
+// Build the lobby: the colour column, and the mode + sound platforms one jump above the floor
 function buildLobby() {
-  buildLobbyRow1();
-  const y = GROUND_Y - 2 * ROW_GAP, slot = (W - 2 * WALL) / COLORS.length, w = Math.min(60, slot - 24);
   COLORS.forEach((c, k) => {
-    const cx = WALL + slot * (k + 0.5);
-    platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 14, type: 'normal', menu: 'paint', color: k, dx: 0, dy: 0, t: 0, falling: false });
+    const y = GROUND_Y - PAD_GAP * (k + 1);
+    platforms.push({ id: nextPid++, x: PAD_X, y, w: PAD_W, h: 14, type: 'normal', menu: 'paint', color: k, dx: 0, dy: 0, t: 0, falling: false });
   });
+  buildLobbyRow1();
 }
 // Row 1 changes when player 2 joins or leaves, so it can be rebuilt on its own
 function buildLobbyRow1() {
   platforms = platforms.filter(p => !(p.menu && p.menu !== 'paint'));
   const items = [...lobbyModes(), 'sound'];
-  const y = GROUND_Y - ROW_GAP, slot = (W - 2 * WALL) / items.length, w = Math.min(230, slot - 46);
+  const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(230, slot - 40);
   items.forEach((menu, k) => {
-    const cx = WALL + slot * (k + 0.5);
+    const cx = LOBBY_LEFT + slot * (k + 0.5);
     platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 30, type: 'normal', menu, dx: 0, dy: 0, t: 0, falling: false,
       disabled: menu === 'multi' && playerCount === 2 });
   });
@@ -144,11 +149,14 @@ function drawMenuPlatform(p) {
     }
     return;
   }
-  ctx.globalAlpha = p.disabled ? 0.45 : 1;
+  ctx.globalAlpha = p.disabled && state === 'lobby' ? 0.45 : 1;
   ctx.fillStyle = PAL.normal; ctx.fillRect(x, y, p.w, p.h);
   ctx.fillStyle = PAL.normalD; ctx.fillRect(x, y + p.h - 4, p.w, 4);
+  ctx.globalAlpha = 1;
+  if (state !== 'lobby') return;     // in the game they're plain platforms: the names go away
+  ctx.globalAlpha = p.disabled ? 0.45 : 1;
   // Filling up while everyone stands on it
-  if (lobby.on === p && state === 'lobby') {
+  if (lobby.on === p) {
     ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.55;
     ctx.fillRect(x, y, p.w * Math.min(1, lobby.holdT / HOLD_TIME), p.h - 4);
     ctx.globalAlpha = 1;
@@ -160,7 +168,7 @@ function drawMenuPlatform(p) {
   while (size > 10 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
   text(label, x + p.w / 2, y + 19, size, PAL.ink, 'center', 900);
   // A small hint above it (lobby only)
-  if (state === 'lobby' && lobby.on !== p) {
+  if (lobby.on !== p) {
     const sub = p.menu === 'sound' ? 'jump on to switch' : p.disabled ? 'one player per computer' : MENU_SUB[p.menu];
     text(sub, x + p.w / 2, y - 12, 12, PAL.inkSoft, 'center', 700);
   }
@@ -197,6 +205,6 @@ function drawLobbyHUD() {
   } else {
     text('PLAYER 2   ARROW KEYS   ·   Esc removes', W - WALL - 24, y, 15, p2.d, 'right', 900);
   }
-  text('Stand on a mode together for 3 s to start  ·  land on a colour to paint your cube  ·  ? help', W / 2, GROUND_Y + 28, 13, PAL.inkSoft, 'center', 700);
+  text('Stand on a mode together for 3 s to start  ·  climb the colours on the left to paint your cube  ·  ? help', W / 2, GROUND_Y + 28, 13, PAL.inkSoft, 'center', 700);
   drawBanner(200);
 }

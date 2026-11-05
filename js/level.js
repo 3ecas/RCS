@@ -4,15 +4,16 @@
 // A new tower: the starting floor, then rows of platforms up to just above the screen.
 // Offline, the first two rows are the lobby (mode platforms and colour pads, js/lobby.js);
 // online everyone gets the plain tower, built the same on every computer.
-function startWorld() {
+function startWorld(withLobby) {
   platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
   gen = { prev: null, prevHaz: false };   // last main-path platform, and whether the last row had a hazard
   rowK = 1;
-  if (net.status !== 'playing') {
+  if (withLobby) {
     buildLobby();
-    rowK = 3;
-    // The colour pads span the whole width, so the next row can start anywhere; keep it hazard-free
-    gen = { prev: { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true };
+    rowK = 2;
+    // The mode platforms span the width, so the next row can start anywhere; keep it hazard-free.
+    // Rows on the first screen stay right of the colour column (lo).
+    gen = { prev: { type: 'normal', x: LOBBY_LEFT, w: W - WALL - LOBBY_LEFT }, prevHaz: true, lo: LOBBY_LEFT, loUntil: -60 };
   }
   generate();
 }
@@ -57,6 +58,7 @@ const extent = p => p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w]
 
 function genRow(y) {
   const m = heightM(y), d = diff(y);
+  const L = gen.lo && y > gen.loUntil ? gen.lo : WALL;   // left edge (the lobby's colour column takes the left)
   const G = lerp(110, 160, d);   // max horizontal gap from the previous step on the path
   // A row right after a row with any hazard is always hazard-free,
   // so you never have to dodge hazards on two steps back to back.
@@ -64,8 +66,8 @@ function genRow(y) {
 
   // The main path: one platform per row, always within reach of the last one
   const w = wrand(lerp(150, 95, d), lerp(210, 135, d));
-  const cx = pickCx(w, WALL, W - WALL, gen.prev ? [gen.prev] : [], G);
-  const main = makePlatform(cx, y, w, d, WALL, W - WALL, allowHaz);
+  const cx = pickCx(w, L, W - WALL, gen.prev ? [gen.prev] : [], G);
+  const main = makePlatform(cx, y, w, d, L, W - WALL, allowHaz);
   platforms.push(main);
   let rowHaz = !!main.spikes;
 
@@ -78,7 +80,7 @@ function genRow(y) {
     const GAP = 50, minW = lerp(110, 80, d);
     const taken = row.map(extent).sort((a, b) => a[0] - b[0]);
     const spaces = [];
-    let from = WALL;
+    let from = L;
     for (const [a, b] of taken) { spaces.push([from, a - GAP]); from = b + GAP; }
     spaces.push([from, W - WALL]);
     const free = spaces.filter(([a, b]) => b - a >= minW);
@@ -101,7 +103,7 @@ function genRow(y) {
     const r = R();
     if (r < pJet) { addJet(R() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
     else if (r < pJet + pBlade) {
-      addBlade(y, clamp(cx - w / 2 - 90, WALL, W - WALL), clamp(cx + w / 2 + 90, WALL, W - WALL), m);
+      addBlade(y, clamp(cx - w / 2 - 90, L, W - WALL), clamp(cx + w / 2 + 90, L, W - WALL), m);
       rowHaz = true;
     }
   }

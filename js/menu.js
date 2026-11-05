@@ -2,8 +2,9 @@
 // The start menu itself is a playable scene (js/lobby.js).
 'use strict';
 
-// Start a new run of the current mode straight away (stop menu → START OVER, PLAY AGAIN)
-function startGame() { reset(); beginPlay(); }
+// A new run of the current mode on a clean tower (no start scene), with the 3-2-1 countdown
+// (stop menu → START OVER, end screen → PLAY AGAIN)
+function startGame() { reset(undefined, false); state = 'count'; countdown = 3; sfx.beep(440); }
 // Back to the lobby (the start scene); player 2 stays if they joined
 function toMenu() { reset(); state = 'lobby'; ui.focus = 0; ui.help = false; }
 

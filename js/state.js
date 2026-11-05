@@ -49,7 +49,8 @@ function mkPlayer(i, x, colorIdx = localColor(i)) {
   };
 }
 
-function reset(seed) {
+// withLobby: build the start scene at the bottom (offline only); PLAY AGAIN / START OVER get a clean tower
+function reset(seed, withLobby = true) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
   // Arena width: online everyone shares one width; offline it fills this window
   W = arenaW();
@@ -58,7 +59,7 @@ function reset(seed) {
   camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;
   particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
-  startWorld();       // the starting floor and the first rows of platforms (js/level.js)
+  startWorld(withLobby && net.status !== 'playing');   // the floor and the first rows (js/level.js)
   players = [];
   const place = (p, n) => {
     const s = spawnPos(p.i, n);
