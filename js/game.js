@@ -111,13 +111,7 @@ function updateWorld(dt) {
       if (p.axis === 'y') p.y = p.baseY + Math.sin(p.t * p.spd) * p.amp;   // up-and-down (side-scroller)
       else p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
     }
-    if (p.crumbleT >= 0 && !p.falling) {
-      p.crumbleT -= dt;
-      if (p.crumbleT <= 0) {
-        p.falling = true; sfx.crumble();
-        burst(p.x + p.w / 2, p.y + 8, 6, PAL.crumbleD, 120, 0.5, 6);
-      }
-    }
+    if (p.type === 'tilt') updateTilt(p, dt);
     if (p.falling) { p.vy += GRAV * 0.6 * dt; p.y += p.vy * dt; }
     if (p.bounceT > 0) p.bounceT -= dt;
     p.dx = p.x - ox;
@@ -159,6 +153,25 @@ function humanInput(i) {
            jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down] };
 }
 
+// A seesaw tips toward the side with weight on it: each cube standing on it pushes down in proportion to
+// how far it is from the centre; with nobody on it, it springs slowly back to level.
+function updateTilt(pl, dt) {
+  let push = 0;
+  for (const q of players) {
+    if (q.dead) continue;
+    const cx = q.x + q.w / 2;
+    const on = q.remote
+      ? Math.abs(cx - pl.px) <= pl.w / 2 && Math.abs(q.y + q.h - tiltY(pl, cx)) < 8   // other computers' cubes: by position
+      : q.onGround && q.ground === pl;
+    if (on) push += clamp((cx - pl.px) / (pl.w / 2), -1, 1);
+  }
+  const before = Math.sign(pl.angle);
+  pl.av += (push * TILT.push - pl.angle * TILT.spring - pl.av * TILT.damp) * dt;
+  pl.angle += pl.av * dt;
+  if (Math.abs(pl.angle) > TILT.max) { pl.angle = Math.sign(pl.angle) * TILT.max; pl.av = 0; }
+  if (push && before !== Math.sign(pl.angle) && Math.abs(pl.av) > 0.3) sfx.creak();
+}
+
 function updatePlayer(p, dt) {
   const inp = humanInput(p.i);
   p.prevX = p.x; p.prevY = p.y;
@@ -167,6 +180,14 @@ function updatePlayer(p, dt) {
   if (p.onGround && p.ground) {
     if (p.ground.falling) { p.onGround = false; p.ground = null; }
     else if (p.ground.isPlayer) p.x += p.ground.ref.x - p.ground.ref.prevX;
+    else if (p.ground.type === 'tilt') {
+      // On a seesaw: slide toward the low end, and stay on the sloping surface (or fall off the end)
+      const pl = p.ground;
+      p.x += Math.sin(pl.angle) * TILT.slide * dt;
+      const cx = p.x + p.w / 2;
+      if (Math.abs(cx - pl.px) > pl.w / 2 * Math.cos(pl.angle) + 4) { p.onGround = false; p.ground = null; }
+      else p.y = tiltY(pl, cx) - p.h;
+    }
     else { p.x += p.ground.dx; p.y += p.ground.dy || 0; }
   }
 
@@ -215,6 +236,14 @@ function updatePlayer(p, dt) {
     if (p.dropT <= 0) {
       for (const pl of platforms) {
         if (pl.falling) continue;
+        if (pl.type === 'tilt') {
+          // Land on the sloping surface under the cube's middle (a little tolerance: the plank moves)
+          const cx = p.x + p.w / 2;
+          if (Math.abs(cx - pl.px) > pl.w / 2 * Math.cos(pl.angle) + 4) continue;
+          const sy = tiltY(pl, cx);
+          if (prevBottom <= sy + 10 && p.y + p.h >= sy) { land(p, pl, wasGround); p.y = sy - p.h; break; }
+          continue;
+        }
         if (p.x + p.w - 4 > pl.x && p.x + 4 < pl.x + pl.w && prevBottom <= pl.y + 1 && p.y + p.h >= pl.y) {
           land(p, pl, wasGround);
           break;
@@ -277,10 +306,6 @@ function land(p, pl, wasGround) {
   }
   if (!wasGround) { p.sq = 0.75; sfx.land(); dust(p.x + p.w / 2, pl.y); }
   p.vy = 0;
-  if (pl.type === 'crumble' && pl.crumbleT < 0) {
-    pl.crumbleT = 0.7;
-    if (net.status === 'playing') relay({ k: 'c', id: pl.id });
-  }
 }
 
 function updateHazards(dt) {

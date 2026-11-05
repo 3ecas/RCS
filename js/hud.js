@@ -135,7 +135,7 @@ function drawHelp() {
   line('Solo & online:  W or ↑ jump  ·  A D or ← → move  ·  S or ↓ drop through');
   line('Split screen:  player 1 uses W A S D, player 2 the arrow keys'); yy += 10;
   head('Platforms');
-  const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['crumbles', PAL.crumble, PAL.crumbleD], ['spring', PAL.spring, PAL.springD]];
+  const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]];
   items.forEach(([label, c, cd], k) => {
     const px = L + k * 130;
     ctx.fillStyle = c; ctx.fillRect(px, yy - 13, 40, 12); ctx.fillStyle = cd; ctx.fillRect(px, yy - 4, 40, 3);

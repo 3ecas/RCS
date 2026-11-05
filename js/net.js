@@ -138,9 +138,6 @@ function onPeer(d) {
       r.face = s.f; r.sq = s.q; r.best = Math.max(r.best, s.b | 0);
       if (!r.seen) { r.x = s.x; r.y = s.y; r.seen = true; }
     }
-  } else if (d.k === 'c') {        // they landed on a crumbling platform
-    const pl = platforms.find(q => q.id === d.id);
-    if (pl && pl.crumbleT < 0 && !pl.falling) pl.crumbleT = 0.7;
   } else if (d.k === 'f') {        // fireball warning (Player 1's computer decides these)
     warnings.push({ x: d.x, t: 1.1 });
   } else if (d.k === 'd') {        // one of their cubes died

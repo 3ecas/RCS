@@ -67,8 +67,7 @@ function drawPlatform(p) {
     return;
   }
   let x = p.x;
-  if (p.crumbleT >= 0 && !p.falling) x += rand(-2, 2);
-  const colors = { normal: [PAL.normal, PAL.normalD], move: [PAL.move, PAL.moveD], crumble: [PAL.crumble, PAL.crumbleD], spring: [PAL.spring, PAL.springD] };
+  const colors = { normal: [PAL.normal, PAL.normalD], move: [PAL.move, PAL.moveD], tilt: [PAL.tilt, PAL.tiltD], spring: [PAL.spring, PAL.springD] };
   const [c, cd] = colors[p.type];
 
   if (p.type === 'move') {
@@ -77,14 +76,17 @@ function drawPlatform(p) {
     if (p.axis === 'y') ctx.fillRect(p.x + p.w / 2 - 1, p.baseY - p.amp, 2, 2 * p.amp + p.h);   // bobs up and down
     else ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
   }
-  if (p.type === 'crumble') {
-    ctx.globalAlpha = p.falling ? 0.6 : 1;
-    const n = Math.max(2, Math.round(p.w / 26)), bw = p.w / n;
-    for (let k = 0; k < n; k++) {
-      ctx.fillStyle = c; ctx.fillRect(x + k * bw + 1.5, y, bw - 3, p.h);
-      ctx.fillStyle = cd; ctx.fillRect(x + k * bw + 1.5, y + p.h - 4, bw - 3, 4);
-    }
-    ctx.globalAlpha = 1;
+  if (p.type === 'tilt') {
+    // Seesaw: a post and pivot pin, and the plank turned around the pivot (centre of its top)
+    ctx.fillStyle = cd;
+    ctx.beginPath(); ctx.moveTo(p.px - 14, y + 34); ctx.lineTo(p.px + 14, y + 34); ctx.lineTo(p.px, y + 6); ctx.closePath(); ctx.fill();
+    ctx.save();
+    ctx.translate(p.px, p.py); ctx.rotate(p.angle);
+    ctx.fillStyle = c; ctx.fillRect(-p.w / 2, 0, p.w, p.h);
+    ctx.fillStyle = cd; ctx.fillRect(-p.w / 2, p.h - 4, p.w, 4);
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 8, 4, 0, 7); ctx.fill();
+    ctx.fillStyle = cd; ctx.beginPath(); ctx.arc(0, 8, 2, 0, 7); ctx.fill();
+    ctx.restore();
   } else if (p.type === 'spring') {
     drawSpringI(x, y, p.w, p.bounceT > 0 ? 5 : 0);
   } else {

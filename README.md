@@ -8,7 +8,7 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Two versions
 - **The tower** — `index.html`: climb up; the screen scrolls upward.
-- **Sideways** — `horizontal.html`: a side-scroller on a wide screen. Run and jump to the right across platforms over a gap; the screen keeps scrolling right. Falling into the gap or falling behind the left edge knocks you out. Same menus, modes, names and colours. Lots of obstacles: spikes, pillars to jump over, saws going up and down in the gaps, shurikens, crumbling and bobbing platforms, fireballs. Every few platforms there's a section that makes you go back and forth:
+- **Sideways** — `horizontal.html`: a side-scroller on a wide screen. Run and jump to the right across platforms over a gap; the screen keeps scrolling right. Falling into the gap or falling behind the left edge knocks you out. Same menus, modes, names and colours. Lots of obstacles: spikes, pillars to jump over, saws going up and down in the gaps, shurikens, seesaw and bobbing platforms, fireballs. Every few platforms there's a section that makes you go back and forth:
   - **Wall climb** — a tall wall blocks the way; zig-zag up ledges that alternate left and right, cross the top, drop down the other side.
   - **Switchback descent** — a wall hangs from the sky; go down through stacked floors with gaps at alternating ends (right, left, right…) and pass under it.
   The screen stops in front of these sections until someone gets past, so going backwards is safe.
@@ -42,7 +42,7 @@ Springs: press jump right as you land on one for a big launch; otherwise it's a 
 ## The tower
 - One main path goes up, every step within jumping reach of the last. Now and then an extra platform sticks out to the side.
 - A row right after a row with a hazard is always hazard-free.
-- Dangers unlock as you climb: springs 15 m · moving 30 m · spikes 50 m · crumbling 90 m · shurikens 120 m · wall flames 160 m · fireballs 230 m.
+- Dangers unlock as you climb: springs 15 m · moving 30 m · spikes 50 m · seesaws 90 m (they tip toward whichever side you stand on) · shurikens 120 m · wall flames 160 m · fireballs 230 m.
 
 ## Files
 ```

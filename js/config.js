@@ -21,7 +21,7 @@ const PAL = {
   ground: '#cfc3e8', groundD: '#b6a8d8',
   normal: '#c5b9e6', normalD: '#a99bd3',
   move: '#a8e6cf', moveD: '#7fcfb0',
-  crumble: '#ffd3b6', crumbleD: '#f0b28c',
+  tilt: '#ffd3b6', tiltD: '#f0b28c',          // seesaw platforms
   spring: '#fff0a0', springD: '#ecd060',
   spike: '#ff7b9c', blade: '#6c5b7b', flame: '#ff9a76', flame2: '#ffe0a8', fire: '#ff8c69',
   good: '#4fb386',
@@ -52,9 +52,13 @@ const STAGES = [
   { m: 15,  key: 'spring' },     // springs
   { m: 30,  key: 'move' },       // moving platforms
   { m: 50,  key: 'spikes' },
-  { m: 90,  key: 'crumble' },    // crumbling floors
+  { m: 90,  key: 'tilt' },       // seesaw platforms that tip under your weight
   { m: 120, key: 'shuriken' },
   { m: 160, key: 'wallflame' },  // flames from the side walls
   { m: 230, key: 'fireball' },   // falling fireballs
 ];
 const unlock = Object.fromEntries(STAGES.map(s => [s.key, s.m]));
+
+// Seesaw platforms: how strongly weight tips them, how they spring back, the most they tip,
+// and how fast you slide toward the low end
+const TILT = { push: 7, spring: 3.5, damp: 3.2, max: 0.5, slide: 230 };

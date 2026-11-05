@@ -6,7 +6,7 @@ const H_FLOOR = H - 120;          // height of the starting floor
 const H_TOP = 260, H_BOTTOM = 800; // platforms stay between these heights
 const H_LEVEL_SCALE = 2;          // the screen covers ground faster sideways, so obstacles unlock over 2x the distance
 // When the side-scroller's own obstacles first appear (in the same "metres" as the tower's STAGES)
-const H_UNLOCK = { spikes: 3, pillar: 5, barrier: 8, saw: 12, shuriken: 20 };
+const H_UNLOCK = { spikes: 3, pillar: 5, barrier: 8, tilt: 10, saw: 12, shuriken: 20 };
 
 const distM = x => x / PX_PER_M;                            // distance shown on screen (metres)
 const levelAt = x => Math.max(0, distM(x) / H_LEVEL_SCALE);  // "metres" used for unlocking obstacles
@@ -14,7 +14,7 @@ const hDiff = x => clamp(levelAt(x) / 400, 0, 1);            // 0 → 1 difficul
 
 // A new run: a starting floor on the left, then platforms out to just past the right edge
 function startWorld() {
-  platforms = [{ id: 0, x: -200, y: H_FLOOR, w: 960, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, crumbleT: -1, falling: false }];
+  platforms = [{ id: 0, x: -200, y: H_FLOOR, w: 960, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
   // gates: walls the screen won't scroll past until someone gets beyond them
   gen = { prev: platforms[0], prevHaz: false, nextX: 760, gates: [], since: 0, every: 3 };
   generate();
@@ -22,7 +22,7 @@ function startWorld() {
 
 // Building blocks
 function plainPlatform(x, y, w) {
-  return { id: nextPid++, x, y, w, h: 16, type: 'normal', dx: 0, dy: 0, t: wrand(0, 10), crumbleT: -1, falling: false, vy: 0, bounceT: 0 };
+  return { id: nextPid++, x, y, w, h: 16, type: 'normal', dx: 0, dy: 0, t: wrand(0, 10), falling: false, vy: 0, bounceT: 0 };
 }
 function solidBlock(x, y, w, h, type) { return { x, y, w, h, type, solid: true, dx: 0, dy: 0, falling: false }; }
 function addSpikes(p, side) {           // spikes on one end of a platform, at most 40% of it
@@ -67,6 +67,8 @@ function genColumn() {
     p.amp = wrand(40, 90); p.spd = wrand(0.8, 1.4) * (1 + d * 0.5);
     p.y = p.baseY + Math.sin(p.t * p.spd) * p.amp;
   }
+  // Seesaws: they tip toward whichever side you stand on (no other obstacles on them)
+  if (p.type === 'normal' && p.w >= 160 && m >= H_UNLOCK.tilt && R() < lerp(0.12, 0.3, ramp(m, H_UNLOCK.tilt, 200))) makeTilt(p);
   platforms.push(p);
 
   // Obstacles: most platforms get one, harder stretches sometimes two
@@ -109,7 +111,7 @@ function genClimb() {
     const right = (n - i) % 2 === 0;                                     // the last ledge is next to the wall
     const ledge = plainPlatform(right ? left + 340 : left + 60, floorY - i * step, 180);
     if (i < n && m >= H_UNLOCK.spikes && R() < lerp(0.15, 0.45, d)) addSpikes(ledge, right ? false : true);   // on the far end
-    else if (i < n && m >= unlock.crumble && R() < lerp(0.1, 0.35, d)) ledge.type = 'crumble';
+    else if (i < n && m >= H_UNLOCK.tilt && R() < lerp(0.15, 0.35, d)) makeTilt(ledge);
     platforms.push(ledge);
   }
   // A shuriken sweeping across the climb

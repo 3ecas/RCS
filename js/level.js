@@ -3,7 +3,7 @@
 
 // A new tower: the starting floor, then rows of platforms up to just above the screen
 function startWorld() {
-  platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, crumbleT: -1, falling: false }];
+  platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
   gen = { prev: null, prevHaz: false };   // last main-path platform, and whether the last row had a hazard
   rowK = 1;
   generate();
@@ -93,10 +93,10 @@ function genRow(y) {
 // lo/hi: the horizontal lane this platform must stay inside
 // m: how far into the level (metres) — sets which obstacles can appear
 function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
-  const p = { id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: wrand(0, 10), crumbleT: -1, falling: false, vy: 0, bounceT: 0 };
+  const p = { id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: wrand(0, 10), falling: false, vy: 0, bounceT: 0 };
   const r = R();
   const pMove = m >= unlock.move ? lerp(0.08, 0.28, ramp(m, unlock.move, 250)) : 0;
-  const pCrumble = m >= unlock.crumble ? lerp(0.06, 0.2, ramp(m, unlock.crumble, 250)) : 0;
+  const pTilt = m >= unlock.tilt ? lerp(0.06, 0.2, ramp(m, unlock.tilt, 250)) : 0;
   const pSpring = m >= unlock.spring ? 0.05 : 0;
   if (r < pMove) {
     // Slides around its own centre, always inside its lane
@@ -106,9 +106,9 @@ function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
       p.spd = wrand(0.8, 1.4) * (1 + d * 0.5);
       p.x = p.baseX + Math.sin(p.t * p.spd) * amp;
     }
-  } else if (r < pMove + pCrumble) {
-    p.type = 'crumble';
-  } else if (r < pMove + pCrumble + pSpring) {
+  } else if (r < pMove + pTilt) {
+    makeTilt(p);
+  } else if (r < pMove + pTilt + pSpring) {
     p.type = 'spring'; p.w = 70; p.x = cx - 35;
   }
   // Spikes: at most 45% of the platform, so there's always room to land
@@ -119,6 +119,17 @@ function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
     p.spikes = { x0, x1: x0 + len };
   }
   return p;
+}
+
+// Turn a platform into a seesaw: a plank on a pivot at its centre (on the top surface)
+function makeTilt(p) {
+  p.type = 'tilt'; p.angle = 0; p.av = 0;
+  p.px = p.x + p.w / 2; p.py = p.y;
+  return p;
+}
+// Height of a seesaw's top surface at x
+function tiltY(pl, x) {
+  return pl.py + clamp(x - pl.px, -pl.w / 2, pl.w / 2) * Math.tan(pl.angle);
 }
 
 // Spinning shuriken that patrols left-right in the gap above a row
