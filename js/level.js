@@ -61,24 +61,35 @@ function genRow(y) {
   platforms.push(main);
   let rowHaz = !!main.spikes;
 
-  // Sometimes an extra platform sticks out to the side, in the free space beside the main one
-  if (R() < lerp(0.35, 0.15, d)) {
+  // Extra platforms off to the sides, in the free space between what's already on this row.
+  // A narrow tower gets at most one; a wide one gets more tries, so the whole width is used.
+  const row = [main], extras = W > MIN_W + 100 ? Math.round((W - 2 * WALL) / 420) : 1;
+  const pBlade = m >= unlock.shuriken ? lerp(0.12, 0.3, ramp(m, unlock.shuriken, 300)) : 0;
+  for (let k = 0; k < extras; k++) {
+    if (R() >= (k === 0 ? lerp(0.35, 0.15, d) : lerp(0.6, 0.4, d))) continue;
     const GAP = 50, minW = lerp(110, 80, d);
-    const [mL, mR] = extent(main);
-    const spaces = [[WALL, mL - GAP], [mR + GAP, W - WALL]].filter(([a, b]) => b - a >= minW);
-    if (spaces.length) {
-      const [lo, hi] = spaces[Math.floor(R() * spaces.length)];
-      const w2 = Math.min(wrand(minW, minW * 1.5), hi - lo);
-      const side = makePlatform(wrand(lo + w2 / 2, hi - w2 / 2), y, w2, d, lo, hi, allowHaz && !rowHaz);
-      platforms.push(side);
-      rowHaz = rowHaz || !!side.spikes;
-    }
+    const taken = row.map(extent).sort((a, b) => a[0] - b[0]);
+    const spaces = [];
+    let from = WALL;
+    for (const [a, b] of taken) { spaces.push([from, a - GAP]); from = b + GAP; }
+    spaces.push([from, W - WALL]);
+    const free = spaces.filter(([a, b]) => b - a >= minW);
+    if (!free.length) break;
+    const [lo, hi] = free[Math.floor(R() * free.length)];
+    const w2 = Math.min(wrand(minW, minW * 1.5), hi - lo);
+    const sx = wrand(lo + w2 / 2, hi - w2 / 2);
+    // The first extra follows the path's hazard rules. Further ones are off the path,
+    // so they can have their own spikes or shuriken (they don't make the next row hazard-free).
+    const first = k === 0;
+    const side = makePlatform(sx, y, w2, d, lo, hi, first ? allowHaz && !rowHaz : true);
+    platforms.push(side); row.push(side);
+    if (first) rowHaz = rowHaz || !!side.spikes;
+    else if (!side.spikes && R() < pBlade) addBlade(y, clamp(sx - w2 / 2 - 60, lo, hi), clamp(sx + w2 / 2 + 60, lo, hi), m);
   }
 
   // One flying obstacle (shuriken or wall flame) in the gap above this row
   if (allowHaz && !rowHaz) {
     const pJet = m >= unlock.wallflame ? lerp(0.12, 0.3, ramp(m, unlock.wallflame, 300)) : 0;
-    const pBlade = m >= unlock.shuriken ? lerp(0.12, 0.3, ramp(m, unlock.shuriken, 300)) : 0;
     const r = R();
     if (r < pJet) { addJet(R() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
     else if (r < pJet + pBlade) {

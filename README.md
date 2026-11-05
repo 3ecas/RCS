@@ -28,7 +28,7 @@ Top-right corner: **?** opens the instructions, the **speaker** turns sound on/o
 
 **R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
 
-The game **fills the whole window** at any size or shape: on a wide screen you see more of the tower walls on the sides, on a tall one more sky above. The play area itself is the same for everyone, so no one gets an advantage from a bigger screen.
+The tower **fills the whole screen**: it is as wide as your window's shape (from 800 up to 2400 wide, at a fixed height), and wider towers get more platforms, spikes, shurikens and fireballs spread across them. On a very tall window the tower stays 800 wide and you see more sky above. **Online**, everyone races one shared 16:9 tower (1600 wide) so the race is fair; on other screen shapes it is scaled to fit.
 
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 

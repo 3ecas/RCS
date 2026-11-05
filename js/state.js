@@ -36,7 +36,7 @@ let foundT = 0;                           // "Match found" screen timer
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
 const wins = {};
 const winsOf = p => wins[p.uid] || 0;
-let players, platforms, blades, jets, particles, fireballs, warnings, texts;
+let players = null, platforms, blades, jets, particles, fireballs, warnings, texts;
 // camY: the top of the screen in the world
 let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
@@ -56,6 +56,9 @@ function mkPlayer(i, x, colorIdx = localColor(i)) {
 
 function reset(seed) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
+  // Arena width: online everyone shares one width; offline it fills this window
+  W = arenaW();
+  resize();
   nextPid = 1;
   camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;

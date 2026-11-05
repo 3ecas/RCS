@@ -1,14 +1,21 @@
-// RCS — The drawing canvas. It always fills the whole window: the tower (the arena, W × H) is scaled to
-// fit and centred, and the view around it stretches to the window's shape — wider windows show more of the
-// walls at the sides, taller ones show more of the tower above and below. The tower itself never changes
-// size, so everyone online races exactly the same tower.
+// RCS — The drawing canvas. It always fills the whole window. The tower (the arena, W × H) is as wide as
+// the window's shape allows (see screenArenaW), so normally it fills the screen exactly. When it can't —
+// a very tall window, an online race (fixed width), or a window resized mid-game — the arena is scaled to
+// fit and centred, with extra wall at the sides or extra sky above.
 'use strict';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 // The view (in game units): at least the arena, stretched to the window's shape. OX / OY: arena's offset in it.
 let VW = W, VH = H, OX = 0, OY = 0;
+// The arena width that exactly fills this window (H tall), within MIN_W … MAX_W
+const screenArenaW = () => Math.round(clamp(H * innerWidth / innerHeight, MIN_W, MAX_W));
+// The width a new tower gets: online everyone shares one width; offline it fills this window
+const arenaW = () => typeof net !== 'undefined' && net.status === 'playing' ? ONLINE_W : screenArenaW();
+W = screenArenaW();
 function resize() {
+  // On the menus the tower behind them is rebuilt to the new shape (reset sets W and calls resize again)
+  if (typeof state !== 'undefined' && state === 'title' && players && arenaW() !== W) { reset(); return; }
   const dpr = window.devicePixelRatio || 1;
   const aspect = innerWidth / innerHeight;
   VW = Math.max(W, H * aspect);
