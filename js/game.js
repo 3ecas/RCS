@@ -5,13 +5,14 @@ function update(dt) {
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();
 
-  // Menus and end/pause screens are driven by buttons (mouse or keyboard)
+  if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
+  // Pause, room and end screens are driven by buttons (mouse or keyboard)
   if (state === 'found') {       // "Match found!" — then the countdown
     time += dt; foundT -= dt;
     if (foundT <= 0) { state = 'count'; sfx.beep(440); }
     return;
   }
-  if (state === 'title' || state === 'paused' || state === 'search' || state === 'over') {
+  if (state === 'paused' || state === 'search' || state === 'over') {
     time += dt;
     if (state !== 'paused') updateParticles(dt);
     if (state === 'over') { overT += dt; shake = Math.max(0, shake - dt); reportRoundOver(); }
@@ -131,9 +132,10 @@ function updateWorld(dt) {
   jets = jets.filter(j => !offScreen(W, j.y, 0));
 }
 
-// Split screen: player 1 uses WASD, player 2 the arrow keys. Otherwise either set moves your cube.
+// Two players: player 1 uses WASD, player 2 the arrow keys. In the lobby player 1 is always WASD
+// (the arrow keys are for adding player 2). Otherwise either set moves your cube.
 function humanInput(i) {
-  if (playerCount === 2 && net.status !== 'playing') {
+  if ((playerCount === 2 || state === 'lobby') && net.status !== 'playing') {
     const c = CONTROLS[i];
     return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
   }
@@ -260,6 +262,7 @@ function superBounce(p, pl) {
 
 function land(p, pl, wasGround) {
   p.y = pl.y - p.h; p.onGround = true; p.ground = pl;
+  if (pl.menu && !wasGround) touchLobby(p, pl);   // sound platform / colour pads
   if (pl.type === 'spring') {
     p.onGround = false; p.ground = null; pl.bounceT = 0.25;
     if (p.buf > 0) {

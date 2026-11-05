@@ -15,7 +15,7 @@ const arenaW = () => typeof net !== 'undefined' && net.status === 'playing' ? ON
 W = screenArenaW();
 function resize() {
   // On the menus the tower behind them is rebuilt to the new shape (reset sets W and calls resize again)
-  if (typeof state !== 'undefined' && state === 'title' && players && arenaW() !== W) { reset(); return; }
+  if (typeof state !== 'undefined' && state === 'lobby' && players && arenaW() !== W) { reset(); return; }
   const dpr = window.devicePixelRatio || 1;
   const aspect = innerWidth / innerHeight;
   VW = Math.max(W, H * aspect);

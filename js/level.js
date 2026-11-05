@@ -1,11 +1,19 @@
 // RCS — Building the tower: platforms, spikes, shurikens and wall flames.
 'use strict';
 
-// A new tower: the starting floor, then rows of platforms up to just above the screen
+// A new tower: the starting floor, then rows of platforms up to just above the screen.
+// Offline, the first two rows are the lobby (mode platforms and colour pads, js/lobby.js);
+// online everyone gets the plain tower, built the same on every computer.
 function startWorld() {
   platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
   gen = { prev: null, prevHaz: false };   // last main-path platform, and whether the last row had a hazard
   rowK = 1;
+  if (net.status !== 'playing') {
+    buildLobby();
+    rowK = 3;
+    // The colour pads span the whole width, so the next row can start anywhere; keep it hazard-free
+    gen = { prev: { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true };
+  }
   generate();
 }
 

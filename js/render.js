@@ -71,9 +71,10 @@ function drawPlatform(p) {
     ctx.fillStyle = PAL.ground; ctx.fillRect(p.x, y, p.w, p.h);
     ctx.fillStyle = PAL.groundD; ctx.fillRect(p.x, y, p.w, 5);
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('START', W / 2, y + 40);
+    if (state !== 'lobby') ctx.fillText('START', W / 2, y + 40);
     return;
   }
+  if (p.menu) return drawMenuPlatform(p);   // lobby platforms (js/lobby.js)
   let x = p.x;
   const colors = { normal: [PAL.normal, PAL.normalD], move: [PAL.move, PAL.moveD], tilt: [PAL.tilt, PAL.tiltD], spring: [PAL.spring, PAL.springD] };
   const [c, cd] = colors[p.type];

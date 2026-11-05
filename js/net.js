@@ -58,7 +58,7 @@ function connectOnce() {
   // Tell the server our cube colours, so it can prefer partners with different colours
   const colors = [];
   for (let k = 0; k < net.local; k++) colors.push(localColor(k));
-  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, colors, name: playerName }); };
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, colors, name: '' }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;

@@ -64,30 +64,6 @@ function drawIcon(b, focused) {
   ctx.stroke();
 }
 
-// One player's panel on the setup screen: name box (HTML, placed by js/name.js), cube with ◀ ▶,
-// colour name, a dot per colour, and that player's keys
-function drawPlayerPanel(pcx, who) {
-  const two = ui.setup === 'split';
-  const C = COLORS[localColor(who)], other = two ? localColor(1 - who) : -1;
-  const bob = Math.sin(time * 4 + who * 1.6) * 4;
-  ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(pcx - 150, 196, 300, 410);
-  ctx.strokeStyle = C.c; ctx.lineWidth = 3; ctx.strokeRect(pcx - 148.5, 197.5, 297, 407);
-  text(two ? 'PLAYER ' + (who + 1) : 'YOU', pcx, 226, 16, C.d, 'center', 900);
-  cube(pcx - 48, 296 + bob, 96, C);
-  text(C.name.toUpperCase(), pcx, 432, 20, C.d, 'center', 900);
-  COLORS.forEach((k, i) => {
-    ctx.globalAlpha = i === other ? 0.2 : 1;        // the other player's colour is taken
-    const s = i === localColor(who) ? 11 : 7;
-    ctx.fillStyle = s > 7 ? k.d : k.c;
-    ctx.fillRect(pcx - 90 + i * 20 - s / 2, 452 - s / 2, s, s);
-  });
-  ctx.globalAlpha = 1;
-  const change = two ? (who ? '← →  change colour' : 'A  D  change colour') : '← →  change colour';
-  const keysTxt = two ? (who ? '↑ jump  ·  ← → move  ·  ↓ drop' : 'W jump  ·  A D move  ·  S drop') : 'WASD or the arrow keys to play';
-  text(change, pcx, 500, 15, PAL.ink, 'center', 800);
-  text(keysTxt, pcx, 530, 13, PAL.inkSoft, 'center', 700);
-}
-
 // End of an online race: the winner, then everyone ranked by how long they lasted
 function drawResults() {
   const wp = players.find(p => p.i === winner);
@@ -130,8 +106,8 @@ function drawHelp() {
   line('Jump up the tower and stay ahead of the screen as it scrolls up.');
   line('Falling off the bottom or touching a danger ends your run.'); yy += 10;
   head('Controls');
-  line('Solo & online:  W or ↑ jump  ·  A D or ← → move  ·  S or ↓ drop through');
-  line('Split screen:  player 1 uses W A S D, player 2 the arrow keys'); yy += 10;
+  line('Player 1:  W jump  ·  A D move  ·  S drop through   (solo: arrows work too)');
+  line('Player 2:  hold an arrow key for 3 s at the start to join; Esc removes them'); yy += 10;
   head('Platforms');
   const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]];
   items.forEach(([label, c, cd], k) => {
@@ -143,10 +119,10 @@ function drawHelp() {
   line('Springs: press jump just as you land for a huge boost.'); yy += 10;
   head('Dangers (they appear as you climb)');
   line('Spikes, spinning shurikens, flames from the walls, falling fireballs.'); yy += 10;
-  head('Modes');
-  line('Local — Solo, or Split screen: two players on one keyboard, co-op or race.');
-  line('Multiplayer — a random online race with up to 10 players.');
-  line('Last one standing wins; if you’re out, you keep watching.'); yy += 10;
+  head('Starting');
+  line('Everyone stands on a mode platform for 3 s: Solo, Co-op, Race or Multiplayer.');
+  line('Land on a colour pad to paint your cube · land on SOUND to switch sound.');
+  line('Multiplayer: an online race, up to 10 players, one per computer.'); yy += 10;
   head('Keys');
   line('R  stop (R again to start over)   ·   M  sound   ·   F  full screen');
 }
@@ -226,40 +202,14 @@ function drawHUD() {
     }
   }
 
-  if (state === 'title' || state === 'paused' || state === 'search' || state === 'found' || (state === 'over' && overT > 0.4)) {
+  if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
+
+  if ((state === 'lobby' && ui.help) || state === 'paused' || state === 'search' || state === 'found' || (state === 'over' && overT > 0.4)) {
     ctx.fillStyle = state === 'search' || state === 'found' ? 'rgba(255,250,248,0.92)' : 'rgba(255,250,248,0.84)';
     ctx.fillRect(-OX, -OY, VW, VH);
   }
 
-  if (state === 'title' && !ui.help) {
-    const bob = Math.sin(time * 4) * 4;
-    if (ui.page === 'main') {
-      cube(W / 2 - 60, 150 + bob, 44, localCube(0));
-      cube(W / 2 + 16, 150 - bob, 44, localCube(1));
-      text('RCS', W / 2, 262, 72, PAL.ink, 'center', 900);
-      text('Climb the tower. Don’t fall behind.', W / 2, 298, 17, PAL.inkSoft, 'center', 600);
-      if (best > 0) text('Best height: ' + best + ' m', W / 2, 600, 16, PAL.good, 'center', 800);
-      drawBanner(640);
-    } else if (ui.page === 'local' || ui.page === 'split') {
-      cube(W / 2 - 60, 110 + bob, 44, localCube(0));
-      cube(W / 2 + 16, 110 - bob, 44, localCube(1));
-      text(ui.page === 'local' ? 'LOCAL' : 'SPLIT SCREEN', W / 2, 228, ui.page === 'local' ? 58 : 50, PAL.ink, 'center', 900);
-      text(ui.page === 'local' ? 'Play on this computer' : 'Two players on one keyboard', W / 2, 262, 16, PAL.inkSoft, 'center', 700);
-    } else if (ui.page === 'setup') {
-      const title = { solo: 'SOLO', split: 'SPLIT SCREEN', multi: 'MULTIPLAYER' }[ui.setup];
-      const sub = {
-        solo: 'Pick your name and colour',
-        split: ui.splitMode === 'race' ? 'Race — last one standing wins. Pick names and colours.' : 'Co-op — if one falls, both lose. Pick names and colours.',
-        multi: 'Pick your name and colour, then join the room',
-      }[ui.setup];
-      text(ui.setup === 'split' ? (ui.splitMode === 'race' ? 'SPLIT SCREEN RACE' : 'SPLIT SCREEN CO-OP') : title, W / 2, 120, ui.setup === 'split' ? 40 : 48, PAL.ink, 'center', 900);
-      text(sub, W / 2, 160, 16, PAL.inkSoft, 'center', 700);
-      setupPanels().forEach((pcx, who) => drawPlayerPanel(pcx, who));
-      if (ui.setup === 'multi') drawBanner(588);
-    }
-  }
-
-  if (state === 'title' && ui.help) drawHelp();
+  if (state === 'lobby' && ui.help) drawHelp();
 
   if (state === 'search') {
     if (net.room) drawRoom();

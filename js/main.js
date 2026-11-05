@@ -1,7 +1,7 @@
 // RCS — Starts the game and runs it at a fixed 120 updates per second.
 'use strict';
 
-reset();
+reset();          // the lobby: the bottom of a new tower
 let last = performance.now(), acc = 0;
 function frame(now) {
   // Online games must keep real time (so both computers stay in step), so allow bigger catch-ups
@@ -13,7 +13,6 @@ function frame(now) {
     acc -= STEP;
   }
   render();
-  placeNameBox();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
