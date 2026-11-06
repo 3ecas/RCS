@@ -72,7 +72,11 @@ function onRoomPeer(d, from) {
 }
 
 const startPlatform = () => platforms.find(p => p.menu === 'start');
-const onStart = p => !p.dead && standingOn(p) === startPlatform();
+// Ready = standing (on START, or piled on other cubes on top of it) anywhere in the area above START
+const onStart = p => {
+  const s = startPlatform(), cx = p.x + p.w / 2;
+  return !p.dead && p.onGround && cx >= s.x && cx <= s.x + s.w && p.y + p.h <= s.y + 2;
+};
 
 function updateRoom(dt) {
   time += dt;
@@ -103,6 +107,10 @@ function updateRoom(dt) {
 
 // START platform: its name, and how many computers are on it
 function drawStartPlatform(p) {
+  // The START area: the platform and everything above it (cubes can pile up in it)
+  const g = ctx.createLinearGradient(0, p.y, 0, p.y - 420);
+  g.addColorStop(0, 'rgba(168,230,207,0.35)'); g.addColorStop(1, 'rgba(168,230,207,0)');
+  ctx.fillStyle = g; ctx.fillRect(p.x, p.y - 420, p.w, 420);
   ctx.fillStyle = PAL.move; ctx.fillRect(p.x, p.y, p.w, p.h);
   ctx.fillStyle = PAL.moveD; ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
   text('START', p.x + p.w / 2, p.y + 21, 18, PAL.ink, 'center', 900);
@@ -137,7 +145,7 @@ function drawRoomHUD() {
   }
   ctx.restore();
   const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
-  text('Everyone stands on START to begin the race  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
+  text('Everyone gets on START (piling up on top is fine) to begin the race  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
   text(keysTxt, W / 2, GROUND_Y + 54, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }
