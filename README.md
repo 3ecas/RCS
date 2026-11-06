@@ -47,6 +47,7 @@ Springs: press jump right as you land on one for a big launch; otherwise it's a 
   - **Fire** (orange): flamethrowers on the walls and falling fireballs
   - **Lightning** (lavender): electric beams between two posts — they flicker as a warning, then switch on for a moment
   - **Water** (aqua): a helper region with no dangers — columns of rising bubbles push you up while you're inside them, no jump needed
+  - **Two Paths** (olive): a full-width entrance platform, then a wall up the middle with a separate path on each side — you can't cross it, so players split up — and a full-width exit platform where the paths meet again. Moving platforms and spikes inside.
 - The order comes from the tower's seed, so everyone in an online race gets the same regions. Dangers get harder the higher you climb.
 
 ## Files

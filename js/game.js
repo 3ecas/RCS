@@ -100,6 +100,15 @@ function clampX(p) {
   if (p.x < WALL) { p.x = WALL; p.vx = 0; }
   if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
 }
+// Two Paths region: the wall up the middle can't be crossed (you stay on the side you came from)
+function blockDividers(p) {
+  for (const dv of dividers) {
+    if (p.y + p.h <= dv.top || p.y >= dv.bot) continue;
+    const wasLeft = p.prevX + p.w / 2 < dv.x + dv.w / 2;
+    if (wasLeft && p.x + p.w > dv.x) { p.x = dv.x - p.w; p.vx = 0; }
+    else if (!wasLeft && p.x < dv.x + dv.w) { p.x = dv.x + dv.w; p.vx = 0; }
+  }
+}
 // Has something scrolled far enough off-screen to be thrown away?
 function offScreen(x, y, w) { return y >= camY + H + OY + 250; }
 // Where a falling fireball comes from (its warning shows at the top of the screen)
@@ -139,6 +148,7 @@ function updateWorld(dt) {
   }
   zaps = zaps.filter(z => !offScreen(0, Math.min(z.y1, z.y2), 0));
   bubbles = bubbles.filter(b => !offScreen(0, b.top, 0));
+  dividers = dividers.filter(dv => !offScreen(0, dv.top, 0));
 }
 
 // Two players on this computer (offline or online): player 1 uses WASD, player 2 the arrow keys.
@@ -232,6 +242,7 @@ function updatePlayer(p, dt) {
 
   p.x += p.vx * dt;
   clampX(p);
+  blockDividers(p);
 
   const prevBottom = p.y + p.h;
   p.y += p.vy * dt;

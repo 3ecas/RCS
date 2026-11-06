@@ -14,6 +14,7 @@ const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid
 const PS = 34;              // player cube size
 const STEP = 1 / 120;
 const JET_LEN = 150;        // wall flame reach
+const DIVIDER_W = 26;        // Two Paths region: the dividing wall's width
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
 
@@ -56,6 +57,7 @@ const REGIONS = {
   fire:    { has: ['wallflame', 'fireball'], bg: ['#ffeee2', '#fbd8c6'] },   // flamethrowers on the walls, falling fireballs
   storm:   { has: ['zapper', 'move'],        bg: ['#f1edff', '#e2daf8'] },   // lightning beams between two posts, on and off
   water:   { has: ['bubbles'],               bg: ['#dff8f6', '#c3eeea'] },   // helper: bubble columns push you up
+  split:   { has: ['divider', 'move', 'spikes'], bg: ['#f6f8e0', '#e8eec4'] }, // two paths with a wall between them
 };
 const REGION_POOL = Object.keys(REGIONS).filter(k => k !== 'start');
 

@@ -32,7 +32,7 @@ let foundT = 0;                           // "Match found" screen timer
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
 const wins = {};
 const winsOf = p => wins[p.uid] || 0;
-let players = null, platforms, blades, jets, zaps, bubbles, particles, fireballs, warnings, texts;
+let players = null, platforms, blades, jets, zaps, bubbles, dividers, particles, fireballs, warnings, texts;
 // camY: the top of the screen in the world
 let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
@@ -59,7 +59,7 @@ function reset(seed, withLobby = true) {
   nextPid = 1;
   camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;
-  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = [];
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = []; dividers = [];
   startWorld(withLobby && net.status !== 'playing');   // the floor and the first rows (js/level.js)
   players = [];
   const place = (p, n) => {

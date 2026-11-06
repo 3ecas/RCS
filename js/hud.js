@@ -119,8 +119,8 @@ function drawHelp() {
   line('Springs: press jump just as you land for a huge boost.'); yy += 10;
   head('Regions');
   line('The first 100 m are just platforms. Then every 200 m a new region starts, picked at');
-  line('random: springs, spikes, seesaws, shurikens, fire, lightning — or water, whose');
-  line('bubble columns push you up.'); yy += 10;
+  line('random: springs, spikes, seesaws, shurikens, fire, lightning, two paths split by');
+  line('a wall — or water, whose bubble columns push you up.'); yy += 10;
   head('Starting');
   line('Everyone stands on a mode platform for 3 s: Solo, Co-op, Race or Multiplayer.');
   line('Land on a colour pad to paint your cube · land on SOUND to switch sound.');

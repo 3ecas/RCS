@@ -175,6 +175,17 @@ function drawZapper(z) {
   }
 }
 
+// Two Paths region: the dividing wall, in the same stone as the side walls
+function drawDivider(dv) {
+  const top = Math.max(dv.top, camY - OY - 10), bot = Math.min(dv.bot, camY + H + OY + 10);
+  if (bot <= top) return;
+  ctx.fillStyle = PAL.wall; ctx.fillRect(dv.x, top, dv.w, bot - top);
+  ctx.fillStyle = PAL.wallLine;
+  ctx.fillRect(dv.x, top, 3, bot - top); ctx.fillRect(dv.x + dv.w - 3, top, 3, bot - top);
+  for (let y = Math.ceil(top / 60) * 60; y < bot; y += 60) ctx.fillRect(dv.x + 3, y, dv.w - 6, 2);
+  if (dv.bot <= bot) { ctx.fillStyle = PAL.nozzle; ctx.fillRect(dv.x - 3, dv.bot - 6, dv.w + 6, 6); }   // its foot
+}
+
 // Bubble column: a pale blue stream with bubbles rising through it
 function drawBubbles(b) {
   if (b.bot < camY - OY - 20 || b.top > camY + H + OY + 20) return;
@@ -237,6 +248,7 @@ function render() {
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   for (const z of zaps) drawZapper(z);
+  for (const dv of dividers) drawDivider(dv);
   for (const b of blades) drawBlade(b);
   for (const p of players) drawPlayer(p);
   for (const f of fireballs) {

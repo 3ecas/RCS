@@ -81,6 +81,7 @@ const extent = p => p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w]
 function genRow(y) {
   const m = heightM(y), d = diff(y);
   const L = gen.lo && y > gen.loUntil ? gen.lo : WALL;   // left edge (the lobby's colour column takes the left)
+  if (has(m, 'divider')) return genSplitRow(y, m, d, L);
   const G = lerp(110, 160, d);   // max horizontal gap from the previous step on the path
   // A row right after a row with any hazard is always hazard-free,
   // so you never have to dodge hazards on two steps back to back.
@@ -137,6 +138,54 @@ function genRow(y) {
   }
   gen.prevHaz = rowHaz;
   gen.prev = main;
+}
+
+// Two Paths region: a full-width entrance platform, then a wall up the middle with a separate path on
+// each side (you can't cross it), then a full-width exit platform where the paths meet again.
+function genSplitRow(y, m, d, L) {
+  const k = regionIndex(m), mid = W / 2;
+  const full = () => {
+    const p = { id: nextPid++, x: L, y, w: W - WALL - L, h: 16, type: 'normal', dx: 0, t: 0, falling: false, vy: 0, bounceT: 0 };
+    platforms.push(p);
+    return p;
+  };
+  if (gen.splitK !== k) {                       // the entrance (the wall starts just above it, so you can walk under)
+    gen.splitK = k;
+    const g = full();
+    gen.divider = { x: mid - DIVIDER_W / 2, w: DIVIDER_W, bot: y - PS - 36, top: GROUND_Y - (START_REGION + (k + 1) * REGION_LEN) * PX_PER_M };
+    dividers.push(gen.divider);
+    gen.lanes = [{ lo: L, hi: mid - DIVIDER_W / 2, prev: g }, { lo: mid + DIVIDER_W / 2, hi: W - WALL, prev: g }];
+    gen.prev = g; gen.prevHaz = true;
+    return;
+  }
+  if (regionIndex(heightM(y - ROW_GAP)) !== k) { // the exit: the paths meet again
+    const r = full();
+    gen.divider.top = y + r.h;
+    gen.prev = r; gen.prevHaz = true; gen.lanes = null;
+    return;
+  }
+  // One path per side, each always within jumping reach of its last step, plus extra platforms on wide sides
+  const G = lerp(110, 160, d), allowHaz = !gen.prevHaz;
+  let rowHaz = false;
+  for (const lane of gen.lanes) {
+    const span = lane.hi - lane.lo;
+    const w = Math.min(wrand(lerp(150, 95, d), lerp(210, 135, d)), span - 30);
+    const cx = pickCx(w, lane.lo + 6, lane.hi - 6, [lane.prev], G);
+    const p = makePlatform(cx, y, w, d, lane.lo + 6, lane.hi - 6, allowHaz);
+    platforms.push(p); lane.prev = p;
+    rowHaz = rowHaz || !!p.spikes;
+    const tries = Math.max(1, Math.round(span / 450));
+    for (let t = 0; t < tries; t++) {
+      if (R() >= 0.35) continue;
+      const [a, b] = extent(p), sw = wrand(80, 130);
+      const spaces = [[lane.lo + 6, a - 50], [b + 50, lane.hi - 6]].filter(([u, v]) => v - u >= sw);
+      if (!spaces.length) break;
+      const [u, v] = spaces[Math.floor(R() * spaces.length)];
+      platforms.push(makePlatform(wrand(u + sw / 2, v - sw / 2), y, sw, d, u, v, false));
+      break;
+    }
+  }
+  gen.prevHaz = rowHaz;
 }
 
 // lo/hi: the horizontal lane this platform must stay inside

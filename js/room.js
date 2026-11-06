@@ -14,7 +14,7 @@ function enterRoom() {
   state = 'room'; ui.focus = 0; ui.help = false;
   W = ONLINE_W; resize();                                   // the same size on every computer
   camY = 0; time = time || 0; shake = 0; height = 0;
-  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = [];
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = []; dividers = [];
   platforms = [
     { id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false },
     { id: 1, x: W / 2 - START_W / 2, y: GROUND_Y - ROW_GAP, w: START_W, h: 30, type: 'normal', menu: 'start', dx: 0, dy: 0, t: 0, falling: false },
