@@ -18,6 +18,28 @@ function startWorld(withLobby) {
   generate();
 }
 
+// ---- Regions ----
+// The order of regions above the start one, from the tower's seed (so online everyone gets the same)
+let regionOrder = [];
+function makeRegionOrder(seed) {
+  let s = seed | 0;
+  const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  regionOrder = [];
+  for (let k = 0; k < 60; k++) {
+    const prev = regionOrder[k - 1], pool = REGION_POOL.filter(r => r !== prev);
+    regionOrder.push(pool[Math.floor(rnd() * pool.length)]);
+  }
+}
+// Which region a height (metres) is in, and how far through it (0…1)
+function regionIndex(m) { return m < START_REGION ? -1 : Math.floor((m - START_REGION) / REGION_LEN); }
+function regionAt(m) {
+  const k = regionIndex(m);
+  return k < 0 ? 'start' : regionOrder[k % regionOrder.length];
+}
+const has = (m, hazard) => REGIONS[regionAt(m)].has.includes(hazard);
+// How hard hazards are: 0 at the end of the start region, 1 by 600 m
+const heat = m => ramp(m, START_REGION, 500);
+
 // Where each player starts: spread evenly across the floor (closer together when there are many)
 function spawnPos(i, n) {
   return { x: W / 2 - PS / 2 + (i - (n - 1) / 2) * Math.min(90, (W - 2 * WALL - PS - 20) / Math.max(1, n - 1)), y: GROUND_Y - PS };
@@ -74,7 +96,7 @@ function genRow(y) {
   // Extra platforms off to the sides, in the free space between what's already on this row.
   // A narrow tower gets at most one; a wide one gets more tries, so the whole width is used.
   const row = [main], extras = W > MIN_W + 100 ? Math.round((W - 2 * WALL) / 420) : 1;
-  const pBlade = m >= unlock.shuriken ? lerp(0.12, 0.3, ramp(m, unlock.shuriken, 300)) : 0;
+  const pBlade = has(m, 'shuriken') ? lerp(0.25, 0.45, heat(m)) : 0;
   for (let k = 0; k < extras; k++) {
     if (R() >= (k === 0 ? lerp(0.35, 0.15, d) : lerp(0.6, 0.4, d))) continue;
     const GAP = 50, minW = lerp(110, 80, d);
@@ -97,15 +119,21 @@ function genRow(y) {
     else if (!side.spikes && R() < pBlade) addBlade(y, clamp(sx - w2 / 2 - 60, lo, hi), clamp(sx + w2 / 2 + 60, lo, hi), m);
   }
 
-  // One flying obstacle (shuriken or wall flame) in the gap above this row
+  // One flying obstacle (shuriken, wall flame or lightning beam) in the gap above this row
   if (allowHaz && !rowHaz) {
-    const pJet = m >= unlock.wallflame ? lerp(0.12, 0.3, ramp(m, unlock.wallflame, 300)) : 0;
+    const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) : 0;
+    const pZap = has(m, 'zapper') ? lerp(0.35, 0.55, heat(m)) : 0;
     const r = R();
     if (r < pJet) { addJet(R() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
     else if (r < pJet + pBlade) {
       addBlade(y, clamp(cx - w / 2 - 90, L, W - WALL), clamp(cx + w / 2 + 90, L, W - WALL), m);
       rowHaz = true;
-    }
+    } else if (r < pJet + pBlade + pZap) { addZapper(y, cx, L, m); rowHaz = true; }
+  }
+  // Water region: bubble columns rising from some rows (helpers, not hazards). Wider towers get more.
+  if (has(m, 'bubbles')) {
+    const tries = Math.max(1, Math.round((W - WALL - L) / 700));
+    for (let k = 0; k < tries; k++) if (R() < 0.3) addBubbles(y, wrand(L + BUBBLE_W, W - WALL - BUBBLE_W));
   }
   gen.prevHaz = rowHaz;
   gen.prev = main;
@@ -116,9 +144,9 @@ function genRow(y) {
 function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
   const p = { id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: wrand(0, 10), falling: false, vy: 0, bounceT: 0 };
   const r = R();
-  const pMove = m >= unlock.move ? lerp(0.08, 0.28, ramp(m, unlock.move, 250)) : 0;
-  const pTilt = m >= unlock.tilt ? lerp(0.06, 0.2, ramp(m, unlock.tilt, 250)) : 0;
-  const pSpring = m >= unlock.spring ? 0.05 : 0;
+  const pMove = has(m, 'move') ? lerp(0.15, 0.32, heat(m)) : 0;
+  const pTilt = has(m, 'tilt') ? lerp(0.3, 0.45, heat(m)) : 0;
+  const pSpring = has(m, 'spring') ? 0.12 : 0;
   if (r < pMove) {
     // Slides around its own centre, always inside its lane
     const amp = Math.min(wrand(50, 130), cx - lo - w / 2, hi - w / 2 - cx);
@@ -133,7 +161,7 @@ function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
     p.type = 'spring'; p.w = 70; p.x = cx - 35;
   }
   // Spikes: at most 45% of the platform, so there's always room to land
-  const pHaz = m >= unlock.spikes ? lerp(0.15, 0.45, ramp(m, unlock.spikes, 300)) : 0;
+  const pHaz = has(m, 'spikes') ? lerp(0.3, 0.55, heat(m)) : 0;
   if (allowHaz && (p.type === 'normal' || p.type === 'move') && p.w >= 100 && R() < pHaz) {
     const len = wrand(26, p.w * 0.45);
     const x0 = R() < 0.5 ? 0 : p.w - len;
@@ -155,9 +183,30 @@ function tiltY(pl, x) {
 
 // Spinning shuriken that patrols left-right in the gap above a row
 function addBlade(rowY, lo, hi, m) {
-  const sp = lerp(70, 150, ramp(m, unlock.shuriken, 300));
+  const sp = lerp(70, 150, heat(m));
   blades.push({ x: wrand(lo + 20, hi - 20), y: rowY - 62, lo: lo + 16, hi: hi - 16, vx: (R() < 0.5 ? -1 : 1) * sp, r: 18, ang: 0 });
 }
+// Lightning beam between two posts in the gap above a row, switching on and off on a timer.
+// Near the path (cx); sometimes tilted.
+function addZapper(rowY, cx, lo, m) {
+  const len = wrand(200, lerp(280, 420, heat(m)));
+  const mid = clamp(cx + wrand(-120, 120), lo + len / 2 + 10, W - WALL - len / 2 - 10);
+  const tilt = R() < 0.35 ? wrand(-36, 36) : 0;
+  const y = rowY - 62;
+  zaps.push({ x1: mid - len / 2, y1: y - tilt, x2: mid + len / 2, y2: y + tilt,
+              period: wrand(2.4, 3.4), on: lerp(0.9, 1.4, heat(m)), off: wrand(0, 3), t: 0, last: 0, seed: (R() * 1000) | 0 });
+}
+function zapState(z) {
+  const ph = (z.t + z.off) % z.period;
+  if (ph >= z.period - z.on) return 2;          // on
+  if (ph >= z.period - z.on - 0.6) return 1;    // warning flicker
+  return 0;
+}
+// Water region: a column of rising bubbles from a row up to three rows higher
+function addBubbles(rowY, x) {
+  bubbles.push({ x: x - BUBBLE_W / 2, w: BUBBLE_W, top: rowY - 3 * ROW_GAP - 40, bot: rowY + 10, seed: (R() * 1000) | 0 });
+}
+
 // Flame jet that fires out of a side wall on a timer
 function addJet(side, rowY) {
   jets.push({ side, y: rowY - 62, period: wrand(2.6, 3.6), off: wrand(0, 3), t: 0, last: 0 });

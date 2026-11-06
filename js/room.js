@@ -14,7 +14,7 @@ function enterRoom() {
   state = 'room'; ui.focus = 0; ui.help = false;
   W = ONLINE_W; resize();                                   // the same size on every computer
   camY = 0; time = time || 0; shake = 0; height = 0;
-  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = [];
   platforms = [
     { id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false },
     { id: 1, x: W / 2 - START_W / 2, y: GROUND_Y - ROW_GAP, w: START_W, h: 30, type: 'normal', menu: 'start', dx: 0, dy: 0, t: 0, falling: false },
@@ -107,10 +107,6 @@ function updateRoom(dt) {
 
 // START platform: its name, and how many computers are on it
 function drawStartPlatform(p) {
-  // The START area: the platform and everything above it (cubes can pile up in it)
-  const g = ctx.createLinearGradient(0, p.y, 0, p.y - 420);
-  g.addColorStop(0, 'rgba(168,230,207,0.35)'); g.addColorStop(1, 'rgba(168,230,207,0)');
-  ctx.fillStyle = g; ctx.fillRect(p.x, p.y - 420, p.w, 420);
   ctx.fillStyle = PAL.move; ctx.fillRect(p.x, p.y, p.w, p.h);
   ctx.fillStyle = PAL.moveD; ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
   text('START', p.x + p.w / 2, p.y + 21, 18, PAL.ink, 'center', 900);

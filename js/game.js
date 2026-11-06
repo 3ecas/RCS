@@ -131,6 +131,14 @@ function updateWorld(dt) {
   platforms = platforms.filter(p => !offScreen(p.x, p.y, p.w));
   blades = blades.filter(b => !offScreen(b.hi, b.y, 0));
   jets = jets.filter(j => !offScreen(W, j.y, 0));
+  for (const z of zaps) {
+    z.t += dt;
+    const s = zapState(z);
+    if (s === 2 && z.last !== 2 && z.y1 > camY && z.y1 < camY + H) sfx.zap();
+    z.last = s;
+  }
+  zaps = zaps.filter(z => !offScreen(0, Math.min(z.y1, z.y2), 0));
+  bubbles = bubbles.filter(b => !offScreen(0, b.top, 0));
 }
 
 // Two players on this computer (offline or online): player 1 uses WASD, player 2 the arrow keys.
@@ -211,8 +219,16 @@ function updatePlayer(p, dt) {
 
   // Gravity (heavier when jump is released early, for variable jump height)
   p.vy += GRAV * dt;
-  if (!inp.jump && p.vy < 0) p.vy += GRAV * 1.4 * dt;
+  if (!inp.jump && p.vy < 0 && !p.inBubbles) p.vy += GRAV * 1.4 * dt;
   p.vy = Math.min(p.vy, MAX_FALL);
+  // Water region: inside a bubble column you're pushed up, no jump needed
+  const cx = p.x + p.w / 2;
+  p.inBubbles = bubbles.some(b => cx > b.x && cx < b.x + b.w && p.y + p.h > b.top && p.y < b.bot);
+  if (p.inBubbles) {
+    p.vy = Math.max(p.vy - BUBBLE_PUSH * dt, -BUBBLE_MAX);
+    if (p.onGround) { p.onGround = false; p.ground = null; }
+    if (Math.random() < dt * 20) particles.push({ x: cx + rand(-10, 10), y: p.y + p.h, vx: rand(-20, 20), vy: rand(-120, -60), life: 0.5, max: 0.5, color: 'rgba(255,255,255,0.9)', size: rand(3, 6), grav: -100 });
+  }
 
   p.x += p.vx * dt;
   clampX(p);
@@ -283,12 +299,12 @@ function land(p, pl, wasGround) {
 
 function updateHazards(dt) {
   const m = levelM();
-  const fd = ramp(m, unlock.fireball, 300);
+  const fd = heat(m);
   // Online, only Player 1's computer decides fireballs and tells the other one
-  if (state === 'play' && m >= unlock.fireball && !(net.status === 'playing' && net.me !== 0)) {
+  if (state === 'play' && has(m, 'fireball') && !(net.status === 'playing' && net.me !== 0)) {
     fireTimer -= dt;
     if (fireTimer <= 0) {
-      fireTimer = rand(lerp(7, 1.8, fd), lerp(10, 3.5, fd)) * MIN_W / W;   // wider tower, more fireballs
+      fireTimer = rand(lerp(3, 1.2, fd), lerp(4.5, 2.2, fd)) * MIN_W / W;   // wider tower, more fireballs
       const x = fireballX();
       warnings.push({ x, t: 1.1 });
       if (net.status === 'playing') relay({ k: 'f', x });
@@ -320,6 +336,14 @@ function updateHazards(dt) {
       if (px1 > x0 + 4 && px0 < x1 - 8 && py1 > j.y - 10 && py0 < j.y + 10) return 'got burned';
     }
     for (const f of fireballs) if (circleHit(p, f.x, f.y, f.r - 2)) return 'was hit by a fireball';
+    for (const z of zaps) {
+      if (zapState(z) !== 2) continue;
+      // Closest point on the beam to the cube's centre, then is it inside the cube (a little forgiving)?
+      const cx = p.x + p.w / 2, cy = p.y + p.h / 2, dx = z.x2 - z.x1, dy = z.y2 - z.y1;
+      const t = clamp(((cx - z.x1) * dx + (cy - z.y1) * dy) / (dx * dx + dy * dy), 0, 1);
+      const qx = z.x1 + dx * t, qy = z.y1 + dy * t;
+      if (Math.abs(qx - cx) < p.w / 2 - 3 && Math.abs(qy - cy) < p.h / 2 - 3) return 'got zapped';
+    }
     return null;
   };
   for (const p of alive()) {

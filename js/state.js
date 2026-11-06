@@ -32,7 +32,7 @@ let foundT = 0;                           // "Match found" screen timer
 // Online race wins this session, by player id (so they stay right as people join and leave the room)
 const wins = {};
 const winsOf = p => wins[p.uid] || 0;
-let players = null, platforms, blades, jets, particles, fireballs, warnings, texts;
+let players = null, platforms, blades, jets, zaps, bubbles, particles, fireballs, warnings, texts;
 // camY: the top of the screen in the world
 let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
@@ -52,13 +52,14 @@ function mkPlayer(i, x, colorIdx = localColor(i)) {
 // withLobby: build the start scene at the bottom (offline only); PLAY AGAIN / START OVER get a clean tower
 function reset(seed, withLobby = true) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
+  makeRegionOrder(wseed);   // which regions come in which order (js/level.js)
   // Arena width: online everyone shares one width; offline it fills this window
   W = arenaW();
   resize();
   nextPid = 1;
   camY = 0; time = 0; height = 0; nextMilestone = 50; shake = 0; scrollSpeed = 0;
   fireTimer = 3; newBest = false; outCount = 0;
-  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = [];
+  particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = [];
   startWorld(withLobby && net.status !== 'playing');   // the floor and the first rows (js/level.js)
   players = [];
   const place = (p, n) => {

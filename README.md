@@ -16,7 +16,7 @@ There are no menu screens: the game opens in a **playable scene** at the bottom 
 
 After a game, **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
 
-**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it or piled up on top of others above it (the shaded area; at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then **BACK TO ROOM** for the next race, or **LEAVE** (Esc in the room). If you join while a race is on, you wait in the room for the next one. Your own cubes are full colour and everyone else's are softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
+**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it or piled up on top of others above it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then **BACK TO ROOM** for the next race, or **LEAVE** (Esc in the room). If you join while a race is on, you wait in the room for the next one. Your own cubes are full colour and everyone else's are softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 
 During a game the **speaker** icon (top right) or **M** turns sound on/off (remembered).
 
@@ -37,9 +37,17 @@ The tower **fills the whole screen**: it is as wide as your window's shape (from
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 
 ## The tower
-- One main path goes up, every step within jumping reach of the last. Now and then an extra platform sticks out to the side.
+- One main path goes up, every step within jumping reach of the last. Extra platforms stick out to the sides (more of them on wide screens).
 - A row right after a row with a hazard is always hazard-free.
-- Dangers unlock as you climb: springs 15 m · moving 30 m · spikes 50 m · seesaws 90 m (they tip toward whichever side you stand on) · shurikens 120 m · wall flames 160 m · fireballs 230 m.
+- **Regions:** the first 100 m are a plain region with just platforms. After that a new region starts every 200 m (`REGION_LEN` in `js/config.js`), picked at random and never the same twice in a row. Each region has its own dangers and background colour:
+  - **Garden** (green): springs and moving platforms
+  - **Spikes** (pink): spikes on moving and still platforms
+  - **Seesaw** (peach): seesaws that tip toward whichever side you stand on, and springs
+  - **Blades** (blue): spinning shurikens and moving platforms
+  - **Fire** (orange): flamethrowers on the walls and falling fireballs
+  - **Lightning** (lavender): electric beams between two posts — they flicker as a warning, then switch on for a moment
+  - **Water** (aqua): a helper region with no dangers — columns of rising bubbles push you up while you're inside them, no jump needed
+- The order comes from the tower's seed, so everyone in an online race gets the same regions. Dangers get harder the higher you climb.
 
 ## Files
 ```

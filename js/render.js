@@ -1,10 +1,13 @@
 // RCS — Drawing the world: background, walls, platforms, hazards and players.
 'use strict';
 
+// Background colours: the region's, blending into the next region's over the last 20 m before it
 function bgAt(m) {
-  const f = Math.max(0, m) / 130, i = Math.floor(f) % BG.length, j = (i + 1) % BG.length;
-  const t = clamp((f - Math.floor(f) - 0.6) / 0.4, 0, 1);
-  return [mixHex(BG[i][0], BG[j][0], t), mixHex(BG[i][1], BG[j][1], t)];
+  m = Math.max(0, m);
+  const k = regionIndex(m), end = START_REGION + (k + 1) * REGION_LEN;
+  const a = REGIONS[regionAt(m)].bg, b = REGIONS[regionAt(end)].bg;
+  const t = clamp((m - (end - 20)) / 20, 0, 1);
+  return [mixHex(a[0], b[0], t), mixHex(a[1], b[1], t)];
 }
 
 function drawBackground() {
@@ -145,6 +148,49 @@ function drawBlade(b) {
   ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
 }
 
+// Lightning beam: two posts, a flicker while it warms up, then a jagged bolt while it's on
+function drawZapper(z) {
+  if (Math.max(z.y1, z.y2) < camY - OY - 40 || Math.min(z.y1, z.y2) > camY + H + OY + 40) return;
+  const s = zapState(z);
+  if (s === 1 && Math.floor(time * 14) % 2) {
+    ctx.strokeStyle = 'rgba(255,216,74,0.5)'; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
+    ctx.beginPath(); ctx.moveTo(z.x1, z.y1); ctx.lineTo(z.x2, z.y2); ctx.stroke(); ctx.setLineDash([]);
+  } else if (s === 2) {
+    const n = 12, dx = z.x2 - z.x1, dy = z.y2 - z.y1, len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
+    const k = Math.floor(time * 30);
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const j = i === 0 || i === n ? 0 : (hash(z.seed + i, k) - 0.5) * 18;
+      pts.push([z.x1 + dx * i / n + nx * j, z.y1 + dy * i / n + ny * j]);
+    }
+    const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); };
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(255,216,74,0.35)'; ctx.lineWidth = 12; path();
+    ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4; path();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; path();
+  }
+  for (const [x, y] of [[z.x1, z.y1], [z.x2, z.y2]]) {
+    ctx.fillStyle = PAL.zapPost; ctx.fillRect(x - 7, y - 7, 14, 14);
+    ctx.fillStyle = s ? PAL.zap : '#b4a5d1'; ctx.fillRect(x - 3, y - 3, 6, 6);
+  }
+}
+
+// Bubble column: a pale blue stream with bubbles rising through it
+function drawBubbles(b) {
+  if (b.bot < camY - OY - 20 || b.top > camY + H + OY + 20) return;
+  const g = ctx.createLinearGradient(0, b.bot, 0, b.top);
+  g.addColorStop(0, 'rgba(124,200,236,0.32)'); g.addColorStop(1, 'rgba(124,200,236,0.04)');
+  ctx.fillStyle = g; ctx.fillRect(b.x, b.top, b.w, b.bot - b.top);
+  const h = b.bot - b.top;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
+  for (let k = 0; k < 9; k++) {
+    const sp = 80 + hash(b.seed, k) * 70, r = 3 + hash(k, b.seed) * 5;
+    const y = b.bot - ((time * sp + hash(b.seed + k, 7) * h) % h);
+    const x = b.x + b.w / 2 + Math.sin(time * 3 + k) * (b.w / 2 - 10) * hash(k, 3);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+  }
+}
+
 function drawJet(j) {
   if (j.y < camY - OY - 40 || j.y > camY + H + OY + 40) return;
   const s = jetState(j), L = j.side === 'L';
@@ -188,7 +234,9 @@ function render() {
 
   ctx.save();
   ctx.translate(0, -camY);
+  for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
+  for (const z of zaps) drawZapper(z);
   for (const b of blades) drawBlade(b);
   for (const p of players) drawPlayer(p);
   for (const f of fireballs) {

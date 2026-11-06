@@ -14,6 +14,7 @@ const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid
 const PS = 34;              // player cube size
 const STEP = 1 / 120;
 const JET_LEN = 150;        // wall flame reach
+const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
 
 const PAL = {
@@ -24,7 +25,7 @@ const PAL = {
   move: '#a8e6cf', moveD: '#7fcfb0',
   tilt: '#ffd3b6', tiltD: '#f0b28c',          // seesaw platforms
   spring: '#fff0a0', springD: '#ecd060',
-  spike: '#ff7b9c', blade: '#6c5b7b', flame: '#ff9a76', flame2: '#ffe0a8', fire: '#ff8c69',
+  spike: '#ff7b9c', zap: '#ffd84a', zapPost: '#6c5b7b', water: '#7cc8ec', blade: '#6c5b7b', flame: '#ff9a76', flame2: '#ffe0a8', fire: '#ff8c69',
   good: '#4fb386',
 };
 
@@ -41,24 +42,22 @@ const COLORS = [
   { name: 'Purple', c: '#9b5cff', d: '#6a2fd1' },
   { name: 'Brown',  c: '#b8743d', d: '#7f4a1f' },
 ];
-// Background colour bands [top, bottom] that drift as you climb
-const BG = [
-  ['#fff4e9', '#fde3e6'], ['#e9f7f1', '#d6f0e7'], ['#e8edff', '#d7e0fc'],
-  ['#f7e9f6', '#ecd8f1'], ['#fff7dc', '#fdeacb'],
-];
-
-
-// When each obstacle first appears (metres) — the difficulty curve
-const STAGES = [
-  { m: 15,  key: 'spring' },     // springs
-  { m: 30,  key: 'move' },       // moving platforms
-  { m: 50,  key: 'spikes' },
-  { m: 90,  key: 'tilt' },       // seesaw platforms that tip under your weight
-  { m: 120, key: 'shuriken' },
-  { m: 160, key: 'wallflame' },  // flames from the side walls
-  { m: 230, key: 'fireball' },   // falling fireballs
-];
-const unlock = Object.fromEntries(STAGES.map(s => [s.key, s.m]));
+// The tower is split into regions, each with its own hazards and background colours [top, bottom].
+// You start in a plain region (just platforms) for the first START_REGION metres; after that a new region
+// begins every REGION_LEN metres, picked at random (never the same twice in a row). Hazards inside a region
+// get harder the higher you are (see heat() in js/level.js).
+const START_REGION = 100, REGION_LEN = 200;
+const REGIONS = {
+  start:   { has: [],                        bg: ['#fff4e9', '#fde3e6'] },   // just platforms
+  garden:  { has: ['spring', 'move'],        bg: ['#e9f7f1', '#d6f0e7'] },   // springs and moving platforms
+  spikes:  { has: ['spikes', 'move'],        bg: ['#fde8ef', '#f8d5e1'] },   // spikes on moving and still platforms
+  seesaw:  { has: ['tilt', 'spring'],        bg: ['#fff7dc', '#fdeacb'] },   // seesaws that tip under your weight
+  blades:  { has: ['shuriken', 'move'],      bg: ['#e8edff', '#d7e0fc'] },   // spinning shurikens
+  fire:    { has: ['wallflame', 'fireball'], bg: ['#ffeee2', '#fbd8c6'] },   // flamethrowers on the walls, falling fireballs
+  storm:   { has: ['zapper', 'move'],        bg: ['#f1edff', '#e2daf8'] },   // lightning beams between two posts, on and off
+  water:   { has: ['bubbles'],               bg: ['#dff8f6', '#c3eeea'] },   // helper: bubble columns push you up
+};
+const REGION_POOL = Object.keys(REGIONS).filter(k => k !== 'start');
 
 // Seesaw platforms: how strongly weight tips them, how they spring back, the most they tip,
 // and how fast you slide toward the low end
