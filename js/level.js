@@ -120,6 +120,10 @@ function genRow(y) {
     else if (!side.spikes && R() < pBlade) addBlade(y, clamp(sx - w2 / 2 - 60, lo, hi), clamp(sx + w2 / 2 + 60, lo, hi), m);
   }
 
+  // Fire region: a flamethrower on the path's platform (strategic: you have to land / jump past it)
+  if (has(m, 'wallflame') && allowHaz && !rowHaz && main.type === 'normal' && main.w >= 110 && R() < lerp(0.3, 0.5, heat(m))) {
+    addPlatformJet(main); rowHaz = true;
+  }
   // One flying obstacle (shuriken, wall flame or lightning beam) in the gap above this row
   if (allowHaz && !rowHaz) {
     const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) : 0;
@@ -256,9 +260,21 @@ function addBubbles(rowY, x) {
   bubbles.push({ x: x - BUBBLE_W / 2, w: BUBBLE_W, top: rowY - 3 * ROW_GAP - 40, bot: rowY + 10, seed: (R() * 1000) | 0 });
 }
 
-// Flame jet that fires out of a side wall on a timer
+// Flamethrowers fire on a timer from a nozzle: ox, oy = the nozzle, dx, dy = which way the flame goes,
+// len / thick = its reach and thickness.
+// From a side wall, across the gap above a row:
 function addJet(side, rowY) {
-  jets.push({ side, y: rowY - 62, period: wrand(2.6, 3.6), off: wrand(0, 3), t: 0, last: 0 });
+  const L = side === 'L';
+  jets.push({ ox: L ? WALL : W - WALL, oy: rowY - 62, dx: L ? 1 : -1, dy: 0, len: JET_LEN, thick: JET_THICK, wall: true,
+              period: wrand(2.6, 3.6), off: wrand(0, 3), t: 0, last: 0 });
+}
+// On a platform on the path: either at one end pointing straight up (time your landing / take-off),
+// or at one end pointing out sideways over the gap, just above the platform
+function addPlatformJet(p) {
+  const left = R() < 0.5;
+  const base = { period: wrand(2.4, 3.4), off: wrand(0, 3), t: 0, last: 0 };
+  if (R() < 0.6) jets.push({ ...base, ox: left ? p.x + 18 : p.x + p.w - 18, oy: p.y, dx: 0, dy: -1, len: PJET_LEN, thick: PJET_THICK });
+  else jets.push({ ...base, ox: left ? p.x : p.x + p.w, oy: p.y - 20, dx: left ? -1 : 1, dy: 0, len: PJET_LEN + 20, thick: PJET_THICK });
 }
 function jetState(j) {
   const ph = (j.t + j.off) % j.period;
@@ -266,6 +282,9 @@ function jetState(j) {
   if (ph >= j.period - 1.6) return 1;   // warning
   return 0;
 }
-function jetRect(j) {
-  return j.side === 'L' ? [WALL, WALL + JET_LEN] : [W - WALL - JET_LEN, W - WALL];
+// The flame's box [x0, x1, y0, y1]
+function jetBox(j) {
+  const ex = j.ox + j.dx * j.len, ey = j.oy + j.dy * j.len, h = j.thick / 2;
+  return j.dy ? [j.ox - h, j.ox + h, Math.min(j.oy, ey), Math.max(j.oy, ey)]
+              : [Math.min(j.ox, ex), Math.max(j.ox, ex), j.oy - h, j.oy + h];
 }

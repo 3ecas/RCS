@@ -9,6 +9,7 @@ const CONTROLS = [
 ];
 addEventListener('keydown', e => {
   if (e.metaKey) return; // keep Cmd+Q etc. working
+  if (e.target && e.target.tagName === 'INPUT') return;   // typing in the chat box
   e.preventDefault();
   if (!keys[e.code]) pressed[e.code] = true;
   keys[e.code] = true;

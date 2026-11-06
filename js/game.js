@@ -2,6 +2,7 @@
 'use strict';
 
 function update(dt) {
+  if (state !== 'room' && chatOpen()) closeChat();   // the chat box is only for the room
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();
 
@@ -134,12 +135,12 @@ function updateWorld(dt) {
   for (const j of jets) {
     j.t += dt;
     const s = jetState(j);
-    if (s === 2 && j.last !== 2 && j.y > camY && j.y < camY + H) sfx.flame();
+    if (s === 2 && j.last !== 2 && j.oy > camY && j.oy < camY + H) sfx.flame();
     j.last = s;
   }
   platforms = platforms.filter(p => !offScreen(p.x, p.y, p.w));
   blades = blades.filter(b => !offScreen(b.hi, b.y, 0));
-  jets = jets.filter(j => !offScreen(W, j.y, 0));
+  jets = jets.filter(j => !offScreen(W, j.oy, 0));
   for (const z of zaps) {
     z.t += dt;
     const s = zapState(z);
@@ -343,8 +344,8 @@ function updateHazards(dt) {
     for (const b of blades) if (circleHit(p, b.x, b.y, b.r - 5)) return 'was hit by a shuriken';
     for (const j of jets) {
       if (jetState(j) !== 2) continue;
-      const [x0, x1] = jetRect(j);
-      if (px1 > x0 + 4 && px0 < x1 - 8 && py1 > j.y - 10 && py0 < j.y + 10) return 'got burned';
+      const [x0, x1, y0, y1] = jetBox(j);
+      if (px1 > x0 + 4 && px0 < x1 - 4 && py1 > y0 + 4 && py0 < y1 - 4) return 'got burned';
     }
     for (const f of fireballs) if (circleHit(p, f.x, f.y, f.r - 2)) return 'was hit by a fireball';
     for (const z of zaps) {

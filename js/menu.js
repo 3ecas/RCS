@@ -31,13 +31,17 @@ function layoutButtons() {
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
   if (state === 'over' && overT > 0.8) {
-    // Online: back to the room scene for the next race, or leave
-    if (net.status === 'playing') return [...icons,
-      B('room', 'BACK TO ROOM', '', cx - 260, 712, 250, 60, { color: PAL.good }),
-      B('menu', 'LEAVE', '', cx + 10, 712, 250, 60),
-    ];
+    // Online: ready for a rematch (Space; it starts when everyone is ready), back to the room scene, or leave
+    if (net.status === 'playing') {
+      const ready = iAmReady();
+      return [...icons,
+        B('ready', ready ? 'READY ✓' : 'READY  (SPACE)', '', cx - 350, 712, 240, 60, { color: PAL.good, selected: ready }),
+        B('room', 'ROOM', '', cx - 95, 712, 190, 60),
+        B('menu', 'LEAVE', '', cx + 110, 712, 240, 60),
+      ];
+    }
     return [...icons,
-      B('again', 'PLAY AGAIN', '', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
+      B('again', 'PLAY AGAIN  (SPACE)', '', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
       B('menu', 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
     ];
   }
@@ -64,7 +68,9 @@ function menuInput() {
   }
   if (ui.focus !== prev) sfx.beep(600);
   let act = null;
-  if ((pressed.Enter || pressed.Space) && n) act = fb[ui.focus];
+  if (pressed.Enter && n) act = fb[ui.focus];
+  // Space: on the end screen it's always "ready" (online) / "play again" (offline); elsewhere it presses the button
+  if (pressed.Space && n) act = state === 'over' ? bs.find(b => b.id === 'ready' || b.id === 'again') || fb[ui.focus] : fb[ui.focus];
   if (click) act = bs.find(b => inside(b, click.x, click.y));
   if (act && !act.disabled) { sfx.beep(760); activate(act.id); }
 }
@@ -82,6 +88,7 @@ function activate(id) {
     case 'mute': toggleMute(); break;
     case 'cancel': leaveOnline(); break;
     case 'room': enterRoom(); break;
+    case 'ready': toggleReady(); break;
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;
     case 'menu': if (net.status === 'playing') leaveOnline(); else toMenu(); break;

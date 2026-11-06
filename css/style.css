@@ -2,3 +2,12 @@
 html, body { margin: 0; height: 100%; background: #f6eef6; overflow: hidden; }
 body { display: flex; align-items: center; justify-content: center; }
 canvas { display: block; }
+
+/* Chat box in the online room (js/chat.js) */
+.chat-box {
+  position: fixed; display: none; left: 50%; bottom: 14%; transform: translateX(-50%);
+  width: min(560px, 80vw); height: 44px; box-sizing: border-box; padding: 0 14px;
+  border: 2px solid #5b4b6b; background: rgba(255, 255, 255, 0.96); color: #5b4b6b; outline: none;
+  font-family: ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif; font-weight: 800; font-size: 17px;
+}
+.chat-box::placeholder { color: rgba(91, 75, 107, 0.45); }

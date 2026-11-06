@@ -13,7 +13,8 @@ const ROW_GAP = 120;        // every row of platforms sits this far above the la
 const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid
 const PS = 34;              // player cube size
 const STEP = 1 / 120;
-const JET_LEN = 150;        // wall flame reach
+const JET_LEN = 230, JET_THICK = 38;   // wall flamethrowers: reach and flame thickness
+const PJET_LEN = 180, PJET_THICK = 32; // flamethrowers on platforms
 const DIVIDER_W = 26;        // Two Paths region: the dividing wall's width
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';

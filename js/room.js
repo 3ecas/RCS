@@ -84,6 +84,7 @@ function updateRoom(dt) {
   const click = ui.click; ui.click = null;
   if (pressed.Escape || (click && layoutButtons().some(b => b.id === 'cancel' && inside(b, click.x, click.y)))) { leaveOnline(); return; }
   if (click && cornerIcons().some(b => inside(b, click.x, click.y))) toggleMute();
+  if (pressed.Enter && !chatOpen()) openChat();     // chat (js/chat.js)
 
   updateWorld(dt);
   for (const p of players) p.remote ? updateRemote(p, dt) : updatePlayer(p, dt);
@@ -141,7 +142,8 @@ function drawRoomHUD() {
   }
   ctx.restore();
   const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
-  text('Everyone gets on START (piling up on top is fine) to begin the race  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
+  drawChatLog(); drawChatBubbles();
+  text('Everyone gets on START (piling up on top is fine) to begin  ·  Enter to chat  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
   text(keysTxt, W / 2, GROUND_Y + 54, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }

@@ -12,11 +12,13 @@
 //                    {t:'relay', d:{...}}               pass game data on: to the others in the race, or (while
 //                                                       not racing) to the others walking around the room
 //                    {t:'roundOver', round}             this computer's race has ended (one cube left)
+//                    {t:'chat', text}                   a chat message to everyone in the room
 //   server → client  {t:'room', phase, players:[{id, name, colors, ready, racing}], me, max, round}  the room
 //                    {t:'match', you, seed, mode, startIn, roster, round}    a race starts in startIn ms;
 //                                                        roster = [{color, owner, slot, name, id}] for every cube
 //                    {t:'peer', d:{...}, from}          data from another computer (from = its id)
 //                    {t:'gone', owner}                  a computer left the race (the others carry on)
+//                    {t:'chat', from, text}             a chat message (from = the sender's id)
 //                    {t:'old'}                          this copy of the game is out of date — refresh
 
 'use strict';
@@ -162,7 +164,7 @@ setInterval(() => {
 // a race starts with all of them. After the race they come back to the room. Anyone joining while a race
 // is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 5;              // game and server must speak the same version
+const PROTOCOL = 6;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -257,6 +259,13 @@ function onMessage(c, text) {
     for (const o of to) if (o !== c) o.send({ t: 'peer', d: m.d, from: c.id });
   } else if (m.t === 'roundOver') {
     roundOver(c, m.round);
+  } else if (m.t === 'chat') {
+    // At most 80 printable characters, and no more than about 2 messages a second per computer
+    const r = c.room, now = Date.now();
+    const text = String(m.text || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (!r || !text || now - (c.lastChat || 0) < 400) return;
+    c.lastChat = now;
+    for (const o of r.members) o.send({ t: 'chat', from: c.id, text });
   }
 }
 

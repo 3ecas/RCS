@@ -202,26 +202,29 @@ function drawBubbles(b) {
   }
 }
 
+// Flamethrower: a nozzle (on a wall or a platform), a flicker while it warms up, then the flame
 function drawJet(j) {
-  if (j.y < camY - OY - 40 || j.y > camY + H + OY + 40) return;
-  const s = jetState(j), L = j.side === 'L';
-  const wallX = L ? WALL : W - WALL;
-  // nozzle on the wall
-  ctx.fillStyle = s ? PAL.flame : PAL.nozzle;
-  ctx.fillRect(L ? WALL - 12 : W - WALL, j.y - 9, 12, 18);
+  const [, , y0, y1] = jetBox(j);
+  if (y1 < camY - OY - 40 || y0 > camY + H + OY + 40) return;
+  const s = jetState(j), h = j.thick / 2;
+  ctx.save();
+  ctx.translate(j.ox, j.oy);
+  ctx.rotate(Math.atan2(j.dy, j.dx));        // draw it along +x
+  ctx.fillStyle = s ? PAL.flame : PAL.nozzle; // nozzle
+  if (j.wall) ctx.fillRect(-12, -h * 0.6, 12, h * 1.2);
+  else { ctx.fillRect(-4, -h * 0.55, 14, h * 1.1); ctx.fillStyle = PAL.blade; ctx.fillRect(-4, -h * 0.55, 4, h * 1.1); }
   if (s === 1 && Math.floor(time * 12) % 2) {
-    ctx.fillStyle = 'rgba(255,154,118,0.6)';
-    ctx.fillRect(L ? wallX : wallX - 14, j.y - 4, 14, 8);
+    ctx.fillStyle = 'rgba(255,154,118,0.6)'; ctx.fillRect(0, -h * 0.4, 18, h * 0.8);
   }
   if (s === 2) {
-    const len = JET_LEN * (0.92 + 0.08 * Math.sin(time * 30));
-    const g = ctx.createLinearGradient(wallX, 0, L ? wallX + len : wallX - len, 0);
+    const len = j.len * (0.92 + 0.08 * Math.sin(time * 30 + j.ox));
+    const g = ctx.createLinearGradient(0, 0, len, 0);
     g.addColorStop(0, PAL.flame2); g.addColorStop(0.5, PAL.flame); g.addColorStop(1, 'rgba(255,154,118,0)');
     ctx.fillStyle = g;
-    ctx.fillRect(L ? wallX : wallX - len, j.y - 11, len, 22);
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.fillRect(L ? wallX : wallX - len * 0.5, j.y - 3, len * 0.5, 6);
+    ctx.beginPath(); ctx.moveTo(0, -h * 0.7); ctx.lineTo(len * 0.25, -h); ctx.lineTo(len, -h * 0.6); ctx.lineTo(len, h * 0.6); ctx.lineTo(len * 0.25, h); ctx.lineTo(0, h * 0.7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(0, -h * 0.25, len * 0.5, h * 0.5);
   }
+  ctx.restore();
 }
 
 function drawPlayer(p) {

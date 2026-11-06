@@ -14,9 +14,9 @@ There are no menu screens: the game opens in a **playable scene** at the bottom 
 - **Player 2:** hold any arrow key for 3 seconds and player 2 pops up on the floor. **Esc** removes them.
 - **?** (key or corner icon) shows the instructions.
 
-After a game, **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
+After a game, **Space** or **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
 
-**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it or piled up on top of others above it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then **BACK TO ROOM** for the next race, or **LEAVE** (Esc in the room). If you join while a race is on, you wait in the room for the next one. Your own cubes are full colour and everyone else's are softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
+**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it or piled up on top of others above it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then press **Space** to be ready for a rematch — when everyone is ready (on the results screen, or on START in the room) the next race starts straight away. **ROOM** takes you back to the room scene (jump on START there to be ready for the next round); **LEAVE** quits online play (Esc in the room). In the room, press **Enter** to **chat**: your message shows as a speech bubble over your cube and in the chat log. If you join while a race is on, you wait in the room for the next one. Your own cubes are full colour and everyone else's are softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 
 During a game the **speaker** icon (top right) or **M** turns sound on/off (remembered).
 
@@ -44,7 +44,7 @@ Springs: press jump right as you land on one for a big launch; otherwise it's a 
   - **Spikes** (pink): spikes on moving and still platforms
   - **Seesaw** (peach): seesaws that tip toward whichever side you stand on, and springs
   - **Blades** (blue): spinning shurikens and moving platforms
-  - **Fire** (orange): flamethrowers on the walls and falling fireballs
+  - **Fire** (orange): big flamethrowers on the walls, flamethrowers on the path's platforms (shooting up from one end, or out sideways over the gap) and falling fireballs
   - **Lightning** (lavender): electric beams between two posts — they flicker as a warning, then switch on for a moment
   - **Water** (aqua): a helper region with no dangers — columns of rising bubbles push you up while you're inside them, no jump needed
   - **Two Paths** (olive): a full-width entrance platform, then a wall up the middle with a separate path on each side — you can't cross it, so players split up — and a full-width exit platform where the paths meet again. Moving platforms and spikes inside.
@@ -66,6 +66,7 @@ js/effects.js     particles and floating text
 js/menu.js        buttons: stop menu, online room, end screens
 js/lobby.js       the start scene: mode platforms, sound, colour pads, joining player 2
 js/room.js        the online room scene: everyone's cubes and the START platform
+js/chat.js        chat in the online room: typing box, speech bubbles, chat log
 js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, screens and buttons

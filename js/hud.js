@@ -137,8 +137,8 @@ function roomLine() {
   const n = R.players.length, waiting = R.players.map((p, i) => ({ p, i })).filter(x => !x.p.ready);
   if (n < 2) return 'Waiting for more players to join…';
   if (!waiting.length) return 'Everyone’s ready — starting!';
-  if (waiting.length <= 3) return 'Waiting for ' + waiting.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to stand on START';
-  return `${n - waiting.length}/${n} on START — the race starts when everyone is on it`;
+  if (waiting.length <= 3) return 'Waiting for ' + waiting.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to get ready';
+  return `${n - waiting.length}/${n} ready — the race starts when everyone is ready`;
 }
 
 function drawBanner(y) {
