@@ -23,7 +23,7 @@ const localCube = k => COLORS[localColor(k)];
 function onlineKeysText() {
   const mine = players.filter(p => !p.remote);
   if (mine.length <= 1) return `You are ${COLORS[localColor(0)].name.toUpperCase()} — use WASD or the arrow keys`;
-  return mine.map(p => p.name).join(', ');
+  return mine.map(p => `${p.name.toUpperCase()}: ${p.slot ? 'arrow keys' : 'WASD'}`).join('   ·   ');
 }
 
 function drawButton(b, focused) {
@@ -131,33 +131,12 @@ function drawHelp() {
 function roomLine() {
   const R = net.room;
   if (!R) return 'Joining the room…';
-  if (R.phase === 'playing') return 'A race is on — get ready for the next one';
+  if (R.phase === 'playing') return 'A race is on — wait here for the next one';
   const n = R.players.length, waiting = R.players.map((p, i) => ({ p, i })).filter(x => !x.p.ready);
   if (n < 2) return 'Waiting for more players to join…';
   if (!waiting.length) return 'Everyone’s ready — starting!';
-  if (waiting.length <= 3) return 'Waiting for ' + waiting.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to get ready';
-  return `${n - waiting.length}/${n} ready — the race starts when everyone is ready`;
-}
-
-// The room screen: everyone in it, who's ready, who's racing
-function drawRoom() {
-  const R = net.room;
-  text('ROOM', W / 2, 112, 54, PAL.ink, 'center', 900);
-  text(roomLine(), W / 2, 152, 17, PAL.good, 'center', 900);
-  if (!R) return;
-  const x = W / 2 - 250, w = 500, top = 180, rh = 38;
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x, top, w, 40 + R.players.length * rh);
-  text(`PLAYERS  ${R.players.length}/${R.max}`, x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
-  R.players.forEach((p, k) => {
-    const y = top + 40 + k * rh, mid = y + rh / 2 + 6, C = COLORS[p.colors[0]];
-    if (k === R.me) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }   // you
-    ctx.fillStyle = C.d; ctx.fillRect(x + 22, y + rh / 2 - 10, 20, 20);
-    ctx.fillStyle = C.c; ctx.fillRect(x + 24, y + rh / 2 - 8, 16, 16);
-    text(roomName(p) + (k === R.me ? '  (you)' : ''), x + 58, mid, 17, PAL.ink, 'left', 800);
-    if (p.racing) text('racing', x + w - 20, mid, 15, PAL.inkSoft, 'right', 800);
-    else if (p.ready) text('✓ READY', x + w - 20, mid, 15, PAL.good, 'right', 900);
-    else text('not ready', x + w - 20, mid, 15, PAL.inkSoft, 'right', 700);
-  });
+  if (waiting.length <= 3) return 'Waiting for ' + waiting.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to stand on START';
+  return `${n - waiting.length}/${n} on START — the race starts when everyone is on it`;
 }
 
 function drawBanner(y) {
@@ -203,6 +182,7 @@ function drawHUD() {
   }
 
   if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
+  if (state === 'room') drawRoomHUD();      // the online room scene (js/room.js)
 
   if ((state === 'lobby' && ui.help) || state === 'paused' || state === 'search' || state === 'found' || (state === 'over' && overT > 0.4)) {
     ctx.fillStyle = state === 'search' || state === 'found' ? 'rgba(255,250,248,0.92)' : 'rgba(255,250,248,0.84)';
@@ -212,15 +192,12 @@ function drawHUD() {
   if (state === 'lobby' && ui.help) drawHelp();
 
   if (state === 'search') {
-    if (net.room) drawRoom();
-    else {
-      // Still connecting / joining
-      cube(W / 2 - 22, 250 - Math.abs(Math.sin(time * 5)) * 30, 44, localCube(0));
-      text('CONNECTING', W / 2, 370, 50, PAL.ink, 'center', 900);
-      const dots = '.'.repeat(1 + Math.floor(time * 2) % 3);
-      text(net.status === 'connecting' ? 'Connecting to the server' + dots : 'Joining the room' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
-      text('The first connection can take up to a minute while the server wakes up.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
-    }
+    // Still connecting / joining
+    cube(W / 2 - 22, 250 - Math.abs(Math.sin(time * 5)) * 30, 44, localCube(0));
+    text('CONNECTING', W / 2, 370, 50, PAL.ink, 'center', 900);
+    const dots = '.'.repeat(1 + Math.floor(time * 2) % 3);
+    text(net.status === 'connecting' ? 'Connecting to the server' + dots : 'Joining the room' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
+    text('The first connection can take up to a minute while the server wakes up.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
   }
 
   if (state === 'found') {

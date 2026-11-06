@@ -8,7 +8,7 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Starting a game (the lobby)
 There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
-- **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **Solo** or **Multiplayer**. Two players: **Co-op** (if one falls, both lose), **Race** (last one standing wins, with a leaderboard and win count) or Multiplayer (greyed out: online is one player per computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
+- **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **Solo** or **Multiplayer**. Two players: **Co-op** (if one falls, both lose), **Race** (last one standing wins, with a leaderboard and win count) or Multiplayer (both of you join the online race from this computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
 - **Sound** platform: land on it to switch sound on or off.
 - **Colour column** (10 coloured pads stacked up the left side): climb it — each pad you land on paints your cube that colour — and jump off at the one you want. Two players can't share a colour. Colours are remembered, and each cube is named after its colour.
 - **Player 2:** hold any arrow key for 3 seconds and player 2 pops up on the floor. **Esc** removes them.
@@ -16,7 +16,7 @@ There are no menu screens: the game opens in a **playable scene** at the bottom 
 
 After a game, **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
 
-**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full). The room screen lists every player; each one presses **READY**, and the race starts when **everyone** in the room is ready (at least 2). Everyone races the same tower. If you're knocked out you keep watching. When only one player is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Press **READY** again for the next race, or **LEAVE**. If you join while a race is on, you wait in the room and can get ready for the next one. Your own cube is full colour and everyone else's is softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
+**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then **BACK TO ROOM** for the next race, or **LEAVE** (Esc in the room). If you join while a race is on, you wait in the room for the next one. Your own cubes are full colour and everyone else's are softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 
 During a game the **speaker** icon (top right) or **M** turns sound on/off (remembered).
 
@@ -24,8 +24,8 @@ During a game the **speaker** icon (top right) or **M** turns sound on/off (reme
 
 | | Jump | Move | Drop through |
 |---|---|---|---|
-| Solo / online | W or ↑ | A D or ← → | S or ↓ |
-| Two players: player 1 | W | A / D | S |
+| One player (solo / online) | W or ↑ | A D or ← → | S or ↓ |
+| Two players (local or online): player 1 | W | A / D | S |
 | Two players: player 2 | ↑ | ← / → | ↓ |
 
 In the lobby player 1 is W A S D only (the arrow keys add player 2).
@@ -56,6 +56,7 @@ js/level.js       building the tower and its hazards
 js/effects.js     particles and floating text
 js/menu.js        buttons: stop menu, online room, end screens
 js/lobby.js       the start scene: mode platforms, sound, colour pads, joining player 2
+js/room.js        the online room scene: everyone's cubes and the START platform
 js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, screens and buttons

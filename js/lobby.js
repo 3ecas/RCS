@@ -36,7 +36,7 @@ function buildLobbyRow1() {
   items.forEach((menu, k) => {
     const cx = LOBBY_LEFT + slot * (k + 0.5);
     platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 30, type: 'normal', menu, dx: 0, dy: 0, t: 0, falling: false,
-      disabled: menu === 'multi' && playerCount === 2 });
+ });
   });
   lobby.on = null; lobby.holdT = 0;
 }
@@ -73,7 +73,7 @@ function updateLobby(dt) {
 
   // Everyone on the same mode platform for 3 seconds starts that mode
   const pl = standingOn(players[0]);
-  const ok = pl && pl.menu && pl.menu !== 'sound' && pl.menu !== 'paint' && !pl.disabled && players.every(p => standingOn(p) === pl);
+  const ok = pl && pl.menu && pl.menu !== 'sound' && pl.menu !== 'paint' && players.every(p => standingOn(p) === pl);
   if ((ok ? pl : null) !== lobby.on) { lobby.on = ok ? pl : null; lobby.holdT = 0; }
   if (lobby.on) {
     const before = Math.ceil(HOLD_TIME - lobby.holdT);
@@ -149,12 +149,10 @@ function drawMenuPlatform(p) {
     }
     return;
   }
-  ctx.globalAlpha = p.disabled && state === 'lobby' ? 0.45 : 1;
   ctx.fillStyle = PAL.normal; ctx.fillRect(x, y, p.w, p.h);
   ctx.fillStyle = PAL.normalD; ctx.fillRect(x, y + p.h - 4, p.w, 4);
   ctx.globalAlpha = 1;
   if (state !== 'lobby') return;     // in the game they're plain platforms: the names go away
-  ctx.globalAlpha = p.disabled ? 0.45 : 1;
   // Filling up while everyone stands on it
   if (lobby.on === p) {
     ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.55;
@@ -169,7 +167,7 @@ function drawMenuPlatform(p) {
   text(label, x + p.w / 2, y + 19, size, PAL.ink, 'center', 900);
   // A small hint above it (lobby only)
   if (lobby.on !== p) {
-    const sub = p.menu === 'sound' ? 'jump on to switch' : p.disabled ? 'one player per computer' : MENU_SUB[p.menu];
+    const sub = p.menu === 'sound' ? 'jump on to switch' : p.menu === 'multi' && playerCount === 2 ? 'online race, both of you' : MENU_SUB[p.menu];
     text(sub, x + p.w / 2, y - 12, 12, PAL.inkSoft, 'center', 700);
   }
   ctx.globalAlpha = 1;

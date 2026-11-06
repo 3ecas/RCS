@@ -6,6 +6,7 @@ function update(dt) {
   if (pressed.KeyF) toggleFullscreen();
 
   if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
+  if (state === 'room') { updateRoom(dt); return; }     // the online room scene (js/room.js)
   // Pause, room and end screens are driven by buttons (mouse or keyboard)
   if (state === 'found') {       // "Match found!" — then the countdown
     time += dt; foundT -= dt;
@@ -132,11 +133,13 @@ function updateWorld(dt) {
   jets = jets.filter(j => !offScreen(W, j.y, 0));
 }
 
-// Two players: player 1 uses WASD, player 2 the arrow keys. In the lobby player 1 is always WASD
-// (the arrow keys are for adding player 2). Otherwise either set moves your cube.
-function humanInput(i) {
-  if ((playerCount === 2 || state === 'lobby') && net.status !== 'playing') {
-    const c = CONTROLS[i];
+// Two players on this computer (offline or online): player 1 uses WASD, player 2 the arrow keys.
+// In the lobby player 1 is always WASD (the arrow keys are for adding player 2).
+// One player on this computer: either set moves your cube.
+function humanInput(p) {
+  const online = net.status === 'playing' || state === 'room';
+  if (online ? net.local === 2 : playerCount === 2 || state === 'lobby') {
+    const c = CONTROLS[online ? p.slot || 0 : p.i];   // online: slot = which keys on this computer
     return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
   }
   const a = CONTROLS[0], b = CONTROLS[1];
@@ -164,7 +167,7 @@ function updateTilt(pl, dt) {
 }
 
 function updatePlayer(p, dt) {
-  const inp = humanInput(p.i);
+  const inp = humanInput(p);
   p.prevX = p.x; p.prevY = p.y;
 
   // Ride whatever we're standing on

@@ -6,14 +6,16 @@
 //
 // Messages (JSON over WebSocket at /ws):
 //   client → server  {t:'find', v, colors:[0-9, …], name}   join the shared room (protocol version, cube colours, name)
-//                    {t:'ready', on}                    ready (or not) for the next race
+//                    {t:'ready', on}                    ready (or not) for the next race: this computer's cubes
+//                                                       are standing on the room's START platform (or not)
 //                    {t:'leave'}                        leave the room
-//                    {t:'relay', d:{...}}               pass game data to the other computers in the race
+//                    {t:'relay', d:{...}}               pass game data on: to the others in the race, or (while
+//                                                       not racing) to the others walking around the room
 //                    {t:'roundOver', round}             this computer's race has ended (one cube left)
-//   server → client  {t:'room', phase, players:[{name, colors, ready, racing}], me, max, round}  the room
+//   server → client  {t:'room', phase, players:[{id, name, colors, ready, racing}], me, max, round}  the room
 //                    {t:'match', you, seed, mode, startIn, roster, round}    a race starts in startIn ms;
 //                                                        roster = [{color, owner, slot, name, id}] for every cube
-//                    {t:'peer', d:{...}}                data from another computer
+//                    {t:'peer', d:{...}, from}          data from another computer (from = its id)
 //                    {t:'gone', owner}                  a computer left the race (the others carry on)
 //                    {t:'old'}                          this copy of the game is out of date — refresh
 
@@ -155,18 +157,19 @@ setInterval(() => {
 
 // ---------- Rooms ----------
 // Everyone who clicks Multiplayer goes into the same room (a new room only opens once one is full,
-// MAX_PLAYERS cubes). In the room everyone presses READY; when every player in the room is ready
-// (and there are at least 2), a race starts with all of them. After the race the room goes back to
-// the ready list. Anyone joining while a race is on waits in the room and can get ready for the next.
+// MAX_PLAYERS cubes). The room is a small scene everyone walks around in; a computer is ready when its
+// cubes stand on the START platform. When every computer in the room is ready (and there are at least 2),
+// a race starts with all of them. After the race they come back to the room. Anyone joining while a race
+// is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 4;              // game and server must speak the same version
+const PROTOCOL = 5;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
 
 // Send each player the room: who's in it, who's ready, who's racing, and which one is them
 function roomStatus(r) {
-  const list = r.members.map(c => ({ name: c.name, colors: c.colors, ready: r.ready.has(c), racing: r.racers.includes(c) }));
+  const list = r.members.map(c => ({ id: c.id, name: c.name, colors: c.colors, ready: r.ready.has(c), racing: r.racers.includes(c) }));
   r.members.forEach((c, i) => c.send({ t: 'room', phase: r.phase, players: list, me: i, max: MAX_PLAYERS, round: r.round }));
 }
 
@@ -247,8 +250,11 @@ function onMessage(c, text) {
     leaveRoom(c);
   } else if (m.t === 'relay') {
     const r = c.room;
-    if (!r || r.phase !== 'playing' || !r.racers.includes(c)) return;
-    for (const o of r.racers) if (o !== c) o.send({ t: 'peer', d: m.d });
+    if (!r) return;
+    const racing = r.phase === 'playing' && r.racers.includes(c);
+    // In the race: to the other racers. Otherwise: to the others in the room scene (not racing)
+    const to = racing ? r.racers : r.members.filter(o => !(r.phase === 'playing' && r.racers.includes(o)));
+    for (const o of to) if (o !== c) o.send({ t: 'peer', d: m.d, from: c.id });
   } else if (m.t === 'roundOver') {
     roundOver(c, m.round);
   }

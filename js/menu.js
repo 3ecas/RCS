@@ -23,29 +23,19 @@ function layoutButtons() {
   const cx = W / 2;
   const icons = cornerIcons();
   if (state === 'lobby') return ui.help ? [B('help-close', 'GOT IT', '', cx - 100, 776, 200, 56, { color: PAL.good })] : icons;
-  if (state === 'search') {
-    // The room: get ready (or not), or leave
-    if (!net.room) return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];
-    const ready = iAmReady();
-    return [...icons,
-      B('ready', ready ? 'READY ✓' : 'READY', '', cx - 260, 650, 250, 64, { color: PAL.good, selected: ready }),
-      B('cancel', 'LEAVE', '', cx + 10, 650, 250, 64),
-    ];
-  }
+  if (state === 'search') return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];   // connecting
+  if (state === 'room') return [...icons, B('cancel', 'LEAVE', '', W - WALL - 150, GROUND_Y + 14, 130, 42, { nofocus: true })];
   if (state === 'paused') return [...icons,
     B('resume', 'RESUME', '', cx - 310, H * 0.5, 200, 60, { color: PAL.good }),
     B('restart', 'START OVER', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
   if (state === 'over' && overT > 0.8) {
-    // Online: get ready for the next race, or leave the room
-    if (net.status === 'playing') {
-      const ready = iAmReady();
-      return [...icons,
-        B('ready', ready ? 'READY ✓' : 'READY', '', cx - 260, 712, 250, 60, { color: PAL.good, selected: ready }),
-        B('menu', 'LEAVE', '', cx + 10, 712, 250, 60),
-      ];
-    }
+    // Online: back to the room scene for the next race, or leave
+    if (net.status === 'playing') return [...icons,
+      B('room', 'BACK TO ROOM', '', cx - 260, 712, 250, 60, { color: PAL.good }),
+      B('menu', 'LEAVE', '', cx + 10, 712, 250, 60),
+    ];
     return [...icons,
       B('again', 'PLAY AGAIN', '', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
       B('menu', 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
@@ -91,7 +81,7 @@ function activate(id) {
     case 'help-close': ui.help = false; ui.focus = 0; break;
     case 'mute': toggleMute(); break;
     case 'cancel': leaveOnline(); break;
-    case 'ready': toggleReady(); break;
+    case 'room': enterRoom(); break;
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;
     case 'menu': if (net.status === 'playing') leaveOnline(); else toMenu(); break;

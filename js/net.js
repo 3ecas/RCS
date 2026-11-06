@@ -8,7 +8,7 @@ const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 // me: which computer we are in the race. roster: every cube's colour, owner and name.
 // room: the shared room (who's in it, who's ready). round: which race in the room this is;
 // sentOver: told the server this race has ended.
-const PROTOCOL = 4;   // must match the server's; an outdated copy of the game is told to refresh
+const PROTOCOL = 5;   // must match the server's; an outdated copy of the game is told to refresh
 const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, room: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
@@ -44,7 +44,7 @@ const RETRY_FOR_MS = 75000;
 function startSearch() {
   netClose();
   state = 'search'; net.room = null;
-  net.local = 1;                 // one player per computer
+  net.local = playerCount;       // cubes from this computer: 1, or 2 (WASD + arrow keys)
   net.searchStart = performance.now();
   connectOnce();
 }
@@ -76,10 +76,6 @@ function connectOnce() {
 
 function leaveOnline() { netSend({ t: 'leave' }); netClose(); toMenu(); }
 
-// The room: am I ready? Toggle it.
-const meInRoom = () => net.room && net.room.players[net.room.me];
-const iAmReady = () => !!(meInRoom() && meInRoom().ready);
-function toggleReady() { netSend({ t: 'ready', on: !iAmReady() }); }
 // Name to show for a room member (their colour if they didn't type one)
 const roomName = p => p.name || COLORS[p.colors[0]].name;
 
@@ -91,7 +87,11 @@ function reportRoundOver() {
 }
 
 function onNet(m) {
-  if (m.t === 'room') net.room = m;
+  if (m.t === 'room') {
+    net.room = m;
+    if (state === 'search') enterRoom();          // joined: into the room scene
+    else if (state === 'room') syncRoomCubes();   // someone joined, left, got ready…
+  }
   else if (m.t === 'old') { netClose(); netBanner('The game was updated — please refresh the page'); toMenu(); }
   else if (m.t === 'match') {
     net.rematch = net.status === 'playing';
@@ -106,7 +106,7 @@ function onNet(m) {
   }
   else if (m.t === 'gone') playersLeft(m.owner);
   else if (m.t === 'left') { netClose(); netBanner('Everyone else left the game'); toMenu(); }
-  else if (m.t === 'peer') onPeer(m.d || {});
+  else if (m.t === 'peer') { if (state === 'room') onRoomPeer(m.d || {}, m.from); else onPeer(m.d || {}); }
 }
 
 // Another computer left the match: its cubes vanish and the rest carry on
