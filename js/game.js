@@ -8,6 +8,7 @@ function update(dt) {
 
   if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
   if (state === 'room') { updateRoom(dt); return; }     // the online room scene (js/room.js)
+  if (state === 'wardrobe') { updateWardrobe(dt); return; }   // inside the wardrobe (js/wardrobe.js)
   // Pause, room and end screens are driven by buttons (mouse or keyboard)
   if (state === 'found') {       // "Match found!" — then the countdown
     time += dt; foundT -= dt;
@@ -157,7 +158,7 @@ function updateWorld(dt) {
 // One player on this computer: either set moves your cube.
 function humanInput(p) {
   const online = net.status === 'playing' || state === 'room';
-  if (online ? net.local === 2 : playerCount === 2 || state === 'lobby') {
+  if (online ? net.local === 2 : playerCount === 2 || state === 'lobby' || state === 'wardrobe') {
     const c = CONTROLS[online ? p.slot || 0 : p.i];   // online: slot = which keys on this computer
     return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
   }
@@ -223,7 +224,7 @@ function updatePlayer(p, dt) {
     p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
     sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
   }
-  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground') {
+  if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
     p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
   }
   p.dropT -= dt;
@@ -269,16 +270,7 @@ function updatePlayer(p, dt) {
         }
       }
     }
-    // Stand on another player's head
-    for (const o of players) {
-      if (p.onGround) break;
-      if (o === p || o.dead) continue;
-      if (p.x + p.w - 6 > o.x && p.x + 6 < o.x + o.w && prevBottom <= Math.max(o.y, o.prevY) + 2 && p.y + p.h >= o.y) {
-        p.y = o.y - p.h; p.vy = 0; p.onGround = true;
-        p.ground = { isPlayer: true, ref: o, falling: false };
-        if (!wasGround) { p.sq = 0.78; sfx.land(); }
-      }
-    }
+    // Cubes don't collide with each other (no standing on heads): everyone climbs on their own
   }
 
   p.sq += (1 - p.sq) * Math.min(1, dt * 12);

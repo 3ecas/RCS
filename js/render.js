@@ -74,10 +74,11 @@ function drawPlatform(p) {
     ctx.fillStyle = PAL.ground; ctx.fillRect(p.x, y, p.w, p.h);
     ctx.fillStyle = PAL.groundD; ctx.fillRect(p.x, y, p.w, 5);
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    if (state !== 'lobby' && state !== 'room') ctx.fillText('START', W / 2, y + 40);
+    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe') ctx.fillText('START', W / 2, y + 40);
     return;
   }
   if (p.menu === 'start') return drawStartPlatform(p);   // online room (js/room.js)
+  if (p.menu === 'door') return drawDoorPlatform(p);     // wardrobe door (js/wardrobe.js)
   if (p.menu) return drawMenuPlatform(p);   // lobby platforms (js/lobby.js)
   let x = p.x;
   const colors = { normal: [PAL.normal, PAL.normalD], move: [PAL.move, PAL.moveD], tilt: [PAL.tilt, PAL.tiltD], spring: [PAL.spring, PAL.springD] };
@@ -227,24 +228,22 @@ function drawJet(j) {
   ctx.restore();
 }
 
+// A player's cube, squashed when it lands. Other computers' cubes are faded ghosts (js/look.js).
 function drawPlayer(p) {
   if (p.dead) return;
   const sx = 1 / Math.sqrt(p.sq), sy = p.sq;
   const w = p.w * sx, h = p.h * sy;
   const x = p.x + p.w / 2 - w / 2, y = p.y + p.h - h;
-  ctx.fillStyle = p.dark; ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = p.color; ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
-  // eyes
-  const ex = x + w / 2 + p.face * 5, ey = y + h * 0.36;
-  ctx.fillStyle = PAL.ink;
-  const eh = p.blink < 0 ? 2 : 7;
-  ctx.fillRect(ex - 8, ey, 4, eh); ctx.fillRect(ex + 4, ey, 4, eh);
+  if (p.remote) ctx.globalAlpha = 0.5;
+  drawCubeArt(x, y, w, h, p.remote ? GHOST : { c: p.color, d: p.dark }, p.look, p.face, p.blink);
+  ctx.globalAlpha = 1;
 }
 
 function render() {
   ctx.save();
   if (shake > 0) ctx.translate(rand(-1, 1) * shake * 14, rand(-1, 1) * shake * 14);
   drawBackground();
+  if (state === 'wardrobe') drawWardrobeRoom();   // wallpaper, exit door, mirror (js/wardrobe.js)
 
   ctx.save();
   ctx.translate(0, -camY);
@@ -253,7 +252,9 @@ function render() {
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);
   for (const b of blades) drawBlade(b);
-  for (const p of players) drawPlayer(p);
+  // Other computers' cubes first, so yours are always drawn in front
+  for (const p of players) if (p.remote) drawPlayer(p);
+  for (const p of players) if (!p.remote) drawPlayer(p);
   for (const f of fireballs) {
     ctx.fillStyle = 'rgba(255,140,105,0.25)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 1.8, 0, 7); ctx.fill();
     ctx.fillStyle = PAL.fire; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fill();
@@ -314,9 +315,5 @@ function text(str, x, y, size, color, align = 'center', weight = 800) {
   ctx.fillStyle = color; ctx.fillText(str, x, y);
 }
 
-function cube(x, y, s, P) {
-  ctx.fillStyle = P.d; ctx.fillRect(x, y, s, s);
-  ctx.fillStyle = P.c; ctx.fillRect(x + s * 0.09, y + s * 0.09, s * 0.82, s * 0.82);
-  ctx.fillStyle = PAL.ink;
-  ctx.fillRect(x + s * 0.3, y + s * 0.36, s * 0.12, s * 0.2); ctx.fillRect(x + s * 0.6, y + s * 0.36, s * 0.12, s * 0.2);
-}
+// A cube on a menu / results screen (size s), with its look
+function cube(x, y, s, P, look) { drawCubeArt(x, y, s, s, P, look, 0, 1); }

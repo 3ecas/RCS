@@ -9,11 +9,11 @@ function startWorld(withLobby) {
   gen = { prev: null, prevHaz: false };   // last main-path platform, and whether the last row had a hazard
   rowK = 1;
   if (withLobby) {
-    buildLobby();
+    const doorEnd = buildLobby();
     rowK = 2;
     // The mode platforms span the width, so the next row can start anywhere; keep it hazard-free.
-    // Rows on the first screen stay right of the colour column (lo).
-    gen = { prev: { type: 'normal', x: LOBBY_LEFT, w: W - WALL - LOBBY_LEFT }, prevHaz: true, lo: LOBBY_LEFT, loUntil: -60 };
+    // On the wardrobe door's row the tower's platforms stay clear of the door platform.
+    gen = { prev: { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true, lo: doorEnd + 60, loUntil: GROUND_Y - 2.5 * ROW_GAP };
   }
   generate();
 }

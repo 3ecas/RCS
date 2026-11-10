@@ -5,7 +5,8 @@
 //   node server/server.js 8790       (listens on 8790)
 //
 // Messages (JSON over WebSocket at /ws):
-//   client → server  {t:'find', v, colors:[0-9, …], name}   join the shared room (protocol version, cube colours, name)
+//   client → server  {t:'find', v, colors:[0-9, …], looks:[{f,h,p}, …], name}   join the shared room
+//                                                       (protocol version, cube colours and looks, name)
 //                    {t:'ready', on}                    ready (or not) for the next race: this computer's cubes
 //                                                       are standing on the room's START platform (or not)
 //                    {t:'leave'}                        leave the room
@@ -13,9 +14,9 @@
 //                                                       not racing) to the others walking around the room
 //                    {t:'roundOver', round}             this computer's race has ended (one cube left)
 //                    {t:'chat', text}                   a chat message to everyone in the room
-//   server → client  {t:'room', phase, players:[{id, name, colors, ready, racing}], me, max, round}  the room
+//   server → client  {t:'room', phase, players:[{id, name, colors, looks, ready, racing}], me, max, round}  the room
 //                    {t:'match', you, seed, mode, startIn, roster, round}    a race starts in startIn ms;
-//                                                        roster = [{color, owner, slot, name, id}] for every cube
+//                                                        roster = [{color, look, owner, slot, name, id}] for every cube
 //                    {t:'peer', d:{...}, from}          data from another computer (from = its id)
 //                    {t:'gone', owner}                  a computer left the race (the others carry on)
 //                    {t:'chat', from, text}             a chat message (from = the sender's id)
@@ -68,6 +69,7 @@ class Client {
     this.closed = false;
     this.room = null;
     this.colors = [0];       // cube colours of the players on this computer
+    this.looks = [{}];       // and their looks (face, hat, pattern)
     sock.setNoDelay(true);
     sock.on('data', d => this.onData(d));
     sock.on('close', () => this.onClose());
@@ -164,14 +166,14 @@ setInterval(() => {
 // a race starts with all of them. After the race they come back to the room. Anyone joining while a race
 // is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 6;              // game and server must speak the same version
+const PROTOCOL = 7;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
 
 // Send each player the room: who's in it, who's ready, who's racing, and which one is them
 function roomStatus(r) {
-  const list = r.members.map(c => ({ id: c.id, name: c.name, colors: c.colors, ready: r.ready.has(c), racing: r.racers.includes(c) }));
+  const list = r.members.map(c => ({ id: c.id, name: c.name, colors: c.colors, looks: c.looks, ready: r.ready.has(c), racing: r.racers.includes(c) }));
   r.members.forEach((c, i) => c.send({ t: 'room', phase: r.phase, players: list, me: i, max: MAX_PLAYERS, round: r.round }));
 }
 
@@ -194,7 +196,7 @@ function maybeStart(r) {
   const roster = [];
   r.racers.forEach((cl, owner) => {
     cl.owner = owner;
-    cl.colors.forEach((color, slot) => roster.push({ color, owner, slot, name: slot === 0 ? cl.name || '' : '', id: cl.id + ':' + slot }));
+    cl.colors.forEach((color, slot) => roster.push({ color, look: cl.looks[slot] || {}, owner, slot, name: slot === 0 ? cl.name || '' : '', id: cl.id + ':' + slot }));
   });
   const seed = crypto.randomInt(1, 2147483646);
   r.racers.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: r.mode, startIn: 4500, roster, round: r.round }));
@@ -240,6 +242,9 @@ function onMessage(c, text) {
     // Cube colours of the players on this computer (1 or 2 of them; colour numbers 0–9)
     const colors = (Array.isArray(m.colors) ? m.colors : [0]).slice(0, 2).map(v => Math.max(0, Math.min(9, v | 0)));
     c.colors = colors.length ? colors : [0];
+    // Each cube's look: small whole numbers only (the game checks the ranges)
+    const looks = Array.isArray(m.looks) ? m.looks : [];
+    c.looks = c.colors.map((_, k) => { const l = looks[k] || {}; return { f: Math.max(0, Math.min(15, l.f | 0)), h: Math.max(0, Math.min(15, l.h | 0)), p: Math.max(0, Math.min(15, l.p | 0)) }; });
     // The name the player typed: letters, numbers, spaces and a few symbols, at most 12 characters
     c.name = String(m.name || '').replace(/[^\p{L}\p{N} _.'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 12);
     joinRoom(c);

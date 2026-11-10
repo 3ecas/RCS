@@ -8,7 +8,7 @@ const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 // me: which computer we are in the race. roster: every cube's colour, owner and name.
 // room: the shared room (who's in it, who's ready). round: which race in the room this is;
 // sentOver: told the server this race has ended.
-const PROTOCOL = 6;   // must match the server's; an outdated copy of the game is told to refresh
+const PROTOCOL = 7;   // must match the server's; an outdated copy of the game is told to refresh
 const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, room: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
@@ -57,9 +57,9 @@ function connectOnce() {
   net.ws = ws;
   let opened = false;
   // Tell the server our cube colours, so it can prefer partners with different colours
-  const colors = [];
-  for (let k = 0; k < net.local; k++) colors.push(localColor(k));
-  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, colors, name: '' }); };
+  const colors = [], looks = [];
+  for (let k = 0; k < net.local; k++) { colors.push(localColor(k)); looks.push(localLook(k)); }
+  ws.onopen = () => { opened = true; net.status = 'searching'; netSend({ t: 'find', v: PROTOCOL, colors, looks, name: '' }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     if (net.ws !== ws) return;

@@ -2,8 +2,7 @@
 // - mode platforms (SOLO / MULTIPLAYER, or CO-OP / RACE / MULTIPLAYER with two players): everyone stands
 //   on one for 3 seconds to start — the screen then starts scrolling up this same tower
 // - a SOUND platform: land on it to turn the sound on or off
-// - a column of colour pads up the left side: climb it, landing on a pad paints your cube that colour;
-//   jump off at the colour you want
+// - a WARDROBE door a jump higher: press down at it to go inside and change your cube (js/wardrobe.js)
 // Player 1 plays with W A S D. Holding an arrow key for 3 seconds adds player 2 (Esc removes them).
 'use strict';
 
@@ -15,22 +14,19 @@ const lobbyModes = () => playerCount === 2 ? ['coop', 'race', 'multi'] : ['solo'
 const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'MULTIPLAYER', sound: 'SOUND' };
 const MENU_SUB = { solo: 'climb alone', coop: 'if one falls, both lose', race: 'last one standing wins', multi: 'online race' };
 
-// The colour column: one pad per colour, stacked up the left wall. Pads are PAD_GAP apart — a short hop
-// reaches the next one, a full jump skips one. LOBBY_LEFT: where the rest of the lobby (and the tower's
-// first screen) starts, to the right of the column.
-const PAD_X = WALL + 12, PAD_W = 74, PAD_GAP = 78, LOBBY_LEFT = PAD_X + PAD_W + 44;
+const LOBBY_LEFT = WALL;
+const WEAR = ['colour', 'face', 'hat', 'pattern'];
+const WEAR_LABEL = { colour: 'COLOUR', face: 'FACE', hat: 'HAT', pattern: 'PATTERN' };
 
-// Build the lobby: the colour column, and the mode + sound platforms one jump above the floor
+// Build the lobby: the mode + sound platforms one jump above the floor, and the wardrobe door one jump
+// higher. Returns where the tower's own platforms may start on the door's row.
 function buildLobby() {
-  COLORS.forEach((c, k) => {
-    const y = GROUND_Y - PAD_GAP * (k + 1);
-    platforms.push({ id: nextPid++, x: PAD_X, y, w: PAD_W, h: 14, type: 'normal', menu: 'paint', color: k, dx: 0, dy: 0, t: 0, falling: false });
-  });
   buildLobbyRow1();
+  return addWardrobeDoor();
 }
 // Row 1 changes when player 2 joins or leaves, so it can be rebuilt on its own
 function buildLobbyRow1() {
-  platforms = platforms.filter(p => !(p.menu && p.menu !== 'paint'));
+  platforms = platforms.filter(p => !(p.menu && p.menu !== 'wear' && p.menu !== 'door'));
   const items = [...lobbyModes(), 'sound'];
   const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(230, slot - 40);
   items.forEach((menu, k) => {
@@ -70,10 +66,12 @@ function updateLobby(dt) {
   updateWorld(dt);
   for (const p of players) updatePlayer(p, dt);
   updateParticles(dt);
+  checkWardrobeDoor();                 // down at the WARDROBE door: go inside (js/wardrobe.js)
+  if (state !== 'lobby') return;
 
   // Everyone on the same mode platform for 3 seconds starts that mode
   const pl = standingOn(players[0]);
-  const ok = pl && pl.menu && pl.menu !== 'sound' && pl.menu !== 'paint' && players.every(p => standingOn(p) === pl);
+  const ok = pl && pl.menu && pl.menu !== 'sound' && pl.menu !== 'wear' && pl.menu !== 'door' && players.every(p => standingOn(p) === pl);
   if ((ok ? pl : null) !== lobby.on) { lobby.on = ok ? pl : null; lobby.holdT = 0; }
   if (lobby.on) {
     const before = Math.ceil(HOLD_TIME - lobby.holdT);
@@ -117,42 +115,45 @@ function removePlayer2() {
   buildLobbyRow1();
 }
 
-// Landing on a lobby platform: the sound one switches sound, a colour pad paints your cube
+// Landing on a lobby platform: the sound one switches sound, a wardrobe one changes that part of your cube
 function touchLobby(p, pl) {
-  if (state !== 'lobby') return;
+  if (state !== 'lobby' && state !== 'wardrobe') return;
   if (pl.menu === 'sound') {
     toggleMute(); audioInit();
     sfx.beep(muted ? 300 : 700);
     floatText(muted ? 'SOUND OFF' : 'SOUND ON', pl.x + pl.w / 2, pl.y - 30, PAL.ink, 22);
-  } else if (pl.menu === 'paint') {
-    const other = players.find(q => q !== p);
-    if (other && localColor(other.i) === pl.color) { floatText('taken', pl.x + pl.w / 2, pl.y - 26, PAL.inkSoft, 18); return; }
-    if (p.i === 0) myColor = pl.color; else p2Color = pl.color;
-    saveColor();
-    const C = COLORS[pl.color];
-    p.color = C.c; p.dark = C.d; p.name = C.name;
-    burst(p.x + p.w / 2, p.y + p.h, 10, C.c, 200, 0.5, 6);
+  } else if (pl.menu === 'wear') {
+    let what;
+    if (pl.wear === 'colour') {
+      // Next colour (two players can't share one)
+      const other = players.find(q => q !== p);
+      let c = localColor(p.i);
+      do { c = (c + 1) % COLORS.length; } while (other && c === localColor(other.i));
+      if (p.i === 0) myColor = c; else p2Color = c;
+      saveColor();
+      const C = COLORS[c];
+      p.color = C.c; p.dark = C.d; p.name = C.name; what = C.name;
+    } else {
+      const look = localLook(p.i), key = { face: 'f', hat: 'h', pattern: 'p' }[pl.wear];
+      const list = { face: FACES, hat: HATS, pattern: PATTERNS }[pl.wear];
+      look[key] = (look[key] + 1) % list.length;
+      saveLook();
+      p.look = { ...look }; what = list[look[key]];
+    }
+    p.sq = 1.35;
+    burst(p.x + p.w / 2, p.y + p.h, 10, p.color, 200, 0.5, 6);
+    floatText(what, p.x + p.w / 2, p.y - 24, p.dark, 18);
     sfx.beep(700);
   }
 }
 
-// Mode / sound platforms: a normal platform, thicker, with its name on it.
-// Colour pads: small platforms in their colour.
+// Mode / sound / wardrobe platforms: a normal platform, thicker, with its name on it
 function drawMenuPlatform(p) {
   const x = p.x, y = p.y;
-  if (p.menu === 'paint') {
-    const C = COLORS[p.color], taken = state === 'lobby' && players.some(q => localColor(q.i) === p.color);
-    ctx.fillStyle = C.c; ctx.fillRect(x, y, p.w, p.h);
-    ctx.fillStyle = C.d; ctx.fillRect(x, y + p.h - 4, p.w, 4);
-    if (taken) {   // someone's colour: a small dot of their cube on it
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(x + p.w / 2 - 4, y + 3, 8, 6);
-    }
-    return;
-  }
   ctx.fillStyle = PAL.normal; ctx.fillRect(x, y, p.w, p.h);
   ctx.fillStyle = PAL.normalD; ctx.fillRect(x, y + p.h - 4, p.w, 4);
   ctx.globalAlpha = 1;
-  if (state !== 'lobby') return;     // in the game they're plain platforms: the names go away
+  if (state !== 'lobby' && state !== 'wardrobe') return;     // in the game they're plain platforms: the names go away
   // Filling up while everyone stands on it
   if (lobby.on === p) {
     ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.55;
@@ -160,14 +161,18 @@ function drawMenuPlatform(p) {
     ctx.globalAlpha = 1;
     text(String(Math.max(1, Math.ceil(HOLD_TIME - lobby.holdT))), x + p.w / 2, y - 62, 44, PAL.good, 'center', 900);
   }
-  const label = p.menu === 'sound' ? (muted ? 'SOUND OFF' : 'SOUND ON') : MENU_LABEL[p.menu];
+  const label = p.menu === 'sound' ? (muted ? 'SOUND OFF' : 'SOUND ON') : p.menu === 'wear' ? WEAR_LABEL[p.wear] : MENU_LABEL[p.menu];
+  if (p.menu === 'wear' && p.wear === 'colour') {   // a thin rainbow along the colour platform
+    const sw = (p.w - 8) / COLORS.length;
+    COLORS.forEach((C, k) => { ctx.fillStyle = C.c; ctx.fillRect(x + 4 + k * sw, y + p.h - 4, sw, 4); });
+  }
   let size = 17;
   ctx.font = `900 ${size}px ${FONT}`;
   while (size > 10 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
   text(label, x + p.w / 2, y + 19, size, PAL.ink, 'center', 900);
   // A small hint above it (lobby only)
   if (lobby.on !== p) {
-    const sub = p.menu === 'sound' ? 'jump on to switch' : p.menu === 'multi' && playerCount === 2 ? 'online race, both of you' : MENU_SUB[p.menu];
+    const sub = p.menu === 'sound' ? 'jump on to switch' : p.menu === 'wear' ? 'land to change' : p.menu === 'multi' && playerCount === 2 ? 'online race, both of you' : MENU_SUB[p.menu];
     text(sub, x + p.w / 2, y - 12, 12, PAL.inkSoft, 'center', 700);
   }
   ctx.globalAlpha = 1;
@@ -203,6 +208,6 @@ function drawLobbyHUD() {
   } else {
     text('PLAYER 2   ARROW KEYS   ·   Esc removes', W - WALL - 24, y, 15, p2.d, 'right', 900);
   }
-  text('Stand on a mode together for 3 s to start  ·  climb the colours on the left to paint your cube  ·  ? help', W / 2, GROUND_Y + 28, 13, PAL.inkSoft, 'center', 700);
+  text('Stand on a mode together for 3 s to start  ·  go through the WARDROBE door to change your cube  ·  ? help', W / 2, GROUND_Y + 28, 13, PAL.inkSoft, 'center', 700);
   drawBanner(200);
 }

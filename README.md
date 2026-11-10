@@ -10,13 +10,13 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
 - **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **Solo** or **Multiplayer**. Two players: **Co-op** (if one falls, both lose), **Race** (last one standing wins, with a leaderboard and win count) or Multiplayer (both of you join the online race from this computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
 - **Sound** platform: land on it to switch sound on or off.
-- **Colour column** (10 coloured pads stacked up the left side): climb it — each pad you land on paints your cube that colour — and jump off at the one you want. Two players can't share a colour. Colours are remembered, and each cube is named after its colour.
+- **Wardrobe door** (on the platform one jump above the mode platforms, on the left): stand at it and press down (**S**, or **↓** for player 2) to go inside. In the wardrobe, land on the **COLOUR**, **FACE**, **HAT** and **PATTERN** platforms — each landing switches that part of your cube to the next option: 10 colours, 7 faces (dots, wide eyes, sleepy, angry, happy, shades, wink), 8 hats (none, cap, crown, top hat, bow, headband, horns, antenna) and 4 patterns (plain, stripes, spots, checks). A big mirror shows your cube(s). Press down at the **EXIT** door (or Esc) to come back out. Two players can't share a colour. Your choices are remembered, and each cube is named after its colour.
 - **Player 2:** hold any arrow key for 3 seconds and player 2 pops up on the floor. **Esc** removes them.
 - **?** (key or corner icon) shows the instructions.
 
 After a game, **Space** or **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
 
-**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it or piled up on top of others above it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then press **Space** to be ready for a rematch — when everyone is ready (on the results screen, or on START in the room) the next race starts straight away. **ROOM** takes you back to the room scene (jump on START there to be ready for the next round); **LEAVE** quits online play (Esc in the room). In the room, press **Enter** to **chat**: your message shows as a speech bubble over your cube and in the chat log. If you join while a race is on, you wait in the room for the next one. Your own cubes are full colour and everyone else's are softer; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
+**Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then press **Space** to be ready for a rematch — when everyone is ready (on the results screen, or on START in the room) the next race starts straight away. **ROOM** takes you back to the room scene (jump on START there to be ready for the next round); **LEAVE** quits online play (Esc in the room). In the room, press **Enter** to **chat**: your message shows as a speech bubble over your cube and in the chat log. If you join while a race is on, you wait in the room for the next one. Cubes pass through each other (no standing on heads). Your own cubes are always drawn in front, in your colour; everyone else's show as faded grey ghosts that still wear their face, hat and pattern; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 
 During a game the **speaker** icon (top right) or **M** turns sound on/off (remembered).
 
@@ -64,12 +64,14 @@ js/net.js         online play (talks to the server)
 js/level.js       building the tower and its hazards
 js/effects.js     particles and floating text
 js/menu.js        buttons: stop menu, online room, end screens
-js/lobby.js       the start scene: mode platforms, sound, colour pads, joining player 2
+js/lobby.js       the start scene: mode platforms, sound, joining player 2
+js/wardrobe.js    the wardrobe door and room: change your cube's colour, face, hat, pattern
 js/room.js        the online room scene: everyone's cubes and the START platform
 js/chat.js        chat in the online room: typing box, speech bubbles, chat log
 js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, screens and buttons
+js/look.js        how a cube looks: colours, faces, hats, patterns
 js/main.js        starts the game loop
 server/server.js  online server: serves the game and pairs up players (no dependencies)
 render.yaml       Render setup

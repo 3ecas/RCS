@@ -68,7 +68,7 @@ function drawIcon(b, focused) {
 function drawResults() {
   const wp = players.find(p => p.i === winner);
   if (wp) {
-    cube(W / 2 - 30, 92, 60, { c: wp.color, d: wp.dark });
+    cube(W / 2 - 30, 92, 60, { c: wp.color, d: wp.dark }, wp.look);
     const mine = net.status === 'playing' && !wp.remote;   // online: you won
     text(mine ? 'YOU WIN!' : wp.name.toUpperCase() + ' WINS!', W / 2, 218, 54, wp.dark, 'center', 900);
   } else text('DRAW!', W / 2, 218, 60, PAL.ink, 'center', 900);
@@ -107,6 +107,7 @@ function drawHelp() {
   line('Falling off the bottom or touching a danger ends your run.'); yy += 10;
   head('Controls');
   line('Player 1:  W jump  ·  A D move  ·  S drop through   (solo: arrows work too)');
+  line('WARDROBE door in the start scene: press S / ↓ at it, then land on platforms to change your cube');
   line('Player 2:  hold an arrow key for 3 s at the start to join; Esc removes them'); yy += 10;
   head('Platforms');
   const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]];
@@ -185,6 +186,7 @@ function drawHUD() {
 
   if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
   if (state === 'room') drawRoomHUD();      // the online room scene (js/room.js)
+  if (state === 'wardrobe') drawWardrobeHUD();
 
   if ((state === 'lobby' && ui.help) || state === 'paused' || state === 'search' || state === 'found' || (state === 'over' && overT > 0.4)) {
     ctx.fillStyle = state === 'search' || state === 'found' ? 'rgba(255,250,248,0.92)' : 'rgba(255,250,248,0.84)';
@@ -195,7 +197,7 @@ function drawHUD() {
 
   if (state === 'search') {
     // Still connecting / joining
-    cube(W / 2 - 22, 250 - Math.abs(Math.sin(time * 5)) * 30, 44, localCube(0));
+    cube(W / 2 - 22, 250 - Math.abs(Math.sin(time * 5)) * 30, 44, localCube(0), localLook(0));
     text('CONNECTING', W / 2, 370, 50, PAL.ink, 'center', 900);
     const dots = '.'.repeat(1 + Math.floor(time * 2) % 3);
     text(net.status === 'connecting' ? 'Connecting to the server' + dots : 'Joining the room' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
@@ -208,7 +210,7 @@ function drawHUD() {
     const n = players.length, sz = n > 6 ? 40 : 56, gap = Math.min(96, 680 / n);
     players.forEach((p, k) => {
       const x = W / 2 + (k - (n - 1) / 2) * gap;
-      cube(x - sz / 2, 250 + (56 - sz), sz, { c: p.color, d: p.dark });
+      cube(x - sz / 2, 250 + (56 - sz), sz, { c: p.color, d: p.dark }, p.look);
       text(p.remote ? p.name : 'YOU', x, 336, n > 6 ? 11 : 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
     });
     text(net.rematch ? 'NEW ROUND!' : 'MATCH FOUND!', W / 2, 420, 64 * pop, PAL.good, 'center', 900);

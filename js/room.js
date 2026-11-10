@@ -41,16 +41,15 @@ function syncRoomCubes() {
   const want = [];
   R.players.forEach((m, k) => {
     if (k === R.me || m.racing) return;     // you, and anyone still in a race, aren't walking around here
-    m.colors.forEach((ci, j) => want.push({ uid: m.id + ':' + j, ci, name: j === 0 && m.name ? m.name : COLORS[ci].name }));
+    m.colors.forEach((ci, j) => want.push({ uid: m.id + ':' + j, ci, look: cleanLook((m.looks || [])[j]), name: j === 0 && m.name ? m.name : COLORS[ci].name }));
   });
   const mine = players.filter(p => !p.remote);
   const old = Object.fromEntries(players.filter(p => p.remote).map(p => [p.uid, p]));
   const others = want.map((w, k) => {
     let p = old[w.uid];
     if (!p) {
-      p = mkPlayer(net.local + k, W / 2, w.ci);
+      p = mkPlayer(net.local + k, W / 2, w.ci, w.look);
       p.remote = true; p.uid = w.uid; p.dead = true;     // hidden until we hear where it is
-      p.color = soften(p.color); p.dark = soften(p.dark, 0.5);
     }
     p.name = w.name;
     return p;
@@ -72,7 +71,7 @@ function onRoomPeer(d, from) {
 }
 
 const startPlatform = () => platforms.find(p => p.menu === 'start');
-// Ready = standing (on START, or piled on other cubes on top of it) anywhere in the area above START
+// Ready = standing on START (cubes pass through each other, so everyone fits)
 const onStart = p => {
   const s = startPlatform(), cx = p.x + p.w / 2;
   return !p.dead && p.onGround && cx >= s.x && cx <= s.x + s.w && p.y + p.h <= s.y + 2;
@@ -130,11 +129,7 @@ function drawRoomHUD() {
     text(`PLAYERS  ${R.players.reduce((n, m) => n + m.colors.length, 0)}/${R.max}`, x, top + 14, 13, PAL.inkSoft, 'left', 900);
     R.players.forEach((m, k) => {
       const y = top + 26 + k * rh;
-      m.colors.forEach((ci, j) => {
-        const C = COLORS[ci];
-        ctx.fillStyle = C.d; ctx.fillRect(x + j * 20, y, 16, 16);
-        ctx.fillStyle = C.c; ctx.fillRect(x + j * 20 + 2, y + 2, 12, 12);
-      });
+      m.colors.forEach((ci, j) => cube(x + j * 20, y, 16, COLORS[ci], cleanLook((m.looks || [])[j])));
       const nm = m.name || m.colors.map(ci => COLORS[ci].name).join(' & ');
       const tagTxt = m.racing ? '  racing' : m.ready ? '  ✓' : '';
       text(nm + (k === R.me ? ' (you)' : '') + tagTxt, x + m.colors.length * 20 + 8, y + 13, 14, m.ready ? PAL.good : PAL.ink, 'left', 800);
@@ -143,7 +138,7 @@ function drawRoomHUD() {
   ctx.restore();
   const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
   drawChatLog(); drawChatBubbles();
-  text('Everyone gets on START (piling up on top is fine) to begin  ·  Enter to chat  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
+  text('Everyone stands on START to begin  ·  Enter to chat  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
   text(keysTxt, W / 2, GROUND_Y + 54, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }

@@ -5,19 +5,31 @@ let best = 0;
 try { best = parseInt(localStorage.getItem('towerduo.best') || '0', 10) || 0; } catch (e) {}
 function saveBest() { try { localStorage.setItem('towerduo.best', String(best)); } catch (e) {} }
 
-// Names and cube colours for player 1 (you) and player 2 (split screen), picked on the setup screen
-// after choosing a mode, and remembered by the browser
-let myColor = 0, p2Color = 7;
+// Cube colour and look (face, hat, pattern) for player 1 and player 2, picked on the wardrobe platforms
+// in the start scene and remembered by the browser
+let myColor = 0, p2Color = 7, myLook = { f: 0, h: 0, p: 0 }, p2Look = { f: 1, h: 0, p: 0 };
 try {
   const c1 = parseInt(localStorage.getItem('rcs.color'), 10), c2 = parseInt(localStorage.getItem('rcs.color2'), 10);
   if (c1 >= 0 && c1 < COLORS.length) myColor = c1;
   if (c2 >= 0 && c2 < COLORS.length) p2Color = c2;
+  const l1 = JSON.parse(localStorage.getItem('rcs.look') || 'null'), l2 = JSON.parse(localStorage.getItem('rcs.look2') || 'null');
+  if (l1) myLook = cleanLook(l1);
+  if (l2) p2Look = cleanLook(l2);
 } catch (e) {}
 if (p2Color === myColor) p2Color = (myColor + 3) % COLORS.length;
 function saveColor() {
   try { localStorage.setItem('rcs.color', String(myColor)); localStorage.setItem('rcs.color2', String(p2Color)); } catch (e) {}
 }
 const localColor = n => n === 0 ? myColor : p2Color;
+const localLook = n => n === 0 ? myLook : p2Look;
+function saveLook() {
+  try { localStorage.setItem('rcs.look', JSON.stringify(myLook)); localStorage.setItem('rcs.look2', JSON.stringify(p2Look)); } catch (e) {}
+}
+// A look from storage or another computer: whole numbers within range
+function cleanLook(l) {
+  const n = (v, max) => Math.max(0, Math.min(max - 1, (l && l[v]) | 0));
+  return { f: n('f', FACES.length), h: n('h', HATS.length), p: n('p', PATTERNS.length) };
+}
 
 // ---------- World state ----------
 let state = 'lobby', pausedFrom = 'play';   // lobby = the playable start scene (js/lobby.js)
@@ -38,14 +50,14 @@ let camY, rowK, gen, time, countdown, overT, deathMsg, height, nextMilestone;
 let fireTimer, shake, scrollSpeed, newBest;
 let outCount = 0;               // order players are knocked out in (for the leaderboard)
 
-function mkPlayer(i, x, colorIdx = localColor(i)) {
+function mkPlayer(i, x, colorIdx = localColor(i), look = localLook(i)) {
   const P = COLORS[colorIdx];           // players are named after their colour
   return {
     speedMul: 1, uid: 'L' + i,           // uid: for win counts (online players get the server's id)
     i, x, y: GROUND_Y - PS, w: PS, h: PS, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - PS,
     onGround: true, ground: null, coyote: 0, buf: 0, face: x < W / 2 ? 1 : -1, sq: 1, dropT: 0,
     blink: rand(1, 4), dead: false, springT: 0, springPad: null, best: 0,
-    color: P.c, dark: P.d, name: P.name,
+    color: P.c, dark: P.d, name: P.name, look: { ...look },
   };
 }
 
@@ -73,11 +85,10 @@ function reset(seed, withLobby = true) {
     // are moved by that computer and drawn softer, so yours always stand out.
     const n = net.roster.length;
     net.roster.forEach((r, i) => {
-      const p = place(mkPlayer(i, 0, r.color), n);
+      const p = place(mkPlayer(i, 0, r.color, cleanLook(r.look)), n);
       p.remote = r.owner !== net.me;
       p.slot = r.slot;                         // on its own computer: 0 = WASD, 1 = arrow keys
       p.uid = r.id || 'p' + i;                 // stable id across rounds (for win counts)
-      if (p.remote) { p.color = soften(p.color); p.dark = soften(p.dark, 0.5); }
       p.net = null;
       players.push(p);
     });
