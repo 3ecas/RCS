@@ -82,12 +82,12 @@ const PIECE_ROW = {
       pc.pillars = [{ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true },
                     { x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true }];
       dividers.push(...pc.pillars);
-      const main = plain(pc.cx - capW / 2, y, capW, { noChain: true });
+      const main = plain(pc.cx - capW / 2, y, capW);
       return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
     }
     if (pc.left === 1) {
       // The cap on top of the shaft: you jump up through it (it's one-way) and climb out onto it
-      const main = plain(pc.cx - capW / 2, y, capW, { noChain: true });
+      const main = plain(pc.cx - capW / 2, y, capW);
       for (const dv of pc.pillars) dv.top = y + main.h;   // the pillars hold the cap up
       addGem(pc.cx, y - 50);
       return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };

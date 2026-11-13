@@ -3,7 +3,7 @@
 
 // The arena is H tall and ARENA_W wide, the same for everyone (offline and online). A wider window shows
 // more of the tower's side walls around it.
-const ARENA_W = 800;
+const ARENA_W = 880;
 let W = ARENA_W;
 const H = 900, WALL = 40;
 const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;

@@ -32,7 +32,7 @@ In the lobby player 1 is W A S D only (the arrow keys add player 2).
 
 **R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
 
-The tower is **800 wide** for everyone, offline and online, so every race is fair. It is scaled to fit and centred in the window: a wide window shows more of the side walls, a tall one more sky above.
+The tower is **880 wide** for everyone, offline and online, so every race is fair. It is scaled to fit and centred in the window: a wide window shows more of the side walls, a tall one more sky above.
 
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 

@@ -180,16 +180,12 @@ function drawPlatform(p) {
   }
 }
 
-// A plain platform in its region's style: colours, a decoration, and something holding it up —
-// a bracket into the wall when it's next to one, otherwise sometimes chains from above
+// A plain platform in its region's style: colours, a decoration, and a bracket into the wall when it's next to one
 function drawPlainPlatform(p) {
   const R0 = REGIONS[regionAt(heightM(p.y))], [c, cd] = R0.plat, x = p.x, y = p.y, w = p.w, h = p.h;
   ctx.fillStyle = cd;
   if (x - WALL < 6) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
   else if (W - WALL - (x + w) < 6) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
-  else if (!p.noChain && hash(p.id, 9) < 0.22) {
-    ctx.globalAlpha = 0.5; ctx.fillRect(x + 12, y - 110, 2, 110); ctx.fillRect(x + w - 14, y - 110, 2, 110); ctx.globalAlpha = 1;
-  }
   ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
   ctx.fillStyle = cd; ctx.fillRect(x, y + h - 4, w, 4);
   switch (R0.deco) {
