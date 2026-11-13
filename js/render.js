@@ -372,8 +372,16 @@ function drawPlayer(p) {
     ctx.save();
     ctx.globalAlpha = (p.remote ? 0.5 : 1) * clamp(2.6 - a.t, 0, 1);
     ctx.translate(a.x + p.w / 2, a.y + p.h / 2); ctx.rotate(a.rot);
-    drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, p.remote ? GHOST : { c: p.color, d: p.dark }, p.look, 0, -1);   // eyes shut
+    const P = p.remote ? GHOST : { c: p.color, d: p.dark }, k = p.w / PS;
+    drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, P, p.look, 0, 1, true);   // X eyes, hat off
     ctx.restore();
+    // the hat and the shades, flying off on their own
+    for (const [o, draw] of [[a.hat, () => drawHat(-p.w / 2, 0, p.w, p.look.h, k, 0, P)],
+                             [a.shades, () => drawFace(-p.w / 2, -p.h * 0.36 - 3, p.w, p.h, 5, k, 0, false)]]) {
+      if (!o) continue;
+      ctx.save(); ctx.globalAlpha = (p.remote ? 0.5 : 1) * clamp(2.6 - a.t, 0, 1);
+      ctx.translate(o.x, o.y); ctx.rotate(o.rot); draw(); ctx.restore();
+    }
     return;
   }
   const sx = 1 / Math.sqrt(p.sq), sy = p.sq;

@@ -498,13 +498,18 @@ function knockOut(p) {
   for (let k = 0; k < 3; k++)    // a few big rings flying out
     particles.push({ x, y, vx: rand(-160, 160), vy: rand(-260, -120), life: 0.9, max: 0.9, color: p.dark, size: rand(14, 20), grav: 300, kind: 'ring', rot: 0, vr: 0 });
   p.deathAnim = { x: x - p.w / 2, y: y - p.h / 2, vx: rand(-150, 150), vy: -760, rot: 0, vr: rand(7, 11) * (Math.random() < 0.5 ? -1 : 1), t: 0 };
+  // whatever it wears flies off on its own: the hat higher and spinning, shades (that face) popping off sideways
+  const fly = (dx, dy, vx, vy) => ({ x: x + dx, y: y + dy, vx, vy, rot: 0, vr: rand(-14, 14) });
+  if (p.look && p.look.h) p.deathAnim.hat = fly(0, -p.h / 2, rand(-220, 220), -980);
+  if (p.look && p.look.f === 5) p.deathAnim.shades = fly(0, -p.h * 0.14 + 3, (Math.random() < 0.5 ? -1 : 1) * rand(160, 260), -620);
 }
 function updateDeaths(dt) {
   if (!players) return;
   for (const p of players) {
     const a = p.deathAnim;
     if (!a || a.t > 3) continue;
-    a.t += dt; a.vy += GRAV * 0.75 * dt; a.x += a.vx * dt; a.y += a.vy * dt; a.rot += a.vr * dt;
+    a.t += dt;
+    for (const o of [a, a.hat, a.shades]) if (o) { o.vy += GRAV * 0.75 * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.rot += o.vr * dt; }
   }
 }
 

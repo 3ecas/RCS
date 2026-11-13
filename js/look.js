@@ -23,15 +23,16 @@ function nextUnlock() {
 const GHOST = { c: '#ddd5ea', d: '#aa9ec4' };
 
 // A cube at (x, y), w × h (it squashes when landing). P = { c: body, d: outline }, look = { f, h, p },
-// dir = which way it faces (-1, 0, 1), blink < 0 = eyes closed.
+// dir = which way it faces (-1, 0, 1), blink < 0 = eyes closed, dead = knocked out: X eyes, and no hat
+// (whatever it wore flies off on its own — see knockOut in js/game.js).
 // Rounded, to match the art style (design/soft-ascent.md).
-function drawCubeArt(x, y, w, h, P, look = {}, dir = 0, blink = 1) {
+function drawCubeArt(x, y, w, h, P, look = {}, dir = 0, blink = 1, dead = false) {
   const k = w / PS, b = 3 * k, r = Math.min(w, h) * 0.24;
   ctx.fillStyle = P.d; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
   ctx.fillStyle = P.c; ctx.beginPath(); ctx.roundRect(x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, r - b)); ctx.fill();
   drawPattern(x + b, y + b, w - 2 * b, h - 2 * b, look.p | 0, k, Math.max(0, r - b));
-  drawFace(x, y, w, h, look.f | 0, k, dir, blink < 0);
-  drawHat(x, y, w, look.h | 0, k, dir, P);
+  drawFace(x, y, w, h, dead ? -1 : look.f | 0, k, dir, !dead && blink < 0);
+  if (!dead) drawHat(x, y, w, look.h | 0, k, dir, P);
 }
 
 function drawPattern(x, y, w, h, kind, k, r = 0) {
@@ -59,7 +60,9 @@ function drawFace(x, y, w, h, kind, k, dir, closed) {
   ctx.fillStyle = PAL.ink; ctx.strokeStyle = PAL.ink; ctx.lineCap = 'round';
   const dot = cx => ctx.fillRect(cx - 2 * k, closed ? ey + 3 * k : ey, 4 * k, closed ? 2 * k : 7 * k);
   const line = (x1, y1, x2, y2, lw = 2) => { ctx.lineWidth = lw * k; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
-  if (kind === 1 && !closed) {            // wide eyes
+  if (kind === -1) {                      // knocked out: X X
+    for (const cx of [L, R]) { line(cx - 3 * k, ey, cx + 3 * k, ey + 6 * k, 2.4); line(cx + 3 * k, ey, cx - 3 * k, ey + 6 * k, 2.4); }
+  } else if (kind === 1 && !closed) {     // wide eyes
     for (const cx of [L, R]) {
       ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, ey + 3 * k, 4.6 * k, 0, 7); ctx.fill();
       ctx.fillStyle = PAL.ink; ctx.beginPath(); ctx.arc(cx + dir * 1.6 * k, ey + 3.5 * k, 2.2 * k, 0, 7); ctx.fill();
