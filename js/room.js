@@ -119,10 +119,10 @@ function drawStartPlatform(p) {
 // Room screen text: title, who we're waiting for, and everyone in the room
 function drawRoomHUD() {
   ctx.save(); ctx.translate(0, -OY);
-  ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.95)'; ctx.shadowBlur = 12;
+  ctx.save(); OUTLINE = true;
   text('ROOM', W / 2, 92, 56, PAL.ink, 'center', 900);
   text(roomLine(), W / 2, 128, 18, PAL.good, 'center', 900);
-  ctx.restore();
+  OUTLINE = false; ctx.restore();
   const R = net.room;
   if (R) {
     const x = WALL + 20, top = 24, rh = 26;

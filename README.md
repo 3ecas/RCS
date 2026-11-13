@@ -7,7 +7,7 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 - **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
 
 ## Starting a game (the lobby)
-The art style is **Soft Ascent** (`design/soft-ascent.md`, style sheet `design/soft-ascent.png`): six pastel pairs (rose, apricot, butter, mint, sky, lilac — a soft face and a deeper edge), everything built from circles, squares, triangles and rounded bars, and small shapes rising through the air. The logo (`js/logo.js`) is drawn in code: R, C and S as thick rounded strokes over a deeper offset layer, standing on a little platform with a cube perched on the C. Platforms and cubes are softly rounded; the walls, floor, pillars and the Two Paths wall are built of soft rounded blocks in staggered courses; each region has its own colours and its own family of big background shapes, set into the tower's empty gaps so they never overlap anything (platforms, tracks, pillars, hazards or each other); moving platforms show their track as a row of dots between two rings; particles (landing puffs, bursts) are little spinning shapes. The lobby's platforms are white with a purple outline and light up while you stand on them. There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
+The art style is **Soft Ascent** (`design/soft-ascent.md`, style sheet `design/soft-ascent.png`): six pastel pairs (rose, apricot, butter, mint, sky, lilac — a soft face and a deeper edge), everything built from circles, squares, triangles and rounded bars, and small shapes rising through the air. The logo (`js/logo.js`) is drawn in code: R, C and S as thick rounded strokes over a deeper offset layer, standing on a little platform with a cube perched on the C. Platforms, cubes, buttons and panels are softly rounded; hazards share the style too (rose spikes and shurikens, apricot-and-butter flame tongues, butter lightning between lilac posts); the walls, floor, pillars and the Two Paths wall are built of soft rounded blocks in staggered courses; each region has its own colours and its own family of big background shapes, set into the tower's empty gaps so they never overlap anything (platforms, tracks, pillars, hazards or each other); moving platforms show their track as a row of dots between two rings; particles (landing puffs, bursts) are little spinning shapes. The lobby's platforms are white with a purple outline and light up while you stand on them. There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
 The scene is kept nearly word-free: keys are drawn as keycaps, sound and the wardrobe are icons, and hints only appear when they're needed (little arrows over the mode platforms until you've started a game once, the down key beside a door when you stand at it, the missing cube blinking over a mode platform when only one of two players is on it).
 - **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **2 seconds** to start. One player: **SOLO** or **ONLINE**. Two players: **CO-OP** (if one falls, both lose), **RACE** (last one standing wins, with a leaderboard and win count) or ONLINE (both of you join the online race from this computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
 - **Sound** pad (a small speaker button one jump above the modes, on the left): land on it to switch sound on or off.
@@ -77,7 +77,7 @@ js/game.js        game rules: movement, hazards, deaths
 js/render.js      drawing the world
 js/hud.js         drawing the score, screens and buttons
 js/look.js        how a cube looks: colours, faces, hats, patterns
-js/main.js        starts the game loop
+js/main.js        the game loop: each frame advances the game by exactly the time that passed, in small equal steps (smooth on 60/120/144 Hz screens)
 server/server.js  online server: serves the game and pairs up players (no dependencies)
 render.yaml       Render setup
 package.json      tells Render this is a Node app
@@ -105,3 +105,8 @@ Open <http://localhost:8791> in two or more browser windows, stand on ONLINE in 
 - `STAGES` (js/config.js) — the height at which each obstacle first appears
 - `JUMP_V`, `GRAV`, `MAX_VX` (js/config.js) — jump strength, gravity, run speed
 - `SERVER_URL` (js/net.js) — the online server used outside Render
+
+## Performance
+The walls and floor are drawn once into off-screen pictures/patterns and copied each frame; the background
+gradient only covers the inside of the tower; text uses a cheap outline instead of a blurred shadow; the canvas
+never uses more pixels than a 2560×1440 screen; background shapes that have scrolled away are thrown out.

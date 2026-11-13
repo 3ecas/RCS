@@ -79,11 +79,12 @@ function drawButton(b, focused) {
   const c = b.color || PAL.ink;
   const lift = focused && !b.disabled ? -3 : 0;
   ctx.globalAlpha = b.disabled ? 0.55 : 1;
-  ctx.fillStyle = PAL.wallLine; ctx.fillRect(b.x, b.y + 5, b.w, b.h);              // shadow
-  ctx.fillStyle = b.selected ? c : '#ffffff'; ctx.fillRect(b.x, b.y + lift, b.w, b.h);
+  const rr = Math.min(16, b.h / 2.6), rect = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
+  ctx.fillStyle = PAL.wallLine; rect(b.x, b.y + 5, b.w, b.h, rr); ctx.fill();              // shadow
+  ctx.fillStyle = b.selected ? c : '#ffffff'; rect(b.x, b.y + lift, b.w, b.h, rr); ctx.fill();
   const lw = focused ? 4 : 2;
   ctx.strokeStyle = focused || b.selected ? c : PAL.wallLine; ctx.lineWidth = lw;
-  ctx.strokeRect(b.x + lw / 2, b.y + lift + lw / 2, b.w - lw, b.h - lw);
+  rect(b.x + lw / 2, b.y + lift + lw / 2, b.w - lw, b.h - lw, rr - lw / 2); ctx.stroke();
   const tc = b.selected ? '#ffffff' : focused ? c : PAL.ink;
   const mid = b.y + lift + b.h / 2;
   if (b.sub) {
@@ -99,10 +100,10 @@ function drawButton(b, focused) {
 // Small square corner icon: "?" (instructions) or a speaker (sound on / off)
 function drawIcon(b, focused) {
   const hover = focused || inside(b, ui.mx, ui.my);
-  ctx.fillStyle = PAL.wallLine; ctx.fillRect(b.x, b.y + 4, b.w, b.h);     // solid shadow, like the buttons
+  ctx.fillStyle = PAL.wallLine; ctx.beginPath(); ctx.roundRect(b.x, b.y + 4, b.w, b.h, 12); ctx.fill();     // solid shadow, like the buttons
   const lift = hover ? -2 : 0;
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(b.x, b.y + lift, b.w, b.h);
-  ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, b.y + 1 + lift, b.w - 2, b.h - 2);
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(b.x, b.y + lift, b.w, b.h, 12); ctx.fill();
+  ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(b.x + 1, b.y + 1 + lift, b.w - 2, b.h - 2, 11); ctx.stroke();
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2 + lift;
   if (b.label === '?') { text('?', cx, cy + 9, 26, PAL.ink, 'center', 900); return; }
   drawSpeaker(cx, cy);
@@ -119,14 +120,14 @@ function drawResults() {
   // Ranking: the winner, then whoever was knocked out last, and so on
   const ranked = [...players].sort((a, b) => (b.i === winner) - (a.i === winner) || (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
   const x = W / 2 - 250, w = 500, top = 262, rh = Math.min(38, 360 / ranked.length);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x, top, w, 40 + ranked.length * rh);
+  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.beginPath(); ctx.roundRect(x, top, w, 40 + ranked.length * rh, 18); ctx.fill();
   text('LEADERBOARD', x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
   text('HEIGHT', x + w - 110, top + 27, 12, PAL.inkSoft, 'right', 800);
   text('WINS', x + w - 20, top + 27, 12, PAL.inkSoft, 'right', 800);
   ranked.forEach((p, k) => {
     const y = top + 40 + k * rh, mid = y + rh / 2 + 6;
     const you = net.status === 'playing' && !p.remote;
-    if (you) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }
+    if (you) { ctx.fillStyle = 'rgba(255,231,160,0.45)'; ctx.beginPath(); ctx.roundRect(x + 6, y + 1, w - 12, rh - 2, 10); ctx.fill(); }
     text(String(k + 1), x + 34, mid, 18, k ? PAL.inkSoft : PAL.good, 'right', 900);
     ctx.fillStyle = p.dark; ctx.beginPath(); ctx.roundRect(x + 50, y + rh / 2 - 9, 18, 18, 5); ctx.fill();
     ctx.fillStyle = p.color; ctx.beginPath(); ctx.roundRect(x + 52, y + rh / 2 - 7, 14, 14, 3); ctx.fill();
@@ -138,9 +139,9 @@ function drawResults() {
 
 // Instructions overlay (the ? icon): mostly keys and pictures
 function drawHelp() {
-  const w = 560, h = 500, x = W / 2 - w / 2, y = 80, L = x + 44;
-  ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  const w = 560, h = 470, x = W / 2 - w / 2, y = 80, L = x + 44;
+  ctx.fillStyle = 'rgba(255,255,255,0.97)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 24); ctx.fill();
+  ctx.strokeStyle = PAL.wallLine; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, w - 2, h - 2, 23); ctx.stroke();
   text('Climb. Stay ahead of the screen.', W / 2, y + 52, 24, PAL.ink, 'center', 900);
   const p1 = COLORS[myColor], p2 = COLORS[p2Color];
   // Keys: player 1 and player 2
@@ -155,7 +156,7 @@ function drawHelp() {
   let yy = y + 262;
   [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]].forEach(([label, c, cd], k) => {
     const px = L + k * 122;
-    ctx.fillStyle = c; ctx.fillRect(px, yy - 13, 40, 12); ctx.fillStyle = cd; ctx.fillRect(px, yy - 4, 40, 3);
+    const sv = ctx.lineWidth; slab(px, yy - 14, 40, 12, c, cd); ctx.lineWidth = sv;
     text(label, px + 48, yy - 2, 14, PAL.inkSoft, 'left', 700);
   });
   // Three tips
@@ -192,7 +193,7 @@ function roomLine() {
 
 function drawBanner(y) {
   if (net.bannerT <= 0) return;
-  ctx.fillStyle = PAL.spike; ctx.fillRect(W / 2 - 230, y, 460, 36);
+  ctx.fillStyle = PAL.spike; ctx.beginPath(); ctx.roundRect(W / 2 - 230, y, 460, 36, 18); ctx.fill();
   text(net.banner, W / 2, y + 24, 16, '#ffffff', 'center', 900);
 }
 
@@ -201,7 +202,7 @@ function drawHUD() {
   const inGame = state === 'count' || state === 'play' || state === 'paused' || state === 'over';
   if (inGame) {
     ctx.save(); ctx.translate(0, -OY);     // pinned to the top of the window
-    ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
+    ctx.save(); OUTLINE = true;     // a soft white edge keeps the text readable over the tower
     text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
     if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
     if (VS) {
@@ -213,13 +214,13 @@ function drawHUD() {
     }
     if (net.status === 'playing') text('ONLINE', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
     else { keycap('R', W - WALL - 100, 24, 22, PAL.inkSoft, 0.6); drawPauseIcon(W - WALL - 74, 35, 12, PAL.inkSoft); }
-    ctx.restore();   // the glow
+    OUTLINE = false; ctx.restore();   // the glow
     ctx.restore();
   }
 
   // Online race: you're out but still watching
   if (state === 'play' && VS && net.status === 'playing' && !players.some(p => !p.remote && !p.dead)) {
-    ctx.fillStyle = 'rgba(91,75,107,0.8)'; ctx.fillRect(W / 2 - 170, 146 - OY, 340, 34);
+    ctx.fillStyle = 'rgba(74,59,99,0.8)'; ctx.beginPath(); ctx.roundRect(W / 2 - 170, 146 - OY, 340, 34, 17); ctx.fill();
     text('You’re out — watching the others', W / 2, 169 - OY, 16, '#ffffff', 'center', 900);
   }
 

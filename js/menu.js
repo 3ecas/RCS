@@ -22,7 +22,7 @@ function layoutButtons() {
   const B = (id, label, sub, x, y, w, h, extra = {}) => ({ id, label, sub, x, y, w, h, ...extra });
   const cx = W / 2;
   const icons = cornerIcons();
-  if (state === 'lobby') return ui.help ? [B('help-close', 'GOT IT', '', cx - 100, 604, 200, 56, { color: PAL.good })] : icons;
+  if (state === 'lobby') return ui.help ? [B('help-close', 'GOT IT', '', cx - 100, 574, 200, 56, { color: PAL.good })] : icons;
   if (state === 'search') return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];   // connecting
   if (state === 'room') return [...icons, B('cancel', 'LEAVE', '', W - WALL - 150, GROUND_Y + 14, 130, 42, { nofocus: true })];
   if (state === 'paused') return [...icons,

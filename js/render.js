@@ -6,7 +6,7 @@ function bgAt(m) {
   m = Math.max(0, m);
   const k = regionIndex(m), end = START_REGION + (k + 1) * REGION_LEN;
   const a = REGIONS[regionAt(m)].bg, b = REGIONS[regionAt(end)].bg;
-  const t = clamp((m - (end - 20)) / 20, 0, 1);
+  const t = Math.round(clamp((m - (end - 20)) / 20, 0, 1) * 24) / 24;   // in small steps (the picture is cached)
   return [mixHex(a[0], b[0], t), mixHex(a[1], b[1], t)];
 }
 
@@ -14,7 +14,7 @@ function drawBackground() {
   const [top, bot] = bgAt(heightM(camY + H / 2));
   const g = ctx.createLinearGradient(0, -OY, 0, H + OY);
   g.addColorStop(0, top); g.addColorStop(1, bot);
-  ctx.fillStyle = g; ctx.fillRect(-OX, -OY, VW, VH);   // the whole window
+  ctx.fillStyle = g; ctx.fillRect(WALL - 4, -OY, W - 2 * WALL + 8, VH);   // only inside the tower: the walls cover the rest
   drawScenery();
 
 }
@@ -41,17 +41,30 @@ function drawScenery() {
 // Soft rounded blocks, laid in staggered courses on the world grid (so they scroll with the tower),
 // filling the box x0…x1, y0…y1: the walls, the floor and the pillars are built from them
 const TILE = '#f4effc';
-function tiles(x0, x1, y0, y1, bw = 58, bh = 30, gap = 6, color = TILE) {
+// The blocks are drawn once into a small picture (two courses) and repeated as a pattern: one fill instead of
+// hundreds of shapes every frame. Patterns sit on the world's grid, so the blocks scroll with the tower.
+const tileCache = {};
+function tilePattern(bw, bh, gap, color, base, c0 = ctx) {
+  const k = Math.max(1, Math.round(c0.getTransform().a * 2) / 2);   // drawn at the screen's resolution
+  const key = [bw, bh, gap, color, base, k].join('|');
+  if (tileCache[key]) return tileCache[key];
+  const rh = bh + gap, cw = bw + gap, c = document.createElement('canvas');
+  c.width = Math.round(cw * k); c.height = Math.round(2 * rh * k);
+  const g = c.getContext('2d');
+  g.scale(c.width / cw, c.height / (2 * rh));
+  if (base) { g.fillStyle = base; g.fillRect(0, 0, cw, 2 * rh); }   // the mortar colour too: then one fill does it all
+  g.fillStyle = color; g.beginPath();
+  g.roundRect(gap / 2, gap / 2, bw, bh, 8);                                   // first course
+  g.roundRect(gap / 2 - cw / 2, rh + gap / 2, bw, bh, 8); g.roundRect(gap / 2 + cw / 2, rh + gap / 2, bw, bh, 8);   // second, staggered
+  g.fill();
+  const pat = c0.createPattern(c, 'repeat');
+  pat.setTransform(new DOMMatrix().scale(cw / c.width, 2 * rh / c.height));
+  return (tileCache[key] = pat);
+}
+function tiles(x0, x1, y0, y1, bw = 58, bh = 30, gap = 6, color = TILE, base = null, c0 = ctx) {
   if (x1 <= x0 || y1 <= y0) return;
-  ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
-  ctx.fillStyle = color; ctx.beginPath();
-  const rh = bh + gap, cw = bw + gap;
-  for (let r = Math.floor(y0 / rh); r * rh < y1; r++) {
-    const off = (r & 1) ? cw / 2 : 0;
-    for (let x = Math.floor((x0 - off) / cw) * cw + off; x < x1; x += cw) ctx.roundRect(x + gap / 2, r * rh + gap / 2, bw, bh, 8);
-  }
-  ctx.fill();
-  ctx.restore();
+  c0.fillStyle = tilePattern(bw, bh, gap, color, base, c0);
+  c0.fillRect(x0, y0, x1 - x0, y1 - y0);
 }
 
 // The big soft background shapes, fixed in the tower's empty gaps (placeDecor in js/level.js)
@@ -64,12 +77,30 @@ function drawDecor() {
   ctx.globalAlpha = 1;
 }
 
+// A side wall, drawn once into an off-screen picture (a little taller than the window) and then just copied
+// each frame, shifted to where the blocks are: copying a picture is the cheapest thing a canvas does
+const wallCache = {};
+function wallStrip(x0, x1, top, tall) {
+  const period = 2 * 36, k = Math.max(1, Math.round(ctx.getTransform().a * 2) / 2), w = x1 - x0, hh = tall + period;
+  const key = [Math.round(x0), Math.round(w), Math.round(hh), k].join('|');
+  let c = wallCache[key];
+  if (!c) {
+    if (Object.keys(wallCache).length > 6) for (const old in wallCache) delete wallCache[old];   // (after resizes)
+    c = document.createElement('canvas');
+    c.width = Math.ceil(w * k); c.height = Math.ceil(hh * k);
+    const g = c.getContext('2d');
+    g.scale(k, k); g.translate(-x0, 0);
+    tiles(x0, x1, 0, hh, 58, 30, 6, TILE, PAL.wall, g);
+    wallCache[key] = c;
+  }
+  const y = top - (((top % period) + period) % period);   // keep the blocks on the world grid
+  ctx.drawImage(c, x0, y, w, hh);
+}
+
 function drawWalls() {
   // The side walls, carried on out to the edges of the window (and above / below on tall windows)
   const top = camY - OY, tall = VH;
-  ctx.fillStyle = PAL.wall;
-  ctx.fillRect(-OX, top, OX + WALL, tall); ctx.fillRect(W - WALL, top, WALL + OX, tall);
-  tiles(-OX, WALL - 4, top, top + tall); tiles(W - WALL + 4, W + OX, top, top + tall);
+  wallStrip(-OX, WALL, top, tall); wallStrip(W - WALL, W + OX, top, tall);
   ctx.fillStyle = PAL.wallLine;   // the tower's inner edge
   ctx.fillRect(WALL - 3, top, 3, tall); ctx.fillRect(W - WALL, top, 3, tall);
   // Height markers every 25 m
@@ -110,8 +141,7 @@ function drawPlatform(p) {
   const y = p.y;
   if (p.type === 'ground') {
     // The floor: a lilac slab with a rounded deep edge on top, built of the same soft blocks
-    ctx.fillStyle = PAL.ground; ctx.fillRect(-OX, y, VW, p.h + OY + 20);
-    tiles(-OX, W + OX, y + 6, y + p.h + OY + 20, 58, 30, 6, 'rgba(255,255,255,0.28)');
+    tiles(-OX, W + OX, y, y + p.h + OY + 20, 58, 30, 6, 'rgba(255,255,255,0.28)', PAL.ground);
     ctx.fillStyle = PAL.groundD; ctx.beginPath(); ctx.roundRect(p.x - 2, y, p.w + 4, 5, 2.5); ctx.fill();
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
     if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe') ctx.fillText('START', W / 2, y + 40);
@@ -229,8 +259,11 @@ function drawZapper(z) {
   if (Math.max(z.y1, z.y2) < camY - OY - 40 || Math.min(z.y1, z.y2) > camY + H + OY + 40) return;
   const s = zapState(z);
   if (s === 1 && Math.floor(time * 14) % 2) {
-    ctx.strokeStyle = 'rgba(255,216,74,0.5)'; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
-    ctx.beginPath(); ctx.moveTo(z.x1, z.y1); ctx.lineTo(z.x2, z.y2); ctx.stroke(); ctx.setLineDash([]);
+    // warming up: a row of butter dots between the posts
+    const n = Math.max(2, Math.floor(Math.hypot(z.x2 - z.x1, z.y2 - z.y1) / 16));
+    ctx.fillStyle = PAL.zapD; ctx.globalAlpha = 0.6;
+    for (let i = 1; i < n; i++) { ctx.beginPath(); ctx.arc(z.x1 + (z.x2 - z.x1) * i / n, z.y1 + (z.y2 - z.y1) * i / n, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
   } else if (s === 2) {
     const n = 12, dx = z.x2 - z.x1, dy = z.y2 - z.y1, len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
     const k = Math.floor(time * 30);
@@ -240,10 +273,12 @@ function drawZapper(z) {
       pts.push([z.x1 + dx * i / n + nx * j, z.y1 + dy * i / n + ny * j]);
     }
     const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); };
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(255,216,74,0.35)'; ctx.lineWidth = 12; path();
-    ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4; path();
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; path();
+    // on: a soft butter bolt with a deeper edge and a white core, round at every bend
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,217,107,0.35)'; ctx.lineWidth = 14; path();
+    ctx.strokeStyle = PAL.zapD; ctx.lineWidth = 7; path();
+    ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4.5; path();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6; path();
   }
   for (const [x, y] of [[z.x1, z.y1], [z.x2, z.y2]]) {
     ctx.fillStyle = PAL.zapPost; ctx.beginPath(); ctx.roundRect(x - 8, y - 8, 16, 16, 5); ctx.fill();
@@ -392,7 +427,7 @@ function render() {
   // Tall windows show a bit below the tower's bottom edge: that's out, so shade it
   if (OY > 0) {
     ctx.fillStyle = 'rgba(91,75,107,0.14)'; ctx.fillRect(-OX, H, VW, OY);
-    ctx.fillStyle = 'rgba(255,123,156,0.35)'; ctx.fillRect(-OX, H - 1, VW, 2);
+    ctx.fillStyle = 'rgba(232,106,152,0.35)'; ctx.fillRect(-OX, H - 1, VW, 2);
   }
   if (state === 'play') drawDanger();
   ctx.restore();
@@ -407,12 +442,15 @@ function drawDanger() {
   danger = clamp(danger, 0, 1);
   if (danger <= 0) return;
   const g = ctx.createLinearGradient(0, H, 0, H - 150);
-  g.addColorStop(0, `rgba(255,123,156,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(255,123,156,0)');
+  g.addColorStop(0, `rgba(232,106,152,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(232,106,152,0)');
   ctx.fillStyle = g; ctx.fillRect(-OX, H - 150, VW, 150);
 }
 
+// OUTLINE: draw a soft white edge round the letters first (cheap, unlike a blurred shadow)
+let OUTLINE = false;
 function text(str, x, y, size, color, align = 'center', weight = 800) {
   ctx.font = `${weight} ${size}px ${FONT}`; ctx.textAlign = align;
+  if (OUTLINE) { ctx.lineWidth = Math.max(3, size * 0.14); ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.strokeText(str, x, y); }
   ctx.fillStyle = color; ctx.fillText(str, x, y);
 }
 

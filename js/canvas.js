@@ -3,15 +3,18 @@
 'use strict';
 
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha: false });   // opaque: the browser needn't blend it with the page
 // The view (in game units): at least the arena, stretched to the window's shape. OX / OY: arena's offset in it.
 let VW = W, VH = H, OX = 0, OY = 0;
 // (A window with no size yet — e.g. a hidden frame — counts as the arena's own shape)
 const winAspect = () => innerWidth > 0 && innerHeight > 0 ? innerWidth / innerHeight : ARENA_W / H;
 // The width a new tower gets: the same everywhere
 const arenaW = () => ARENA_W;
+// The canvas's own resolution: sharp on high-density screens, but never more pixels than a 2560×1440
+// screen needs (beyond that you can't see the difference, and every extra pixel costs drawing time)
+const MAX_PIXELS = 2560 * 1440;
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(MAX_PIXELS / Math.max(1, innerWidth * innerHeight)));
   const aspect = winAspect();
   VW = Math.max(W, H * aspect);
   VH = Math.max(H, W / aspect);

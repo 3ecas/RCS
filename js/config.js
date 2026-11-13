@@ -38,7 +38,7 @@ const PAL = {
   move: '#a8e6cf', moveD: '#6cbf9f',           // mint
   tilt: '#ffc7a1', tiltD: '#e39a6c',           // apricot: seesaw platforms
   spring: '#ffe7a0', springD: '#d9b85c',       // butter
-  spike: '#e86a98', zap: '#f5c542', zapPost: '#4a3b63', water: '#a8d4f5',
+  spike: '#e86a98', zap: '#ffd96b', zapD: '#e8b53c', zapPost: '#8e74d0', water: '#a8d4f5',
   blade: '#f7a8c4', bladeD: '#d0628e',         // shurikens: the rose danger pair, like the spikes
   flame: '#ffb08a', flame2: '#ffd89c', flameCore: '#fff6e2', fire: '#ff9a78',   // flames: apricot, butter, cream
   good: '#4cb38a',

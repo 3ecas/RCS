@@ -157,6 +157,7 @@ function updateWorld(dt) {
   bubbles = bubbles.filter(b => !offScreen(0, b.top, 0));
   dividers = dividers.filter(dv => !offScreen(0, dv.top, 0));
   gems = gems.filter(g => !g.taken && !offScreen(0, g.y, 0));
+  if (decor.length && offScreen(0, decor[0].y, 0)) decor = decor.filter(o => !offScreen(0, o.y, 0));
 }
 
 // Two players on this computer (offline or online): player 1 uses WASD, player 2 the arrow keys.
@@ -340,7 +341,7 @@ function updatePlayer(p, dt) {
 function superBounce(p, pl) {
   p.vy = -SPRING_V; p.buf = 0; p.springT = 0; p.sq = 1.4;
   sfx.spring(); burst(pl.x + pl.w / 2, pl.y, 8, PAL.springD, 220, 0.5, 6);
-  floatText('BOING!', p.x + p.w / 2, p.y - 20, '#d9b42e', 28);
+  floatText('BOING!', p.x + p.w / 2, p.y - 20, PAL.springD, 28);
 }
 
 // On a spring: the pad (and the cube on it) sinks to its lowest point, the cube squashing, then the pad
