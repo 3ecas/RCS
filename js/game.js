@@ -8,6 +8,7 @@ function update(dt) {
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();
 
+  if (doorT) { updateDoor(dt); time += dt; return; }   // going through the wardrobe door (js/wardrobe.js)
   if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
   if (state === 'room') { updateRoom(dt); return; }     // the online room scene (js/room.js)
   if (state === 'wardrobe') { updateWardrobe(dt); return; }   // inside the wardrobe (js/wardrobe.js)

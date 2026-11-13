@@ -457,6 +457,7 @@ function render() {
   ctx.restore();
   drawHUD();
   drawScreenWipe();   // leaving an end screen (js/menu.js)
+  drawDoorIris();     // going through the wardrobe door (js/wardrobe.js)
 }
 
 // Red glow at the bottom when someone is about to fall off the screen
