@@ -56,7 +56,8 @@ function drawDoorIris() {
   else { const u = clamp((t - DOOR_SWAP) / (DOOR_END - DOOR_SWAP), 0, 1); r = Rmax * Math.pow(u, 2.2); }
   // centred on the doorway being used: before the swap the one gone into, after it the one come out of
   const inLobby = doorT.enter !== doorT.swapped;
-  const cx = inLobby ? doorXOf(wardrobe.from) : wardrobe.exitX, cy = GROUND_Y - DOOR_H / 2 - camY;
+  const cx = inLobby ? sceneDoorX() : wardrobe.exitX,   // (the lobby's or the room's door, whichever scene we're in)
+        cy = GROUND_Y - DOOR_H / 2 - camY;
   ctx.fillStyle = SOFT.lilac[0];
   ctx.beginPath(); ctx.rect(-OX, -OY, VW, VH); ctx.arc(cx, cy, Math.max(0.1, r), 0, Math.PI * 2, true); ctx.fill('evenodd');
   ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 6;
