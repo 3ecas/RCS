@@ -76,7 +76,12 @@ function connectOnce() {
 }
 
 function leaveOnline() {
-  pendingStart = null; pendingRoom = 0; iris = null; netSend({ t: 'leave' }); netClose(); toMenu(); }
+  const fromRoom = state === 'room';
+  pendingStart = null; pendingRoom = 0; iris = null; netSend({ t: 'leave' }); netClose();
+  // from the room: the circle closes on your cube there and opens on your cube back in the lobby
+  if (fromRoom) startIris(0.3, myCubeOnScreen(), myCubeOnScreen, toMenu);
+  else toMenu();
+}
 
 // The room: am I ready (for the rematch)? Toggle it.
 const meInRoom = () => net.room && net.room.players[net.room.me];
@@ -100,9 +105,15 @@ function reportRoundOver() {
 //    for the race that arrives meanwhile sets it up at once.
 const RACE_IRIS = 0.4, ROOM_IRIS = 0.3;
 let pendingStart = null, pendingRoom = 0, iris = null;
-function startIris(close, from, to) { iris = { t: 0, close, open: 0.55, from, to }; sfx.swoosh(); }
+// action: run once the circle has closed (the scene holds still until then); returns true while holding
+function startIris(close, from, to, action = null) { iris = { t: 0, close, open: 0.55, from, to, action }; sfx.swoosh(); }
 function updateRaceStart(dt) {
-  if (iris && (iris.t += dt) > iris.close + iris.open) iris = null;
+  if (iris) {
+    iris.t += dt;
+    if (iris.action && iris.t >= iris.close) { const a = iris.action; iris.action = null; a(); }
+    else if (iris.action) return true;
+    if (iris.t > iris.close + iris.open) iris = null;
+  }
   if (pendingStart && (pendingStart.t += dt) >= RACE_IRIS) applyStart(pendingStart.m, pendingStart.t);
   if (pendingRoom && (pendingRoom += dt) >= ROOM_IRIS) { pendingRoom = 0; if (state === 'search') enterRoom(); }
 }

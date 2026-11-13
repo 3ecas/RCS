@@ -168,6 +168,7 @@ function drawResults() {
   };
   const title = ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1'];
   if (wp) {
+    drawPodium(cx, cy, t);             // 2nd and 3rd behind, and the winner's block (js below)
     if (t > 0) drawWinnerCube(wp, cx, cy, t, (towerSeed >>> 0) % WIN_STYLES);
     const mine = net.status === 'playing' && !wp.remote;
     ctx.save(); ctx.translate(0, cy + R + 96); popIn((t - 0.25) / 0.35, () => retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, 0, 84, title)); ctx.restore();
@@ -268,18 +269,65 @@ function revealSfx(o0, o1) {
     }
   }
   const rest = players ? players.filter(p => p.i !== winner).length : 0;
-  for (let k = 0; k < rest; k++) if (crossed(REVEAL + 0.5 + k * 0.12)) sfx.blip(k);
+  if (crossed(REVEAL + 0.35) && rest >= 1) sfx.blip(2);                  // 2nd pops onto the podium
+  if (crossed(REVEAL + 0.5) && rest >= 2) sfx.blip(0);                   // 3rd
+  for (let k = 0; k < rest - 2; k++) if (crossed(REVEAL + 0.5 + k * 0.12)) sfx.blip(k);   // 4th, 5th… along the bottom
 }
 
 // The other places along the bottom, right to left: 2nd, 3rd, 4th... each cube on a pedestal (lower for
 // lower places) with its place on the front and its name below. Ranked by how long each one lasted.
+// Everyone but the winner, best first (whoever lasted longest)
+const runnersUp = () => players.filter(p => p.i !== winner).sort((a, b) => (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
+
+// The podium, with depth: the winner in front on the tallest block; 2nd on the right, further back
+// (smaller, higher up the scene); 3rd on the left, a little back. Back ones are drawn first. Each block has a
+// lighter top face, a deeper edge and a soft shadow; blocks rise up as the reveal starts, their cubes pop on.
+const PODIUM = [   // place: x offset, how far back (0 front … 1 far), block height, colours
+  { place: 1, dx: 0,    back: 0,    h: 92, col: SOFT.butter },
+  { place: 2, dx: 200,  back: 0.55, h: 70, col: SOFT.sky },
+  { place: 3, dx: -185, back: 0.3,  h: 56, col: SOFT.apricot },
+];
+function drawPodium(cx, cy, t) {
+  const ranked = runnersUp(), feet0 = cy + 65;
+  const order = [1, 2, 0];   // far to near: 2nd, 3rd, then the winner's block
+  for (const i of order) {
+    const P = PODIUM[i], who = i === 0 ? null : ranked[i - 1];
+    if (i > 0 && !who) continue;
+    const sc = 1 - P.back * 0.42, x = cx + P.dx, top = feet0 - P.back * 70;      // further back: smaller and higher
+    const rise = clamp((t + 0.25 - P.back * 0.15) / 0.45, 0, 1), e = 1 - Math.pow(1 - rise, 3);
+    if (e <= 0) continue;
+    const bw = 170 * sc, bh = P.h * sc * e, tf = 14 * sc;                     // block width / height / top face depth
+    ctx.save(); ctx.globalAlpha = Math.min(1, e * 1.5);
+    // soft shadow on the ground behind it
+    ctx.fillStyle = 'rgba(74,59,99,0.14)'; ctx.beginPath(); ctx.ellipse(x, top + bh + 4, bw * 0.62, 10 * sc, 0, 0, Math.PI * 2); ctx.fill();
+    // the block's front, then its top face (a lighter strip, narrower at the back)
+    slab(x - bw / 2, top, bw, bh, P.col[0], P.col[1], 2.5);
+    ctx.fillStyle = mixHex(P.col[0], '#ffffff', 0.45); ctx.strokeStyle = P.col[1]; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - bw / 2, top); ctx.lineTo(x - bw / 2 + tf, top - tf); ctx.lineTo(x + bw / 2 - tf, top - tf); ctx.lineTo(x + bw / 2, top); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // the place number on its front
+    if (bh > 30 * sc) { OUTLINE = false; text(String(P.place), x, top + Math.min(bh * 0.62, 52 * sc), Math.round(40 * sc), P.col[1], 'center', 900); }
+    ctx.restore();
+    if (!who) continue;
+    // 2nd / 3rd: the cube pops on once its block is up, then breathes a little
+    const u = clamp((t - 0.35 - (i === 1 ? 0 : 0.15)) / 0.35, 0, 1);
+    if (u <= 0) continue;
+    const pop = u >= 1 ? 1 : 1 + 2.70158 * Math.pow(u - 1, 3) + 1.70158 * Math.pow(u - 1, 2);
+    const s = 96 * sc * pop, br = 1 + Math.sin(time * 2 + i) * 0.03;
+    ctx.save(); ctx.translate(x, top - tf * 0.5); ctx.scale(1 / Math.sqrt(br), br);
+    drawCubeArt(-s / 2, -s, s, s, { c: who.color, d: who.dark }, who.look, 0, Math.sin(time * 1.1 + i) > 0.97 ? -1 : 1);
+    ctx.restore();
+    if (u >= 1) { OUTLINE = true; text(who.name, x, top - tf * 0.5 - s - 10, Math.round(16 * sc + 4), who.dark, 'center', 900); OUTLINE = false; }
+  }
+}
+
+// Everyone below the podium (4th, 5th…) along the bottom, right to left
 function drawPlaces() {
-  const rest = players.filter(p => p.i !== winner).sort((a, b) => (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
+  const rest = runnersUp().slice(2);
   if (!rest.length) return;
   const base = H + Math.min(OY, 40) - 8, gap = Math.min(96, (W - 2 * WALL - 80) / rest.length);
   const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'TH' : ['TH', 'ST', 'ND', 'RD'][n % 10] || 'TH');
   rest.forEach((p, k) => {
-    const place = k + 2, x = W - WALL - 50 - k * gap, ph = Math.max(26, 60 - k * 8), cs = 36;
+    const place = k + 4, x = W - WALL - 50 - k * gap, ph = Math.max(26, 60 - k * 8), cs = 36;
     const tIn = Math.max(0, overT - REVEAL - 0.5 - k * 0.12), pop = tIn >= 0.35 ? 1 : 1 + 2.70158 * Math.pow(tIn / 0.35 - 1, 3) + 1.70158 * Math.pow(tIn / 0.35 - 1, 2);
     if (tIn <= 0) return;
     ctx.save(); ctx.translate(x, base); ctx.scale(pop, pop);
