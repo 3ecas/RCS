@@ -7,13 +7,8 @@
 const DOOR_W = 46, DOOR_H = 66;
 const wardrobe = { saved: null, exitX: 0 };
 
-// The door platform in the start scene (one jump above the mode platforms, on the left)
-function addWardrobeDoor() {
-  const y = GROUND_Y - 2 * ROW_GAP, w = 220;
-  platforms.push({ id: nextPid++, x: WALL + 30, y, w, h: 30, type: 'normal', menu: 'door', noDrop: true, dx: 0, dy: 0, t: 0, falling: false });
-  return WALL + 30 + w;   // where the tower's platforms may start on that row
-}
-const doorX = pl => pl.x + pl.w / 2;   // the door stands in the middle of its platform
+// The wardrobe door in the start scene stands on the floor, near the left wall
+const LOBBY_DOOR_X = () => WALL + 52;
 
 // Is this cube standing in front of a door (on that platform / floor, within the doorway)?
 const atDoor = (p, cx, floorY) => p.onGround && Math.abs(p.y + p.h - floorY) < 3 && Math.abs(p.x + p.w / 2 - cx) < DOOR_W / 2 + 6;
@@ -22,8 +17,7 @@ const downKey = p => pressed[CONTROLS[p.i].down];
 
 // Start scene: anyone pressing down at the door takes everyone inside
 function checkWardrobeDoor() {
-  const door = platforms.find(q => q.menu === 'door');
-  if (door && players.some(p => atDoor(p, doorX(door), door.y) && downKey(p))) enterWardrobe();
+  if (players.some(p => atDoor(p, LOBBY_DOOR_X(), GROUND_Y) && downKey(p))) enterWardrobe();
 }
 
 function enterWardrobe() {
@@ -50,10 +44,10 @@ function leaveWardrobe() {
   platforms = wardrobe.saved; gems = wardrobe.savedGems || [];
   state = 'lobby';
   sfx.beep(420);
-  const door = platforms.find(q => q.menu === 'door');
+  const floor = platforms.find(q => q.type === 'ground');
   players.forEach((p, k) => {
-    p.x = p.prevX = doorX(door) - p.w / 2 + (k ? 44 : -44); p.y = p.prevY = door.y - p.h;
-    p.vx = p.vy = 0; p.onGround = true; p.ground = door;
+    p.x = p.prevX = LOBBY_DOOR_X() + 34 + k * 44; p.y = p.prevY = GROUND_Y - p.h;
+    p.vx = p.vy = 0; p.onGround = true; p.ground = floor; p.face = 1;
   });
   particles = [];
 }
@@ -90,12 +84,10 @@ function drawDoor(cx, floorY, label, near) {
   }
 }
 
-// The door platform in the start scene (drawn by drawPlatform)
-function drawDoorPlatform(p) {
-  if (state !== 'lobby') { slab(p.x, p.y, p.w, p.h, PAL.normal, PAL.normalD); return; }   // in the game: a plain platform
-  const near = players.some(q => atDoor(q, doorX(p), p.y));
-  buttonSlab(p, near);
-  drawDoor(doorX(p), p.y, '', near);
+// The wardrobe door in the start scene (drawn behind the cubes)
+function drawLobbyDoor() {
+  const near = players.some(q => atDoor(q, LOBBY_DOOR_X(), GROUND_Y));
+  drawDoor(LOBBY_DOOR_X(), GROUND_Y, '', near);
 }
 
 // Inside: striped wallpaper, the exit door and the mirror with a big view of each cube

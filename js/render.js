@@ -150,7 +150,6 @@ function drawPlatform(p) {
     return;
   }
   if (p.menu === 'start') return drawStartPlatform(p);   // online room (js/room.js)
-  if (p.menu === 'door') return drawDoorPlatform(p);     // wardrobe door (js/wardrobe.js)
   if (p.menu) return drawMenuPlatform(p);   // lobby platforms (js/lobby.js)
   let x = p.x;
   const colors = { normal: [PAL.normal, PAL.normalD], move: [PAL.move, PAL.moveD], tilt: [PAL.tilt, PAL.tiltD], spring: [PAL.spring, PAL.springD] };
@@ -383,6 +382,7 @@ function render() {
   ctx.translate(0, -camY);
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
+  if (state === 'lobby') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);
   for (const g of gems) drawGem(g);

@@ -1,8 +1,8 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
 // - mode platforms (SOLO / MULTIPLAYER, or CO-OP / RACE / MULTIPLAYER with two players): everyone stands
 //   on one for 2 seconds to start — the screen then starts scrolling up this same tower
-// - a SOUND platform: land on it to turn the sound on or off
-// - a WARDROBE door a jump higher: press down at it to go inside and change your cube (js/wardrobe.js)
+// - a small SOUND pad (a jump above, on the left): land on it to turn the sound on or off
+// - the WARDROBE door on the floor, on the left: press down at it to go inside and change your cube (js/wardrobe.js)
 // Player 1 plays with W A S D. Holding an arrow key for 2 seconds adds player 2 (Esc removes them).
 'use strict';
 
@@ -17,21 +17,25 @@ const isMode = p => p.menu && MENU_LABEL[p.menu];
 let tutDone = false;
 try { tutDone = localStorage.getItem('rcs.tut') === '1'; } catch (e) {}
 
-const LOBBY_LEFT = WALL;
+const LOBBY_LEFT = WALL + 100;   // the mode row starts right of the wardrobe door
 const WEAR = ['colour', 'face', 'hat', 'pattern'];
 const WEAR_LABEL = { colour: 'COLOUR', face: 'FACE', hat: 'HAT', pattern: 'PATTERN' };
 
-// Build the lobby: the mode + sound platforms one jump above the floor, and the wardrobe door one jump
-// higher. Returns where the tower's own platforms may start on the door's row.
+// Build the lobby: the mode platforms one jump above the floor, and a small sound pad one jump higher on the
+// left (the wardrobe door stands on the floor, see LOBBY_DOOR_X). Returns where the tower's own platforms
+// may start on the sound pad's row.
+const SOUND_W = 64;
 function buildLobby() {
   buildLobbyRow1();
-  return addWardrobeDoor();
+  const x = WALL + 24;
+  platforms.push({ id: nextPid++, x, y: GROUND_Y - 2 * ROW_GAP, w: SOUND_W, h: 24, type: 'normal', menu: 'sound', noDrop: true, dx: 0, dy: 0, t: 0, falling: false });
+  return x + SOUND_W;
 }
 // Row 1 changes when player 2 joins or leaves, so it can be rebuilt on its own
 function buildLobbyRow1() {
-  platforms = platforms.filter(p => !(p.menu && p.menu !== 'wear' && p.menu !== 'door'));
-  const items = [...lobbyModes(), 'sound'];
-  const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(230, slot - 40);
+  platforms = platforms.filter(p => !isMode(p));
+  const items = lobbyModes();
+  const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(190, slot - 60);
   items.forEach((menu, k) => {
     const cx = LOBBY_LEFT + slot * (k + 0.5);
     platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 30, type: 'normal', menu, dx: 0, dy: 0, t: 0, falling: false,
@@ -74,7 +78,7 @@ function updateLobby(dt) {
 
   // Everyone on the same mode platform for 2 seconds starts that mode
   const pl = standingOn(players[0]);
-  const ok = pl && pl.menu && pl.menu !== 'sound' && pl.menu !== 'wear' && pl.menu !== 'door' && players.every(p => standingOn(p) === pl);
+  const ok = pl && isMode(pl) && players.every(p => standingOn(p) === pl);
   if ((ok ? pl : null) !== lobby.on) { lobby.on = ok ? pl : null; lobby.holdT = 0; }
   if (lobby.on) {
     const before = Math.ceil(HOLD_TIME - lobby.holdT);
@@ -180,16 +184,16 @@ function drawMenuPlatform(p) {
       ctx.beginPath(); ctx.moveTo(cx - 9, y - 30 - b); ctx.lineTo(cx + 9, y - 30 - b); ctx.lineTo(cx, y - 18 - b); ctx.closePath(); ctx.fill();
     }
   }
-  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + 15, 0.85); return; }
+  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + p.h / 2, 0.7); return; }
   if (p.menu === 'wear' && p.wear === 'colour') {   // a thin rainbow along the colour platform
     const sw = (p.w - 8) / COLORS.length;
     COLORS.forEach((C, k) => { ctx.fillStyle = C.c; ctx.fillRect(x + 4 + k * sw, y + p.h - 8, sw, 4); });
   }
   const label = p.menu === 'wear' ? WEAR_LABEL[p.wear] : MENU_LABEL[p.menu];
-  let size = 17;
+  let size = 13;
   ctx.font = `900 ${size}px ${FONT}`;
-  while (size > 10 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
-  text(label, cx, y + 20, size, on && isMode(p) ? PAL.good : PAL.ink, 'center', 900);
+  while (size > 9 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
+  text(label, cx, y + p.h / 2 + size * 0.36, size, on && isMode(p) ? PAL.good : PAL.ink, 'center', 900);
 }
 
 // The logo, and on the floor who plays with which keys — drawn as keys, not words
