@@ -50,7 +50,6 @@ function generate() {
     const y0 = GROUND_Y - rowK * ROW_GAP;
     const nudge = R() < ROW_WOBBLE ? wrand(-14, 14) : 0;
     genRow(y0 + nudge);
-    placeDecor(y0 + nudge);
     rowK++;
   }
 }
@@ -159,39 +158,6 @@ function genPathRow(y, m, d, L) {
   gen.prev = pc.prev || main;
 }
 
-// Background shapes: now and then one big soft shape in the empty gap just below a new row, where it can't
-// touch anything — platforms (with a moving one's whole track), pillars, hazards and their paths, bubble
-// columns — nor another shape. They're part of the tower (no parallax), so they never slide behind anything.
-// Visual only: they use their own random numbers, so the tower itself is the same on every computer.
-function placeDecor(y) {
-  if (y > GROUND_Y - H) return;                           // not in the start scene (the logo is there)
-  const h = n => hash(rowK * 7 + n, 913);
-  if (h(1) > 0.4) return;
-  const m = heightM(y + ROW_GAP / 2), R0 = REGIONS[regionAt(m)];
-  const free = (x, cy, r) => {
-    const x0 = x - r - 14, x1 = x + r + 14, y0 = cy - r - 14, y1 = cy + r + 14;
-    const hit = (a, b, c, d) => a < x1 && b > x0 && c < y1 && d > y0;
-    for (const p of platforms) {
-      if (p.y < y0 - 60 || p.y > y1 + 10) continue;
-      const [a, b] = extent(p);
-      if (hit(a, b, p.y - (p.type === 'tilt' ? 40 : 14), p.y + (p.type === 'tilt' ? 40 : p.h + 28))) return false;
-    }
-    if (dividers.some(dv => hit(dv.x - 6, dv.x + dv.w + 6, dv.top, dv.bot + 8))) return false;
-    if (bubbles.some(bb => hit(bb.x, bb.x + bb.w, bb.top, bb.bot))) return false;
-    if (blades.some(bl => hit(bl.lo - bl.r, bl.hi + bl.r, bl.y - bl.r, bl.y + bl.r))) return false;
-    if (zaps.some(z => hit(Math.min(z.x1, z.x2) - 10, Math.max(z.x1, z.x2) + 10, Math.min(z.y1, z.y2) - 14, Math.max(z.y1, z.y2) + 14))) return false;
-    if (jets.some(j => { const [a, b, c, d] = jetBox(j); return hit(a - 14, b + 14, c - 10, d + 10); })) return false;
-    if (decor.some(o => Math.hypot(o.x - x, o.y - cy) < o.r + r + 160)) return false;
-    return true;
-  };
-  for (let t = 0; t < 6; t++) {
-    const r = 12 + h(10 + t) * 22, x = WALL + r + 20 + h(20 + t) * (W - 2 * WALL - 2 * r - 40);
-    const cy = y + ROW_GAP / 2 + (h(30 + t) - 0.5) * 16;
-    if (!free(x, cy, r * 1.45)) continue;                 // (bars reach 1.4 × their size)
-    decor.push({ x, y: cy, r, kind: R0.shapes[Math.floor(h(40 + t) * R0.shapes.length)], col: R0.plat[0], spin: (h(50 + t) - 0.5) * 0.2, a0: h(60 + t) * 6 });
-    return;
-  }
-}
 
 // A still platform that ends just short of a wall (the tower's sides, a pillar, the Two Paths wall) is
 // stretched to touch it: a gap too narrow to fall through would only look wrong

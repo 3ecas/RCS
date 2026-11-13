@@ -21,16 +21,13 @@ function drawBackground() {
 
 // Background: big soft geometric shapes drifting slower than the tower (each region has its own family of
 // shapes, in its colours), and a sparse layer of small shapes rising through the air
-// The rising air: a sparse layer of little shapes drifting up the screen (the big background shapes are
-// part of the tower, see placeDecor / drawDecor). They stay out of the big shapes' way.
+// The background's only decoration: a sparse layer of little shapes drifting up the screen
 function drawScenery() {
-  const bigs = decor.filter(o => o.y > camY - OY - 60 && o.y < camY + H + OY + 60).map(o => ({ x: o.x, y: o.y - camY, r: o.r * 1.45 }));
   // The rising air: little shapes drifting up the screen, swaying, fading in and out
   const AIR = ['dot', 'tri', 'ring', 'plus', 'sq'];
   for (let k = 0; k < 18; k++) {
     const sp = 18 + hash(k, 11) * 26, f = ((hash(k, 12) * VH + time * sp) % VH) / VH;
     const y = H + OY - f * VH, x = WALL + 10 + hash(k, 13) * (W - 2 * WALL - 20) + Math.sin(time * 0.7 + k) * 10;
-    if (bigs.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 10)) continue;   // never over a big shape
     const R0 = REGIONS[regionAt(heightM(camY + y))];
     ctx.globalAlpha = 0.55 * Math.sin(f * Math.PI);
     drawShape(ctx, AIR[k % AIR.length], x, y, 2.2 + hash(k, 14) * 2.6, R0.plat[1], time * 0.5 + k);
@@ -65,16 +62,6 @@ function tiles(x0, x1, y0, y1, bw = 58, bh = 30, gap = 6, color = TILE, base = n
   if (x1 <= x0 || y1 <= y0) return;
   c0.fillStyle = tilePattern(bw, bh, gap, color, base, c0);
   c0.fillRect(x0, y0, x1 - x0, y1 - y0);
-}
-
-// The big soft background shapes, fixed in the tower's empty gaps (placeDecor in js/level.js)
-function drawDecor() {
-  ctx.globalAlpha = 0.32;
-  for (const o of decor) {
-    if (o.y < camY - OY - 60 || o.y > camY + H + OY + 60) continue;
-    drawShape(ctx, o.kind, o.x, o.y, o.r, o.col, o.a0 + time * o.spin);
-  }
-  ctx.globalAlpha = 1;
 }
 
 // A side wall, drawn once into an off-screen picture (a little taller than the window) and then just copied
@@ -405,7 +392,6 @@ function render() {
 
   ctx.save();
   ctx.translate(0, -camY);
-  if (state !== 'wardrobe') drawDecor();
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
