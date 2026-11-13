@@ -491,7 +491,7 @@ function die(p, reason) {
     floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
     return;
   }
-  state = 'over'; overT = 0;
+  state = 'over'; overT = 0; ui.focus = 0;   // (the first button — PLAY AGAIN / READY — starts selected)
   if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[left[0].uid] = winsOf(left[0]) + 1; }
   else if (height > best) { best = height; newBest = true; saveBest(); }
 }

@@ -53,13 +53,13 @@ function layoutButtons() {
     if (net.status === 'playing') {
       const ready = iAmReady();
       return [...icons,
-        B('ready', ready ? 'READY ✓' : 'READY', ready ? '' : 'space', cx - 350, 712, 240, 60, { color: PAL.good, selected: ready }),
+        B('ready', ready ? 'READY ✓' : 'READY', '', cx - 350, 712, 240, 60, { color: PAL.good, selected: ready }),
         B('room', 'ROOM', '', cx - 95, 712, 190, 60),
         B('menu', 'LEAVE', '', cx + 110, 712, 240, 60),
       ];
     }
     return [...icons,
-      B('again', 'PLAY AGAIN', 'space', cx - 260, mode === 'versus' ? 690 : H * 0.3 + 250, 250, 64, { color: PAL.good }),
+      B('again', 'PLAY AGAIN', '', cx - 260, mode === 'versus' ? 690 : H * 0.3 + 250, 250, 64, { color: PAL.good }),
       B('menu', 'MENU', '', cx + 10, mode === 'versus' ? 690 : H * 0.3 + 250, 250, 64),
     ];
   }
@@ -93,7 +93,7 @@ function menuInput() {
   let act = null;
   if (pressed.Enter && n) act = fb[ui.focus];
   // Space: on the end screen it's always "ready" (online) / "play again" (offline); elsewhere it presses the button
-  if (pressed.Space && n) act = state === 'over' ? bs.find(b => b.id === 'ready' || b.id === 'again') || fb[ui.focus] : fb[ui.focus];
+  if (pressed.Space && n) act = fb[ui.focus];   // Space presses the selected button, like Enter
   if (click) act = bs.find(b => inside(b, click.x, click.y));
   if (act && !act.disabled) { sfx.beep(760); activate(act.id); }
 }
@@ -110,7 +110,10 @@ function activate(id) {
     case 'help-close': ui.help = false; ui.focus = 0; break;
     case 'mute': toggleMute(); break;
     case 'cancel': leaveOnline(); break;
-    case 'room': enterRoom(); break;
+    case 'room':   // from the results: the circle closes on the winner, then opens on your cube in the room
+      if (state === 'over') { const prev = state; startIris(0.35, [W / 2, 300], myCubeOnScreen, () => { if (state === prev) enterRoom(); }); }
+      else enterRoom();
+      break;
     case 'ready': toggleReady(); break;
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;

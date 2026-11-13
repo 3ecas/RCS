@@ -10,7 +10,6 @@ let roomSendT = 0;
 
 // Go to the room scene (after joining, or after a race)
 function enterRoom() {
-  startWipe();                                               // (from the results: the stripes sweep away)
   if (net.status === 'playing') {                           // the race is over for us: back in the room
     netSend({ t: 'toRoom' });                               // (if it's still running, we leave it; the next one includes us)
     net.status = 'searching';
