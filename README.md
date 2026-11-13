@@ -8,13 +8,14 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 
 ## Starting a game (the lobby)
 There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
-- **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **Solo** or **Multiplayer**. Two players: **Co-op** (if one falls, both lose), **Race** (last one standing wins, with a leaderboard and win count) or Multiplayer (both of you join the online race from this computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
-- **Sound** platform: land on it to switch sound on or off.
-- **Wardrobe door** (on the platform one jump above the mode platforms, on the left): stand at it and press down (**S**, or **↓** for player 2) to go inside. In the wardrobe, land on the **COLOUR**, **FACE**, **HAT** and **PATTERN** platforms — each landing switches that part of your cube to the next option: 10 colours, 7 faces (dots, wide eyes, sleepy, angry, happy, shades, wink), 8 hats (none, cap, crown, top hat, bow, headband, horns, antenna) and 4 patterns (plain, stripes, spots, checks). A big mirror shows your cube(s). Press down at the **EXIT** door (or Esc) to come back out. Two players can't share a colour. Your choices are remembered, and each cube is named after its colour.
-- **Player 2:** hold any arrow key for 3 seconds and player 2 pops up on the floor. **Esc** removes them.
+The scene is kept nearly word-free: keys are drawn as keycaps, sound and the wardrobe are icons, and hints only appear when they're needed (little arrows over the mode platforms until you've started a game once, the down key beside a door when you stand at it, the missing cube blinking over a mode platform when only one of two players is on it).
+- **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **3 seconds** to start. One player: **SOLO** or **ONLINE**. Two players: **CO-OP** (if one falls, both lose), **RACE** (last one standing wins, with a leaderboard and win count) or ONLINE (both of you join the online race from this computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
+- **Sound** platform (speaker icon): land on it to switch sound on or off.
+- **Wardrobe door** (the door with a hanger sign, one jump above the mode platforms, on the left): stand at it and press down (**S**, or **↓** for player 2) to go inside. In the wardrobe, land on the **COLOUR**, **FACE**, **HAT** and **PATTERN** platforms — each landing switches that part of your cube to the next option: 10 colours, 7 faces (dots, wide eyes, sleepy, angry, happy, shades, wink), 8 hats (none, cap, crown, top hat, bow, headband, horns, antenna) and 4 patterns (plain, stripes, spots, checks). A big mirror shows your cube(s) and how close your gems are to the next unlock. Press down at the **EXIT** door (or Esc) to come back out. Two players can't share a colour. Your choices are remembered, and each cube is named after its colour.
+- **Player 2:** hold any arrow key for 3 seconds (the dashed cube on the floor's right fills up) and player 2 pops up. **Esc** removes them.
 - **?** (key or corner icon) shows the instructions.
 
-After a game, **Space** or **PLAY AGAIN** (or **START OVER** in the stop menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
+After a game, **Space** or **PLAY AGAIN** (or **RESTART** in the pause menu) gives a clean tower with a 3-2-1 countdown; **MENU** goes back to the start scene.
 
 **Multiplayer:** everyone who joins goes into **the same room** (a second room only opens when one is full, at 10 cubes). The room is a **scene you walk around in** with everyone else's cubes. In the middle is a green **START** platform: the race starts when **every** player in the room is standing on it (at least 2 computers). One or two players can join from each computer — two players use W A S D and the arrow keys. Everyone races the same tower. If you're knocked out you keep watching. When only one cube is left, the race ends with the winner and a **leaderboard** (ranked by how long each player lasted, with height and wins). Then press **Space** to be ready for a rematch — when everyone is ready (on the results screen, or on START in the room) the next race starts straight away. **ROOM** takes you back to the room scene (jump on START there to be ready for the next round); **LEAVE** quits online play (Esc in the room). In the room, press **Enter** to **chat**: your message shows as a speech bubble over your cube and in the chat log. If you join while a race is on, you wait in the room for the next one. Cubes pass through each other (no standing on heads). Your own cubes are always drawn in front, in your colour; everyone else's show as faded grey ghosts that still wear their face, hat and pattern; names are colours, and repeats get a number ("Blue 2"). If someone leaves mid-race, the rest carry on. If your copy of the game is out of date (e.g. cached by the browser), you're asked to refresh the page.
 
@@ -30,7 +31,7 @@ During a game the **speaker** icon (top right) or **M** turns sound on/off (reme
 
 In the lobby player 1 is W A S D only (the arrow keys add player 2).
 
-**R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
+**R** or **Esc** pauses the game, and again resumes (not online) · **M** sound · **F** full screen.
 
 The tower is **880 wide** for everyone, offline and online, so every race is fair. It is scaled to fit and centred in the window: a wide window shows more of the side walls, a tall one more sky above.
 
@@ -66,7 +67,7 @@ js/net.js         online play (talks to the server)
 js/level.js       building the tower and its hazards
 js/pieces.js      set pieces (stairs, chimney, wall climb, plaza) and gems
 js/effects.js     particles and floating text
-js/menu.js        buttons: stop menu, online room, end screens
+js/menu.js        buttons: pause menu, online room, end screens
 js/lobby.js       the start scene: mode platforms, sound, joining player 2
 js/wardrobe.js    the wardrobe door and room: change your cube's colour, face, hat, pattern
 js/room.js        the online room scene: everyone's cubes and the START platform
@@ -96,7 +97,7 @@ In the repository's **Settings → Pages**, deploy from the `main` branch, root 
 ```
 node server/server.js 8791
 ```
-Open <http://localhost:8791> in two or more browser windows, press Multiplayer in each, then READY.
+Open <http://localhost:8791> in two or more browser windows, stand on ONLINE in each, then READY.
 
 ## Easy tweaks
 - `ROW_GAP` (js/config.js) — height between platform rows (120 = 3 m)

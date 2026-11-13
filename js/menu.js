@@ -22,12 +22,12 @@ function layoutButtons() {
   const B = (id, label, sub, x, y, w, h, extra = {}) => ({ id, label, sub, x, y, w, h, ...extra });
   const cx = W / 2;
   const icons = cornerIcons();
-  if (state === 'lobby') return ui.help ? [B('help-close', 'GOT IT', '', cx - 100, 776, 200, 56, { color: PAL.good })] : icons;
+  if (state === 'lobby') return ui.help ? [B('help-close', 'GOT IT', '', cx - 100, 604, 200, 56, { color: PAL.good })] : icons;
   if (state === 'search') return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];   // connecting
   if (state === 'room') return [...icons, B('cancel', 'LEAVE', '', W - WALL - 150, GROUND_Y + 14, 130, 42, { nofocus: true })];
   if (state === 'paused') return [...icons,
     B('resume', 'RESUME', '', cx - 310, H * 0.5, 200, 60, { color: PAL.good }),
-    B('restart', 'START OVER', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),
+    B('restart', 'RESTART', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
   if (state === 'over' && overT > 0.8) {
@@ -35,13 +35,13 @@ function layoutButtons() {
     if (net.status === 'playing') {
       const ready = iAmReady();
       return [...icons,
-        B('ready', ready ? 'READY ✓' : 'READY  (SPACE)', '', cx - 350, 712, 240, 60, { color: PAL.good, selected: ready }),
+        B('ready', ready ? 'READY ✓' : 'READY', ready ? '' : 'space', cx - 350, 712, 240, 60, { color: PAL.good, selected: ready }),
         B('room', 'ROOM', '', cx - 95, 712, 190, 60),
         B('menu', 'LEAVE', '', cx + 110, 712, 240, 60),
       ];
     }
     return [...icons,
-      B('again', 'PLAY AGAIN  (SPACE)', '', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
+      B('again', 'PLAY AGAIN', 'space', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
       B('menu', 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
     ];
   }

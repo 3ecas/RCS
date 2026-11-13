@@ -26,6 +26,54 @@ function onlineKeysText() {
   return mine.map(p => `${p.name.toUpperCase()}: ${p.slot ? 'arrow keys' : 'WASD'}`).join('   ·   ');
 }
 
+// ---- Small visual building blocks (instead of written instructions) ----
+
+// A keyboard key: a small rounded cap with its label. a = how see-through (0…1), fill = 0…1 lights it up
+function keycap(label, x, y, s = 26, color = PAL.ink, a = 1, fill = 0) {
+  ctx.globalAlpha = a;
+  const w = Math.max(s, label.length > 1 ? s * 0.4 * label.length + 14 : s), r = 5;
+  const box = (yy, h) => { ctx.beginPath(); ctx.roundRect(x - w / 2, yy, w, h, r); };
+  ctx.fillStyle = color; box(y + 3, s); ctx.fill();                       // its edge
+  ctx.fillStyle = '#ffffff'; box(y, s); ctx.fill();
+  if (fill > 0) { ctx.save(); box(y, s); ctx.clip(); ctx.fillStyle = color; ctx.globalAlpha = a * 0.3; ctx.fillRect(x - w / 2, y + s * (1 - fill), w, s * fill); ctx.restore(); ctx.globalAlpha = a; }
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; box(y + 0.75, s - 1.5); ctx.stroke();
+  text(label, x, y + s * (label.length > 1 ? 0.66 : 0.72), Math.round(s * (label.length > 1 ? 0.46 : 0.62)), color, 'center', 900);
+  ctx.globalAlpha = 1;
+  return w;
+}
+// Four keys laid out like a keyboard's: up on top, left / down / right below. Centred on cx, top at y.
+function keyCluster(keys4, cx, y, s, color, a = 1, fill = 0) {
+  const [u, l, d, r] = keys4, g = s + 4;
+  keycap(u, cx, y, s, color, a, fill);
+  keycap(l, cx - g, y + g, s, color, a, fill); keycap(d, cx, y + g, s, color, a, fill); keycap(r, cx + g, y + g, s, color, a, fill);
+}
+const WASD = ['W', 'A', 'S', 'D'], ARROWS = ['↑', '←', '↓', '→'];
+
+// A speaker (sound on), or a speaker with a cross (sound off), centred on cx, cy
+function drawSpeaker(cx, cy, k = 1, color = PAL.ink) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+  ctx.fillStyle = color;
+  ctx.fillRect(-12, -5, 7, 10);
+  ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(3, -11); ctx.lineTo(3, 11); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = muted ? PAL.spike : color; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.beginPath();
+  if (muted) { ctx.moveTo(7, -6); ctx.lineTo(15, 6); ctx.moveTo(15, -6); ctx.lineTo(7, 6); }
+  else { ctx.arc(4, 0, 6, -0.9, 0.9); ctx.moveTo(4 + 11 * Math.cos(-0.9), 11 * Math.sin(-0.9)); ctx.arc(4, 0, 11, -0.9, 0.9); }
+  ctx.stroke();
+  ctx.restore();
+}
+// A clothes hanger (the wardrobe's sign)
+function drawHanger(cx, cy, color = PAL.ink) {
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 7, 3.5, Math.PI, Math.PI * 2.4);                 // the hook
+  ctx.moveTo(cx, cy - 3); ctx.lineTo(cx + 14, cy + 7); ctx.lineTo(cx - 14, cy + 7); ctx.closePath();
+  ctx.stroke();
+}
+// A pause sign (two bars)
+function drawPauseIcon(cx, cy, s = 12, color = PAL.ink) {
+  ctx.fillStyle = color; ctx.fillRect(cx - s * 0.45, cy - s / 2, s * 0.3, s); ctx.fillRect(cx + s * 0.15, cy - s / 2, s * 0.3, s);
+}
+
 function drawButton(b, focused) {
   if (b.icon || b.label === '?') return drawIcon(b, focused);
   const c = b.color || PAL.ink;
@@ -55,13 +103,7 @@ function drawIcon(b, focused) {
   ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   if (b.label === '?') { text('?', cx, cy + 9, 26, PAL.ink, 'center', 900); return; }
-  ctx.fillStyle = PAL.ink;
-  ctx.fillRect(cx - 12, cy - 5, 7, 10);                       // speaker box
-  ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 3, cy - 11); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx - 5, cy + 5); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = muted ? PAL.spike : PAL.ink; ctx.lineWidth = 2.5; ctx.beginPath();
-  if (muted) { ctx.moveTo(cx + 7, cy - 6); ctx.lineTo(cx + 15, cy + 6); ctx.moveTo(cx + 15, cy - 6); ctx.lineTo(cx + 7, cy + 6); }
-  else { ctx.arc(cx + 4, cy, 6, -0.9, 0.9); ctx.moveTo(cx + 9.5, cy - 9.5); ctx.arc(cx + 4, cy, 11, -0.9, 0.9); }
-  ctx.stroke();
+  drawSpeaker(cx, cy);
 }
 
 // End of an online race: the winner, then everyone ranked by how long they lasted
@@ -92,43 +134,46 @@ function drawResults() {
   });
 }
 
-// Instructions overlay (the ? icon)
+// Instructions overlay (the ? icon): mostly keys and pictures
 function drawHelp() {
-  const x = W / 2 - 300, y = 70, w = 600, h = 690;
-  ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillRect(x, y, w, h);
+  const w = 560, h = 500, x = W / 2 - w / 2, y = 80, L = x + 44;
+  ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-  text('HOW TO PLAY', W / 2, y + 56, 36, PAL.ink, 'center', 900);
-  const L = x + 40;
-  let yy = y + 104;
-  const head = t => { text(t, L, yy, 16, PAL.ink, 'left', 900); yy += 24; };
-  const line = (t, c = PAL.inkSoft) => { text(t, L, yy, 15, c, 'left', 600); yy += 22; };
-  head('The goal');
-  line('Jump up the tower and stay ahead of the screen as it scrolls up.');
-  line('Falling off the bottom or touching a danger ends your run.'); yy += 10;
-  head('Controls');
-  line('Player 1:  W jump  ·  A D move  ·  S drop through   (solo: arrows work too)');
-  line('WARDROBE door in the start scene: press S / ↓ at it, then land on platforms to change your cube');
-  line('Wall jump: jump while touching a wall in mid-air. Gems unlock new faces, hats and patterns.');
-  line('Player 2:  hold an arrow key for 3 s at the start to join; Esc removes them'); yy += 10;
-  head('Platforms');
-  const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]];
-  items.forEach(([label, c, cd], k) => {
-    const px = L + k * 130;
+  text('Climb. Stay ahead of the screen.', W / 2, y + 52, 24, PAL.ink, 'center', 900);
+  const p1 = COLORS[myColor], p2 = COLORS[p2Color];
+  // Keys: player 1 and player 2
+  const row = (yy, keys4, C, look, desc) => {
+    cube(L, yy + 8, 28, { c: C.c, d: C.d }, look);
+    keyCluster(keys4, L + 96, yy, 22, C.d);
+    text(desc, L + 160, yy + 34, 15, PAL.inkSoft, 'left', 700);
+  };
+  row(y + 86, WASD, p1, myLook, 'jump · move · drop through');
+  row(y + 160, ARROWS, p2, p2Look, 'player 2 · hold one to join');
+  // Platforms
+  let yy = y + 262;
+  [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]].forEach(([label, c, cd], k) => {
+    const px = L + k * 122;
     ctx.fillStyle = c; ctx.fillRect(px, yy - 13, 40, 12); ctx.fillStyle = cd; ctx.fillRect(px, yy - 4, 40, 3);
     text(label, px + 48, yy - 2, 14, PAL.inkSoft, 'left', 700);
   });
-  yy += 26;
-  line('Springs: press jump just as you land for a huge boost.'); yy += 10;
-  head('Regions');
-  line('The first 100 m are just platforms. Then every 200 m a new region starts, picked at');
-  line('random: springs, spikes, seesaws, shurikens, fire, lightning, two paths split by');
-  line('a wall — or water, whose bubble columns push you up.'); yy += 10;
-  head('Starting');
-  line('Everyone stands on a mode platform for 3 s: Solo, Co-op, Race or Multiplayer.');
-  line('Land on a colour pad to paint your cube · land on SOUND to switch sound.');
-  line('Multiplayer: an online race, up to 10 players, one per computer.'); yy += 10;
-  head('Keys');
-  line('R  stop (R again to start over)   ·   M  sound   ·   F  full screen');
+  // Three tips
+  yy += 46;
+  const tip = (t, draw) => { draw(L + 14, yy - 6); text(t, L + 44, yy, 15, PAL.ink, 'left', 700); yy += 38; };
+  tip('Jump off a wall to fly across to the other side', (cx, cy) => {
+    ctx.fillStyle = PAL.wallLine; ctx.fillRect(cx - 14, cy - 12, 4, 24); ctx.fillRect(cx + 12, cy - 12, 4, 24);
+    ctx.strokeStyle = PAL.good; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx + 8, cy - 8); ctx.stroke();
+  });
+  tip('Press jump as you land on a spring: big boost', (cx, cy) => drawSpringI(cx - 14, cy - 10, 28, 0));
+  tip('Gems unlock new looks in the wardrobe', (cx, cy) => drawGemIcon(cx, cy, 10));
+  tip('Stand on a mode for 3 s to start', (cx, cy) => { ctx.fillStyle = PAL.good; ctx.fillRect(cx - 14, cy, 28, 8); text('3', cx, cy - 4, 14, PAL.good, 'center', 900); });
+  // Other keys
+  yy += 10;
+  let kx = L + 14;
+  for (const [k, what] of [['R', 'pause'], ['M', 'sound'], ['F', 'full screen'], ['?', 'help']]) {
+    keycap(k, kx, yy - 18, 24);
+    text(what, kx + 20, yy, 14, PAL.inkSoft, 'left', 700);
+    ctx.font = `700 14px ${FONT}`; kx += 52 + ctx.measureText(what).width;
+  }
 }
 
 // One line about the room: who we're waiting for
@@ -157,7 +202,6 @@ function drawHUD() {
     ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
     text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
     if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
-    ctx.restore();
     if (VS) {
       text('WINS', WALL + 14, 32, 13, PAL.inkSoft, 'left', 800);
       players.forEach((p, k) => text(String(winsOf(p)), WALL + 62 + k * 20, 32, 16, p.dark, 'left', 900));
@@ -165,7 +209,9 @@ function drawHUD() {
       text('BEST ' + best + ' m', WALL + 14, 32, 15, PAL.good, 'left');
       drawGemIcon(WALL + 21, 54, 8); text(String(runGems), WALL + 34, 60, 16, '#1f97ab', 'left', 900);
     }
-    text(net.status === 'playing' ? 'ONLINE' : 'R  STOP', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
+    if (net.status === 'playing') text('ONLINE', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
+    else { keycap('R', W - WALL - 100, 24, 22, PAL.inkSoft, 0.6); drawPauseIcon(W - WALL - 74, 35, 12, PAL.inkSoft); }
+    ctx.restore();   // the glow
     ctx.restore();
   }
 
@@ -180,10 +226,7 @@ function drawHUD() {
     ctx.globalAlpha = 0.35 + 0.65 * f;
     text(String(n), W / 2, H * 0.42, 110 + 40 * f, PAL.ink, 'center', 900);
     ctx.globalAlpha = 1;
-    text(VS ? 'Race to the top!' : 'Get ready…', W / 2, H * 0.42 + 54, 22, PAL.inkSoft, 'center', 700);
-    if (net.status === 'playing') {
-      text(onlineKeysText(), W / 2, H * 0.42 + 92, 18, localCube(0).d, 'center', 900);
-    }
+    if (net.status === 'playing') text(onlineKeysText(), W / 2, H * 0.42 + 60, 18, localCube(0).d, 'center', 900);
   }
 
   if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
@@ -200,10 +243,8 @@ function drawHUD() {
   if (state === 'search') {
     // Still connecting / joining
     cube(W / 2 - 22, 250 - Math.abs(Math.sin(time * 5)) * 30, 44, localCube(0), localLook(0));
-    text('CONNECTING', W / 2, 370, 50, PAL.ink, 'center', 900);
-    const dots = '.'.repeat(1 + Math.floor(time * 2) % 3);
-    text(net.status === 'connecting' ? 'Connecting to the server' + dots : 'Joining the room' + dots, W / 2, 425, 22, PAL.ink, 'center', 800);
-    text('The first connection can take up to a minute while the server wakes up.', W / 2, 458, 15, PAL.inkSoft, 'center', 600);
+    text('CONNECTING' + '.'.repeat(1 + Math.floor(time * 2) % 3), W / 2, 370, 44, PAL.ink, 'center', 900);
+    text('The first one can take up to a minute', W / 2, 410, 15, PAL.inkSoft, 'center', 700);
   }
 
   if (state === 'found') {
@@ -216,14 +257,11 @@ function drawHUD() {
       text(p.remote ? p.name : 'YOU', x, 336, n > 6 ? 11 : 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
     });
     text(net.rematch ? 'NEW ROUND!' : 'MATCH FOUND!', W / 2, 420, 64 * pop, PAL.good, 'center', 900);
-    text('Race — last one standing wins', W / 2, 466, 20, PAL.ink, 'center', 800);
-    text(onlineKeysText(), W / 2, 500, 17, localCube(0).d, 'center', 900);
-    text('Loading level' + '.'.repeat(1 + Math.floor(time * 3) % 3), W / 2, 540, 16, PAL.inkSoft, 'center', 700);
+    text(onlineKeysText(), W / 2, 470, 17, localCube(0).d, 'center', 900);
   }
 
   if (state === 'paused') {
-    text('STOPPED', W / 2, H * 0.42, 70, PAL.ink, 'center', 900);
-    text('Press R again to start over', W / 2, H * 0.42 + 44, 18, PAL.inkSoft, 'center', 700);
+    text('PAUSED', W / 2, H * 0.42, 64, PAL.ink, 'center', 900);
   }
 
   if (state === 'over' && overT > 0.4) {
@@ -231,12 +269,15 @@ function drawHUD() {
     if (VS) {
       drawResults();
     } else {
-      text('GAME OVER', W / 2, y0, 76, PAL.spike, 'center', 900);
-      text(deathMsg, W / 2, y0 + 48, 22, PAL.ink, 'center', 700);
-      text(height + ' m', W / 2, y0 + 140, 74, PAL.ink, 'center', 900);
-      if (newBest) text('NEW BEST!', W / 2, y0 + 184, 26, PAL.good, 'center', 900);
-      else text('Best: ' + best + ' m', W / 2, y0 + 184, 21, PAL.good, 'center', 800);
-      if (runGems) text(`+${runGems} gems  (${totalGems} in total)`, W / 2, y0 + 216, 17, '#1f97ab', 'center', 900);
+      text(deathMsg, W / 2, y0 - 10, 20, PAL.spike, 'center', 900);
+      text(height + ' m', W / 2, y0 + 90, 96, PAL.ink, 'center', 900);
+      if (newBest) text('NEW BEST!', W / 2, y0 + 140, 24, PAL.good, 'center', 900);
+      else text('BEST ' + best + ' m', W / 2, y0 + 140, 18, PAL.good, 'center', 900);
+      if (runGems) {
+        ctx.font = `900 18px ${FONT}`; const tw = ctx.measureText('+' + runGems).width;
+        drawGemIcon(W / 2 - tw / 2 - 12, y0 + 172, 9);
+        text('+' + runGems, W / 2 + 6, y0 + 178, 18, '#1f97ab', 'center', 900);
+      }
     }
     // Online: the next race starts once everyone in the room is ready
     if (net.status === 'playing') text(roomLine(), W / 2, 694, 17, PAL.good, 'center', 900);

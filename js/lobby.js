@@ -11,8 +11,11 @@ const lobby = { join: 0, on: null, holdT: 0 };
 
 // The modes on offer: one player can play solo or online; two players co-op or race (online is one per PC)
 const lobbyModes = () => playerCount === 2 ? ['coop', 'race', 'multi'] : ['solo', 'multi'];
-const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'MULTIPLAYER', sound: 'SOUND' };
-const MENU_SUB = { solo: 'climb alone', coop: 'if one falls, both lose', race: 'last one standing wins', multi: 'online race' };
+const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'ONLINE' };
+const isMode = p => p.menu && MENU_LABEL[p.menu];
+// Until a game has been started once on this computer, little arrows point at the mode platforms
+let tutDone = false;
+try { tutDone = localStorage.getItem('rcs.tut') === '1'; } catch (e) {}
 
 const LOBBY_LEFT = WALL;
 const WEAR = ['colour', 'face', 'hat', 'pattern'];
@@ -84,6 +87,7 @@ function updateLobby(dt) {
 
 function chooseMode(menu) {
   lobby.on = null; lobby.holdT = 0;
+  if (!tutDone) { tutDone = true; try { localStorage.setItem('rcs.tut', '1'); } catch (e) {} }
   if (menu === 'multi') { mode = 'versus'; startSearch(); return; }   // online: one cube per computer
   mode = menu === 'solo' ? 'solo' : menu === 'coop' ? 'split' : 'versus';
   beginPlay();
@@ -147,67 +151,77 @@ function touchLobby(p, pl) {
   }
 }
 
-// Mode / sound / wardrobe platforms: a normal platform, thicker, with its name on it
+// Mode / sound / wardrobe platforms: a normal platform, thicker, with its name (or an icon) on it
 function drawMenuPlatform(p) {
-  const x = p.x, y = p.y;
+  const x = p.x, y = p.y, cx = x + p.w / 2;
   ctx.fillStyle = PAL.normal; ctx.fillRect(x, y, p.w, p.h);
   ctx.fillStyle = PAL.normalD; ctx.fillRect(x, y + p.h - 4, p.w, 4);
-  ctx.globalAlpha = 1;
   if (state !== 'lobby' && state !== 'wardrobe') return;     // in the game they're plain platforms: the names go away
-  // Filling up while everyone stands on it
+  // Filling up while everyone stands on it, with the seconds left above
   if (lobby.on === p) {
     ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.55;
     ctx.fillRect(x, y, p.w * Math.min(1, lobby.holdT / HOLD_TIME), p.h - 4);
     ctx.globalAlpha = 1;
-    text(String(Math.max(1, Math.ceil(HOLD_TIME - lobby.holdT))), x + p.w / 2, y - 62, 44, PAL.good, 'center', 900);
+    text(String(Math.max(1, Math.ceil(HOLD_TIME - lobby.holdT))), cx, y - 26, 40, PAL.good, 'center', 900);
+  } else if (state === 'lobby' && isMode(p)) {
+    // Two players: one is on it, the other isn't yet: the missing cube blinks above it
+    const on = players.filter(q => standingOn(q) === p);
+    if (on.length && on.length < players.length) {
+      const miss = players.find(q => standingOn(q) !== p);
+      ctx.globalAlpha = 0.45 + 0.35 * Math.sin(time * 6);
+      cube(cx - 11, y - 46, 22, { c: miss.color, d: miss.dark }, miss.look);
+      ctx.globalAlpha = 1;
+    } else if (!tutDone) {       // first visit: bouncing arrows point at the modes
+      const b = Math.abs(Math.sin(time * 4)) * 8;
+      ctx.fillStyle = PAL.good;
+      ctx.beginPath(); ctx.moveTo(cx - 9, y - 30 - b); ctx.lineTo(cx + 9, y - 30 - b); ctx.lineTo(cx, y - 18 - b); ctx.closePath(); ctx.fill();
+    }
   }
-  const label = p.menu === 'sound' ? (muted ? 'SOUND OFF' : 'SOUND ON') : p.menu === 'wear' ? WEAR_LABEL[p.wear] : MENU_LABEL[p.menu];
+  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + 13, 0.85); return; }
   if (p.menu === 'wear' && p.wear === 'colour') {   // a thin rainbow along the colour platform
     const sw = (p.w - 8) / COLORS.length;
     COLORS.forEach((C, k) => { ctx.fillStyle = C.c; ctx.fillRect(x + 4 + k * sw, y + p.h - 4, sw, 4); });
   }
+  const label = p.menu === 'wear' ? WEAR_LABEL[p.wear] : MENU_LABEL[p.menu];
   let size = 17;
   ctx.font = `900 ${size}px ${FONT}`;
   while (size > 10 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
-  text(label, x + p.w / 2, y + 19, size, PAL.ink, 'center', 900);
-  // A small hint above it (lobby only)
-  if (lobby.on !== p) {
-    const sub = p.menu === 'sound' ? 'jump on to switch' : p.menu === 'wear' ? 'land to change' : p.menu === 'multi' && playerCount === 2 ? 'online race, both of you' : MENU_SUB[p.menu];
-    text(sub, x + p.w / 2, y - 12, 12, PAL.inkSoft, 'center', 700);
-  }
-  ctx.globalAlpha = 1;
+  text(label, cx, y + 20, size, PAL.ink, 'center', 900);
 }
 
-// The logo and the key hints, pinned to the screen
+// The logo, and on the floor who plays with which keys — drawn as keys, not words
 function drawLobbyHUD() {
   ctx.save(); ctx.translate(0, -OY);
   const bob = Math.sin(time * 3) * 3;
   // Soft glow behind the logo so the tower's platforms don't clash with it
-  const g = ctx.createRadialGradient(W / 2, 120, 20, W / 2, 120, 300);
+  const g = ctx.createRadialGradient(W / 2, 110, 20, W / 2, 110, 260);
   g.addColorStop(0, 'rgba(255,250,248,0.95)'); g.addColorStop(0.55, 'rgba(255,250,248,0.75)'); g.addColorStop(1, 'rgba(255,250,248,0)');
-  ctx.fillStyle = g; ctx.fillRect(W / 2 - 300, -OY, 600, 300 + OY);
+  ctx.fillStyle = g; ctx.fillRect(W / 2 - 260, -OY, 520, 260 + OY);
   ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.95)'; ctx.shadowBlur = 16;
   text('RCS', W / 2, 118 + bob, 92, PAL.ink, 'center', 900);
-  text('Climb the tower. Don’t fall behind.', W / 2, 152, 18, PAL.inkSoft, 'center', 700);
-  if (best > 0) text('Best height: ' + best + ' m', W / 2, 178, 15, PAL.good, 'center', 800);
+  if (best > 0) text('BEST ' + best + ' m', W / 2, 152, 15, PAL.good, 'center', 900);
   ctx.restore();
   ctx.restore();
 
-  // Bottom strip (on the floor): who plays with which keys, and joining player 2
-  const y = GROUND_Y + 56;
-  const p1 = COLORS[myColor], p2 = COLORS[p2Color];
-  text('PLAYER 1   W A S D', WALL + 24, y, 15, p1.d, 'left', 900);
+  // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
+  const y = GROUND_Y + 9, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
+  cube(WALL + 22, y + 14, 28, { c: p1.c, d: p1.d }, myLook);
+  keyCluster(WASD, WALL + 104, y, s, p1.d);
+  const rx = W - WALL - 104;
   if (playerCount === 1) {
+    // A dashed "empty" cube with a plus, and the arrow keys faded: hold one to add player 2
     const f = lobby.join / HOLD_TIME;
-    if (f > 0) {
-      const bw = 200, bx = W - WALL - 24 - bw;
-      ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(bx, y + 8, bw, 8);
-      ctx.fillStyle = p2.c; ctx.fillRect(bx, y + 8, bw * f, 8);
-      text('Adding player 2…', W - WALL - 24, y, 15, p2.d, 'right', 900);
-    } else text('Hold an arrow key to add player 2', W - WALL - 24, y, 15, PAL.inkSoft, 'right', 800);
+    const bx = W - WALL - 50, by = y + 14;
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = f > 0 ? p2.d : PAL.inkSoft; ctx.lineWidth = 2;
+    ctx.strokeRect(bx + 1, by + 1, 26, 26); ctx.setLineDash([]);
+    if (f > 0) { ctx.fillStyle = p2.c; ctx.fillRect(bx + 3, by + 27 - 24 * f, 22, 24 * f); }
+    text('+', bx + 14, by + 21, 20, f > 0 ? p2.d : PAL.inkSoft, 'center', 900);
+    keyCluster(ARROWS, rx, y, s, f > 0 ? p2.d : PAL.inkSoft, f > 0 ? 1 : 0.75, f);
   } else {
-    text('PLAYER 2   ARROW KEYS   ·   Esc removes', W - WALL - 24, y, 15, p2.d, 'right', 900);
+    cube(W - WALL - 50, y + 14, 28, { c: p2.c, d: p2.d }, p2Look);
+    keyCluster(ARROWS, rx, y, s, p2.d);
+    keycap('Esc', rx - 96, y + 27, s, PAL.inkSoft, 0.8);    // removes player 2
+    text('✕', rx - 128, y + 45, 16, PAL.inkSoft, 'center', 900);
   }
-  text('Stand on a mode together for 3 s to start  ·  go through the WARDROBE door to change your cube  ·  ? help', W / 2, GROUND_Y + 28, 13, PAL.inkSoft, 'center', 700);
-  drawBanner(200);
+  drawBanner(190);
 }

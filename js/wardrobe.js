@@ -68,8 +68,9 @@ function updateWardrobe(dt) {
   if (pressed.Escape || players.some(p => atDoor(p, wardrobe.exitX, GROUND_Y) && downKey(p))) leaveWardrobe();
 }
 
-// A door: frame, wooden door, knob and a sign above it
-function drawDoor(cx, floorY, label, hint) {
+// A door: frame, wooden door, knob and a sign above it (a word, or the hanger icon for '').
+// near: someone is standing at it — the down key(s) to go through bob beside it.
+function drawDoor(cx, floorY, label, near) {
   const x = cx - DOOR_W / 2, y = floorY - DOOR_H;
   ctx.fillStyle = PAL.wallLine; ctx.fillRect(x - 6, y - 6, DOOR_W + 12, DOOR_H + 6);
   ctx.fillStyle = '#c99a6c'; ctx.fillRect(x, y, DOOR_W, DOOR_H);
@@ -77,11 +78,16 @@ function drawDoor(cx, floorY, label, hint) {
   ctx.fillRect(x + 6, y + 7, DOOR_W - 12, 20); ctx.fillRect(x + 6, y + 33, DOOR_W - 12, 26);
   ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(x + DOOR_W - 9, y + DOOR_H / 2 + 4, 3.5, 0, 7); ctx.fill();
   ctx.font = `900 13px ${FONT}`;
-  const sw = ctx.measureText(label).width + 18;
+  const sw = label ? ctx.measureText(label).width + 18 : 44;
   ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - sw / 2, y - 32, sw, 22);
   ctx.strokeStyle = PAL.ink; ctx.lineWidth = 2; ctx.strokeRect(cx - sw / 2 + 1, y - 31, sw - 2, 20);
-  text(label, cx, y - 16, 13, PAL.ink, 'center', 900);
-  if (hint) text(hint, x + DOOR_W + 14, y + DOOR_H / 2 + 5, 14, PAL.good, 'left', 900);   // beside the door
+  if (label) text(label, cx, y - 16, 13, PAL.ink, 'center', 900);
+  else drawHanger(cx, y - 22);
+  if (near) {   // the down key(s), bobbing beside the door
+    const b = Math.abs(Math.sin(time * 5)) * 4, kx = x + DOOR_W + 26;
+    keycap('S', kx, y + 14 + b, 26, PAL.good);
+    if (playerCount === 2) keycap('↓', kx + 32, y + 14 + b, 26, PAL.good);
+  }
 }
 
 // The door platform in the start scene (drawn by drawPlatform)
@@ -90,7 +96,7 @@ function drawDoorPlatform(p) {
   ctx.fillStyle = PAL.normalD; ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
   if (state !== 'lobby') return;          // in the game it's a plain platform
   const near = players.some(q => atDoor(q, doorX(p), p.y));
-  drawDoor(doorX(p), p.y, 'WARDROBE', near ? (playerCount === 2 ? 'S / ↓ to go in' : 'S to go in') : '');
+  drawDoor(doorX(p), p.y, '', near);
 }
 
 // Inside: striped wallpaper, the exit door and the mirror with a big view of each cube
@@ -98,7 +104,7 @@ function drawWardrobeRoom() {
   ctx.fillStyle = 'rgba(201,154,108,0.08)';
   for (let x = WALL; x < W - WALL; x += 60) ctx.fillRect(x, -OY, 30, GROUND_Y + OY);
   const near = players.some(q => atDoor(q, wardrobe.exitX, GROUND_Y));
-  drawDoor(wardrobe.exitX, GROUND_Y, 'EXIT', near ? 'S / ↓ to go out' : '');
+  drawDoor(wardrobe.exitX, GROUND_Y, 'EXIT', near);
   // Mirror
   const n = players.length, mw = 260 * n + 80, mh = 330, mx = W / 2 - mw / 2, my = 120;
   ctx.fillStyle = '#c99a6c'; ctx.fillRect(mx - 12, my - 12, mw + 24, mh + 24);
@@ -111,20 +117,24 @@ function drawWardrobeRoom() {
     const cx = mx + 40 + 260 * k + 130, s = 110;
     const bob = Math.sin(time * 3 + k) * 4;
     cube(cx - s / 2, my + 70 + bob, s, { c: p.color, d: p.dark }, p.look);
-    const L = p.look;
-    text(p.name.toUpperCase(), cx, my + 228, 20, p.dark, 'center', 900);
-    text(`${FACES[L.f]}  ·  ${HATS[L.h]}  ·  ${PATTERNS[L.p]}`, cx, my + 254, 14, PAL.inkSoft, 'center', 800);
-    if (n === 2) text(k ? 'PLAYER 2' : 'PLAYER 1', cx, my + 36, 13, PAL.inkSoft, 'center', 900);
+    text(p.name.toUpperCase(), cx, my + 236, 20, p.dark, 'center', 900);
   });
-  // Gems: how many you have, and what the next unlock is
-  const nx = nextUnlock();
-  drawGemIcon(mx + 34, my + mh - 30, 9);
-  text(`${totalGems} gems` + (nx ? `  ·  next: ${nx.name} at ${nx.need}` : '  ·  everything unlocked!'), mx + 50, my + mh - 24, 15, PAL.ink, 'left', 900);
+  // Gems: how many you have, and a bar filling up toward the next unlock
+  const nx = nextUnlock(), gy = my + mh - 34, gx = W / 2;
+  drawGemIcon(gx - 92, gy - 5, 9);
+  text(String(totalGems), gx - 78, gy + 1, 16, '#1f97ab', 'left', 900);
+  if (nx) {
+    const bx = gx - 40, bw = 132, prev = Math.max(0, ...Object.values(NEED).flat().filter(v => v <= totalGems));
+    ctx.fillStyle = 'rgba(91,75,107,0.12)'; ctx.fillRect(bx, gy - 9, bw, 8);
+    ctx.fillStyle = '#2fb7cc'; ctx.fillRect(bx, gy - 9, bw * clamp((totalGems - prev) / (nx.need - prev), 0, 1), 8);
+    text(`${nx.name} ${nx.need}`, bx + bw + 8, gy, 13, PAL.inkSoft, 'left', 800);
+  } else text('all unlocked', gx - 40, gy, 13, PAL.good, 'left', 900);
 }
 
 function drawWardrobeHUD() {
   ctx.save(); ctx.translate(0, -OY);
   text('WARDROBE', W / 2, 78, 44, PAL.ink, 'center', 900);
   ctx.restore();
-  text('Land on a platform to change that part of your cube  ·  S / ↓ at the EXIT door (or Esc) to go back', W / 2, GROUND_Y + 40, 14, PAL.inkSoft, 'center', 800);
+  keycap('Esc', W - WALL - 44, GROUND_Y + 20, 26, PAL.inkSoft, 0.8);   // also leaves
+  text('←', W - WALL - 82, GROUND_Y + 42, 22, PAL.inkSoft, 'right', 900);
 }

@@ -20,14 +20,14 @@ function update(dt) {
     if (state !== 'paused') updateParticles(dt);
     if (state === 'over') { overT += dt; shake = Math.max(0, shake - dt); reportRoundOver(); }
     if (net.bannerT > 0) net.bannerT -= dt;
-    if (state === 'paused' && pressed.KeyR) { startGame(); return; }   // R again: start over
-    if (pressed.Escape && state !== 'paused') { escAction(); return; }
+    if (state === 'paused' && (pressed.KeyR || pressed.Escape)) { state = pausedFrom; return; }   // R / Esc again: carry on
+    if (pressed.Escape) { escAction(); return; }
     menuInput();
     return;
   }
   gameClicks();   // the sound icon
-  // R stops the game (stop menu). Not online — the other computers' games can't be stopped.
-  if (pressed.KeyR && net.status !== 'playing') { pausedFrom = state; state = 'paused'; ui.focus = 0; return; }
+  // R or Esc pauses the game. Not online — the other computers' games can't be paused.
+  if ((pressed.KeyR || pressed.Escape) && net.status !== 'playing') { pausedFrom = state; state = 'paused'; ui.focus = 0; return; }
 
   time += dt;
   if (state === 'count') {
