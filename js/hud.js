@@ -128,8 +128,8 @@ function drawResults() {
     const you = net.status === 'playing' && !p.remote;
     if (you) { ctx.fillStyle = 'rgba(255,214,10,0.18)'; ctx.fillRect(x, y, w, rh); }
     text(String(k + 1), x + 34, mid, 18, k ? PAL.inkSoft : PAL.good, 'right', 900);
-    ctx.fillStyle = p.dark; ctx.fillRect(x + 50, y + rh / 2 - 9, 18, 18);
-    ctx.fillStyle = p.color; ctx.fillRect(x + 52, y + rh / 2 - 7, 14, 14);
+    ctx.fillStyle = p.dark; ctx.beginPath(); ctx.roundRect(x + 50, y + rh / 2 - 9, 18, 18, 5); ctx.fill();
+    ctx.fillStyle = p.color; ctx.beginPath(); ctx.roundRect(x + 52, y + rh / 2 - 7, 14, 14, 3); ctx.fill();
     text(p.name + (you ? '  (you)' : ''), x + 82, mid, 17, PAL.ink, 'left', 800);
     text(p.best + ' m', x + w - 110, mid, 16, PAL.ink, 'right', 800);
     text(String(winsOf(p)), x + w - 20, mid, 16, PAL.ink, 'right', 900);

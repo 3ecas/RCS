@@ -218,8 +218,8 @@ function drawLobbyHUD() {
     const f = lobby.join / HOLD_TIME;
     const bx = W - WALL - 50, by = y + 14;
     ctx.setLineDash([4, 3]); ctx.strokeStyle = f > 0 ? p2.d : PAL.inkSoft; ctx.lineWidth = 2;
-    ctx.strokeRect(bx + 1, by + 1, 26, 26); ctx.setLineDash([]);
-    if (f > 0) { ctx.fillStyle = p2.c; ctx.fillRect(bx + 3, by + 27 - 24 * f, 22, 24 * f); }
+    ctx.beginPath(); ctx.roundRect(bx + 1, by + 1, 26, 26, 6); ctx.stroke(); ctx.setLineDash([]);
+    if (f > 0) { ctx.save(); ctx.beginPath(); ctx.roundRect(bx + 3, by + 3, 22, 24, 4); ctx.clip(); ctx.fillStyle = p2.c; ctx.fillRect(bx + 3, by + 27 - 24 * f, 22, 24 * f); ctx.restore(); }
     text('+', bx + 14, by + 21, 20, f > 0 ? p2.d : PAL.inkSoft, 'center', 900);
     keyCluster(ARROWS, rx, y, s, f > 0 ? p2.d : PAL.inkSoft, f > 0 ? 1 : 0.75, f);
   } else {

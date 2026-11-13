@@ -24,19 +24,20 @@ const GHOST = { c: '#ddd5ea', d: '#aa9ec4' };
 
 // A cube at (x, y), w × h (it squashes when landing). P = { c: body, d: outline }, look = { f, h, p },
 // dir = which way it faces (-1, 0, 1), blink < 0 = eyes closed.
+// Rounded, to match the art style (design/soft-ascent.md).
 function drawCubeArt(x, y, w, h, P, look = {}, dir = 0, blink = 1) {
-  const k = w / PS, b = 3 * k;
-  ctx.fillStyle = P.d; ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = P.c; ctx.fillRect(x + b, y + b, w - 2 * b, h - 2 * b);
-  drawPattern(x + b, y + b, w - 2 * b, h - 2 * b, look.p | 0, k);
+  const k = w / PS, b = 3 * k, r = Math.min(w, h) * 0.24;
+  ctx.fillStyle = P.d; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+  ctx.fillStyle = P.c; ctx.beginPath(); ctx.roundRect(x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, r - b)); ctx.fill();
+  drawPattern(x + b, y + b, w - 2 * b, h - 2 * b, look.p | 0, k, Math.max(0, r - b));
   drawFace(x, y, w, h, look.f | 0, k, dir, blink < 0);
   drawHat(x, y, w, look.h | 0, k, dir, P);
 }
 
-function drawPattern(x, y, w, h, kind, k) {
+function drawPattern(x, y, w, h, kind, k, r = 0) {
   if (!kind) return;
   ctx.save();
-  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.clip();
   if (kind === 1) {                       // stripes
     ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 3 * k;
     for (let s = -h; s < w; s += 8 * k) { ctx.beginPath(); ctx.moveTo(x + s, y + h); ctx.lineTo(x + s + h, y); ctx.stroke(); }
