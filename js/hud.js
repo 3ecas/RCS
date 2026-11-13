@@ -37,9 +37,20 @@ function keycap(label, x, y, s = 26, color = PAL.ink, a = 1, fill = 0) {
   ctx.fillStyle = '#ffffff'; box(y, s); ctx.fill();
   if (fill > 0) { ctx.save(); box(y, s); ctx.clip(); ctx.fillStyle = color; ctx.globalAlpha = a * 0.3; ctx.fillRect(x - w / 2, y + s * (1 - fill), w, s * fill); ctx.restore(); ctx.globalAlpha = a; }
   ctx.strokeStyle = color; ctx.lineWidth = 1.5; box(y + 0.75, s - 1.5); ctx.stroke();
-  text(label, x, y + s * (label.length > 1 ? 0.66 : 0.72), Math.round(s * (label.length > 1 ? 0.46 : 0.62)), color, 'center', 900);
+  if (label in ARROW_DIR) drawArrow(x, y + s * 0.47, s * 0.5, ARROW_DIR[label], color);
+  else text(label, x, y + s * (label.length > 1 ? 0.66 : 0.72), Math.round(s * (label.length > 1 ? 0.46 : 0.62)), color, 'center', 900);
   ctx.globalAlpha = 1;
   return w;
+}
+// The arrow keys' arrows, drawn as rounded strokes in the weight of the game's font (Fredoka has no ← →)
+const ARROW_DIR = { '↑': -Math.PI / 2, '→': 0, '↓': Math.PI / 2, '←': Math.PI };
+function drawArrow(cx, cy, size, angle, color) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
+  ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, size * 0.2); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const h = size / 2;
+  ctx.beginPath(); ctx.moveTo(-h, 0); ctx.lineTo(h, 0);                              // shaft
+  ctx.moveTo(h * 0.15, -h * 0.75); ctx.lineTo(h, 0); ctx.lineTo(h * 0.15, h * 0.75);   // head
+  ctx.stroke(); ctx.restore();
 }
 // Four keys laid out like a keyboard's: up on top, left / down / right below. Centred on cx, top at y.
 function keyCluster(keys4, cx, y, s, color, a = 1, fill = 0) {

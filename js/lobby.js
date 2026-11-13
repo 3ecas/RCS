@@ -226,7 +226,8 @@ function drawLobbyHUD() {
     cube(W - WALL - 50, y + 14, 28, { c: p2.c, d: p2.d }, p2Look);
     keyCluster(ARROWS, rx, y, s, p2.d);
     keycap('Esc', rx - 96, y + 27, s, PAL.inkSoft, 0.8);    // removes player 2
-    text('✕', rx - 128, y + 45, 16, PAL.inkSoft, 'center', 900);
+    ctx.strokeStyle = PAL.inkSoft; ctx.lineWidth = 2.4; ctx.lineCap = 'round';   // a small rounded ✕
+    ctx.beginPath(); ctx.moveTo(rx - 132, y + 35); ctx.lineTo(rx - 124, y + 43); ctx.moveTo(rx - 124, y + 35); ctx.lineTo(rx - 132, y + 43); ctx.stroke();
   }
   drawBanner(250);
 }

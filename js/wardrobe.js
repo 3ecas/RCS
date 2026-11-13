@@ -133,5 +133,5 @@ function drawWardrobeHUD() {
   text('WARDROBE', W / 2, 78, 44, PAL.ink, 'center', 900);
   ctx.restore();
   keycap('Esc', W - WALL - 44, GROUND_Y + 20, 26, PAL.inkSoft, 0.8);   // also leaves
-  text('←', W - WALL - 82, GROUND_Y + 42, 22, PAL.inkSoft, 'right', 900);
+  drawArrow(W - WALL - 92, GROUND_Y + 34, 18, Math.PI, PAL.inkSoft);
 }
