@@ -151,6 +151,7 @@ function updateWorld(dt) {
   zaps = zaps.filter(z => !offScreen(0, Math.min(z.y1, z.y2), 0));
   bubbles = bubbles.filter(b => !offScreen(0, b.top, 0));
   dividers = dividers.filter(dv => !offScreen(0, dv.top, 0));
+  gems = gems.filter(g => !g.taken && !offScreen(0, g.y, 0));
 }
 
 // Two players on this computer (offline or online): player 1 uses WASD, player 2 the arrow keys.
@@ -205,7 +206,9 @@ function updatePlayer(p, dt) {
     else { p.x += p.ground.dx; p.y += p.ground.dy || 0; }
   }
 
-  const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+  let dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+  // Just after a wall jump, pushing back toward that wall is ignored for a moment (so you can't climb one wall)
+  if (p.wallLock > 0) { p.wallLock -= dt; if (dir === p.lockDir) dir = 0; }
   if (dir) p.face = dir;
   const accel = p.onGround ? 3200 : 2200;
   const tvx = dir * MAX_VX * p.speedMul;
@@ -223,6 +226,11 @@ function updatePlayer(p, dt) {
   if (p.buf > 0 && p.coyote > 0) {
     p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
     sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
+  } else if (p.buf > 0 && !p.onGround && p.wall) {
+    // Wall jump: up and away from the wall you're touching
+    p.vy = -WALLJUMP_V; p.vx = -p.wall * WALLJUMP_PUSH; p.buf = 0; p.face = -p.wall; p.sq = 1.2;
+    p.wallLock = WALLJUMP_LOCK; p.lockDir = p.wall;
+    sfx.jump(p.i); dust(p.wall < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
     p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
@@ -233,6 +241,11 @@ function updatePlayer(p, dt) {
   p.vy += GRAV * dt;
   if (!inp.jump && p.vy < 0 && !p.inBubbles) p.vy += GRAV * 1.4 * dt;
   p.vy = Math.min(p.vy, MAX_FALL);
+  // Sliding down a wall you push against is slower
+  if (!p.onGround && p.wall && dir === p.wall && p.vy > WALL_SLIDE) {
+    p.vy = WALL_SLIDE;
+    if (Math.random() < dt * 25) particles.push({ x: p.wall < 0 ? p.x : p.x + p.w, y: p.y + p.h - 4, vx: -p.wall * 30, vy: -20, life: 0.3, max: 0.3, color: 'rgba(255,255,255,0.9)', size: 3, grav: 0 });
+  }
   // Water region: inside a bubble column you're pushed up, no jump needed
   const cx = p.x + p.w / 2;
   p.inBubbles = bubbles.some(b => cx > b.x && cx < b.x + b.w && p.y + p.h > b.top && p.y < b.bot);
@@ -245,6 +258,13 @@ function updatePlayer(p, dt) {
   p.x += p.vx * dt;
   clampX(p);
   blockDividers(p);
+  // Touching a wall (the tower's sides, or a pillar / dividing wall)? -1 = on the left, 1 = on the right
+  p.wall = p.x <= WALL + 0.5 ? -1 : p.x + p.w >= W - WALL - 0.5 ? 1 : 0;
+  for (const dv of dividers) {
+    if (p.y + p.h <= dv.top || p.y >= dv.bot) continue;
+    if (Math.abs(p.x - (dv.x + dv.w)) < 0.6) p.wall = -1;
+    else if (Math.abs(p.x + p.w - dv.x) < 0.6) p.wall = 1;
+  }
 
   const prevBottom = p.y + p.h;
   p.y += p.vy * dt;
@@ -350,6 +370,17 @@ function updateHazards(dt) {
     }
     return null;
   };
+  // Gems: picked up by touching them (each computer collects its own)
+  for (const p of alive()) {
+    if (p.remote) continue;
+    const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    for (const g of gems) {
+      if (g.taken || Math.abs(g.x - cx) > p.w / 2 + GEM_R || Math.abs(g.y - cy) > p.h / 2 + GEM_R) continue;
+      g.taken = true; runGems++; totalGems++; saveGems();
+      burst(g.x, g.y, 10, '#5fd8e8', 180, 0.5, 5, 200);
+      sfx.gem();
+    }
+  }
   for (const p of alive()) {
     if (p.remote) continue;
     const why = hazardHit(p);

@@ -15,21 +15,64 @@ function drawBackground() {
   const g = ctx.createLinearGradient(0, -OY, 0, H + OY);
   g.addColorStop(0, top); g.addColorStop(1, bot);
   ctx.fillStyle = g; ctx.fillRect(-OX, -OY, VW, VH);   // the whole window
-  // Soft floating squares (parallax)
-  const span = VH * 2;
-  for (let k = 0; k < 14; k++) {
-    const s = 30 + hash(k, 3) * 90;
+  drawScenery();
+
+}
+
+// Background shapes drifting slower than the tower, matching the region at their height: clouds,
+// trees, crystals, hills, gears, flames, storm clouds, seaweed, columns
+function drawScenery() {
+  const span = VH * 2.4;
+  for (let k = 0; k < 18; k++) {
+    const s = 50 + hash(k, 3) * 110;
     const x = WALL + hash(k, 1) * (W - 2 * WALL);
-    let y = (hash(k, 2) * span - camY * 0.25) % span;
+    let y = (hash(k, 2) * span - camY * 0.3) % span;
     if (y < 0) y += span;
     y -= s + OY;
-    if (y > H + OY) continue;
+    if (y > H + OY + s) continue;
+    const R0 = REGIONS[regionAt(heightM(camY + y))];
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(hash(k, 4) * 0.8 + time * 0.05 * (hash(k, 5) - 0.5));
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillRect(-s / 2, -s / 2, s, s);
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = R0.plat[1]; ctx.strokeStyle = R0.plat[1];
+    drawSceneryShape(R0.scenery, s, k);
     ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+function drawSceneryShape(kind, s, k) {
+  const circle = (x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); };
+  if (kind === 'cloud' || kind === 'storm') {
+    circle(-s * 0.3, 0, s * 0.3); circle(0, -s * 0.12, s * 0.38); circle(s * 0.32, 0, s * 0.28); ctx.fillRect(-s * 0.3, 0, s * 0.62, s * 0.28);
+    if (kind === 'storm' && Math.floor(time * 2 + k) % 7 === 0) {
+      ctx.globalAlpha = 0.5; ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, s * 0.3); ctx.lineTo(-s * 0.1, s * 0.6); ctx.lineTo(s * 0.06, s * 0.6); ctx.lineTo(-s * 0.06, s * 0.95); ctx.stroke();
+    }
+  } else if (kind === 'tree') {
+    ctx.fillRect(-s * 0.06, 0, s * 0.12, s * 0.7); circle(0, -s * 0.05, s * 0.36); circle(-s * 0.22, s * 0.1, s * 0.24); circle(s * 0.22, s * 0.1, s * 0.24);
+  } else if (kind === 'crystal') {
+    for (const [dx, h, w] of [[-s * 0.2, 0.7, 0.18], [0, 1, 0.24], [s * 0.22, 0.55, 0.16]]) {
+      ctx.beginPath(); ctx.moveTo(dx, -s * h * 0.6); ctx.lineTo(dx + s * w, 0); ctx.lineTo(dx, s * 0.4); ctx.lineTo(dx - s * w, 0); ctx.closePath(); ctx.fill();
+    }
+  } else if (kind === 'hill') {
+    ctx.beginPath(); ctx.moveTo(-s, s * 0.4); ctx.quadraticCurveTo(0, -s * 0.6, s, s * 0.4); ctx.closePath(); ctx.fill();
+  } else if (kind === 'gear') {
+    ctx.rotate(time * 0.3 * (k % 2 ? 1 : -1));
+    for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-s * 0.08, -s * 0.5, s * 0.16, s * 0.2); }
+    circle(0, 0, s * 0.36);
+    ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; circle(0, 0, s * 0.13); ctx.globalCompositeOperation = 'source-over';
+  } else if (kind === 'flame') {
+    const f = 1 + Math.sin(time * 4 + k) * 0.06;
+    ctx.beginPath(); ctx.moveTo(0, -s * 0.6 * f); ctx.quadraticCurveTo(s * 0.4, 0, s * 0.2, s * 0.35); ctx.quadraticCurveTo(0, s * 0.5, -s * 0.2, s * 0.35); ctx.quadraticCurveTo(-s * 0.4, 0, 0, -s * 0.6 * f); ctx.fill();
+  } else if (kind === 'weed') {
+    ctx.lineWidth = s * 0.08; ctx.lineCap = 'round';
+    for (const dx of [-s * 0.15, s * 0.12]) {
+      ctx.beginPath(); ctx.moveTo(dx, s * 0.6);
+      for (let i = 1; i <= 6; i++) ctx.lineTo(dx + Math.sin(time * 1.5 + i + k) * s * 0.08, s * 0.6 - i * s * 0.2);
+      ctx.stroke();
+    }
+  } else if (kind === 'column') {
+    ctx.fillRect(-s * 0.14, -s * 0.5, s * 0.28, s); ctx.fillRect(-s * 0.22, -s * 0.58, s * 0.44, s * 0.1); ctx.fillRect(-s * 0.22, s * 0.48, s * 0.44, s * 0.1);
   }
 }
 
@@ -102,6 +145,8 @@ function drawPlatform(p) {
     ctx.restore();
   } else if (p.type === 'spring') {
     drawSpringI(x, y, p.w, p.bounceT > 0 ? 5 : 0);
+  } else if (p.type === 'normal') {
+    drawPlainPlatform(p);
   } else {
     ctx.fillStyle = c; ctx.fillRect(x, y, p.w, p.h);
     ctx.fillStyle = cd; ctx.fillRect(x, y + p.h - 4, p.w, 4);
@@ -115,6 +160,75 @@ function drawPlatform(p) {
       ctx.beginPath(); ctx.moveTo(x0 + k * sw, y); ctx.lineTo(x0 + k * sw + sw / 2, y - 11); ctx.lineTo(x0 + (k + 1) * sw, y); ctx.closePath(); ctx.fill();
     }
   }
+}
+
+// A plain platform in its region's style: colours, a decoration, and something holding it up —
+// a bracket into the wall when it's next to one, otherwise sometimes chains from above
+function drawPlainPlatform(p) {
+  const R0 = REGIONS[regionAt(heightM(p.y))], [c, cd] = R0.plat, x = p.x, y = p.y, w = p.w, h = p.h;
+  ctx.fillStyle = cd;
+  if (x - WALL < 6) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
+  else if (W - WALL - (x + w) < 6) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
+  else if (hash(p.id, 9) < 0.22) {
+    ctx.globalAlpha = 0.5; ctx.fillRect(x + 12, y - 110, 2, 110); ctx.fillRect(x + w - 14, y - 110, 2, 110); ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = cd; ctx.fillRect(x, y + h - 4, w, 4);
+  switch (R0.deco) {
+    case 'grass':
+      ctx.fillStyle = '#6fb35a';
+      for (let i = 6; i < w - 4; i += 11) { ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + 3, y - 5 - hash(p.id, i) * 3); ctx.lineTo(x + i + 6, y); ctx.fill(); }
+      break;
+    case 'crystal':
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      for (let i = 10; i < w - 10; i += 34) { ctx.beginPath(); ctx.moveTo(x + i, y + 3); ctx.lineTo(x + i + 4, y + 8); ctx.lineTo(x + i, y + 12); ctx.lineTo(x + i - 4, y + 8); ctx.fill(); }
+      break;
+    case 'planks':
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      for (let i = 22; i < w; i += 24) ctx.fillRect(x + i, y + 1, 2, h - 5);
+      break;
+    case 'rivets':
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      for (let i = 7; i < w; i += 18) { ctx.beginPath(); ctx.arc(x + i, y + 6, 1.8, 0, 7); ctx.fill(); }
+      break;
+    case 'embers':
+      for (let i = 8; i < w - 4; i += 16) {
+        ctx.fillStyle = `rgba(255,140,80,${0.35 + 0.35 * Math.sin(time * 4 + i + p.id)})`;
+        ctx.fillRect(x + i, y + h - 3, 4, 3);
+      }
+      break;
+    case 'stripe':
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y + h - 4, w, 4); ctx.clip();
+      ctx.fillStyle = PAL.zap;
+      for (let i = -4; i < w; i += 12) { ctx.beginPath(); ctx.moveTo(x + i, y + h); ctx.lineTo(x + i + 6, y + h); ctx.lineTo(x + i + 10, y + h - 4); ctx.lineTo(x + i + 4, y + h - 4); ctx.fill(); }
+      ctx.restore();
+      break;
+    case 'drips':
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5;
+      for (let i = 12; i < w; i += 30) { ctx.beginPath(); ctx.arc(x + i, y + h + 5 + ((time * 14 + i) % 14), 2.4, 0, 7); ctx.stroke(); }
+      break;
+    case 'bricks':
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      for (let i = 16; i < w; i += 32) ctx.fillRect(x + i, y + 1, 2, 6);
+      for (let i = 0; i < w; i += 32) ctx.fillRect(x + i, y + 7, 2, 5);
+      ctx.fillRect(x, y + 6, w, 1.5);
+      break;
+  }
+}
+
+// A gem: a turquoise diamond that bobs and glints
+function drawGemIcon(x, y, r) {
+  ctx.fillStyle = '#2fb7cc';
+  ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.8, y - r * 0.2); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.8, y - r * 0.2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8ef0fb';
+  ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.8, y - r * 0.2); ctx.lineTo(x, y - r * 0.05); ctx.lineTo(x - r * 0.8, y - r * 0.2); ctx.closePath(); ctx.fill();
+}
+function drawGem(g) {
+  if (g.taken || g.y < camY - OY - 30 || g.y > camY + H + OY + 30) return;
+  const y = g.y + Math.sin(time * 3 + g.t) * 4;
+  ctx.fillStyle = 'rgba(95,216,232,0.25)'; ctx.beginPath(); ctx.arc(g.x, y, GEM_R * 1.5, 0, 7); ctx.fill();
+  drawGemIcon(g.x, y, GEM_R);
+  if (Math.floor(time * 2 + g.t) % 5 === 0) { ctx.fillStyle = '#ffffff'; ctx.fillRect(g.x - 1, y - GEM_R - 5, 2, 6); ctx.fillRect(g.x - 3, y - GEM_R - 3, 6, 2); }
 }
 
 // Spring shaped like an "I": top bar you land on, a short post, and a bottom bar.
@@ -185,6 +299,7 @@ function drawDivider(dv) {
   ctx.fillRect(dv.x, top, 3, bot - top); ctx.fillRect(dv.x + dv.w - 3, top, 3, bot - top);
   for (let y = Math.ceil(top / 60) * 60; y < bot; y += 60) ctx.fillRect(dv.x + 3, y, dv.w - 6, 2);
   if (dv.bot <= bot) { ctx.fillStyle = PAL.nozzle; ctx.fillRect(dv.x - 3, dv.bot - 6, dv.w + 6, 6); }   // its foot
+  if (dv.pillar && dv.top >= top) { ctx.fillStyle = PAL.nozzle; ctx.fillRect(dv.x - 4, dv.top, dv.w + 8, 7); }   // a pillar's cap
 }
 
 // Bubble column: a pale blue stream with bubbles rising through it
@@ -251,6 +366,7 @@ function render() {
   for (const p of platforms) drawPlatform(p);
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);
+  for (const g of gems) drawGem(g);
   for (const b of blades) drawBlade(b);
   // Other computers' cubes first, so yours are always drawn in front
   for (const p of players) if (p.remote) drawPlayer(p);

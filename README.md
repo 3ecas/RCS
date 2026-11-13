@@ -37,9 +37,11 @@ The tower **fills the whole screen**: it is as wide as your window's shape (from
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 
 ## The tower
-- One main path goes up, every step within jumping reach of the last. Extra platforms stick out to the sides (more of them on wide screens).
+- The path is built from **set pieces**, a few rows each, picked at random: loose **scatter** platforms, a zigzag **staircase**, a **chimney** (a narrow shaft between two pillars with small ledges — hop up them or wall-jump), a **wall climb** (ledges hugging a side wall, alternating with platforms further out) and a **plaza** (a wide platform, then two routes, one with a gem, that meet again). Every step stays within jumping reach. Extra platforms fill the rest of the width.
+- **Wall jumping:** jump while touching a wall in mid-air (the tower's sides, pillars, the Two Paths wall) to spring up and away from it. Pushing against a wall while falling slides down it slowly.
+- **Gems** sit off the main path — at the top of chimneys, on the risky route of a plaza, high up against walls, on a shuriken's track. Gems are counted per computer and unlock **wardrobe items**: more faces, hats and patterns (the wardrobe mirror shows your total and the next unlock).
 - A row right after a row with a hazard is always hazard-free.
-- **Regions:** the first 100 m are a plain region with just platforms. After that a new region starts every 200 m (`REGION_LEN` in `js/config.js`), picked at random and never the same twice in a row. Each region has its own dangers and background colour:
+- **Regions:** the first 100 m are a plain region with just platforms. After that a new region starts every 200 m (`REGION_LEN` in `js/config.js`), picked at random and never the same twice in a row. Each region has its own dangers, background colour, platform style (grass, crystals, planks, rivets, embers, hazard stripes, drips, bricks) and background scenery (clouds, trees, crystals, hills, gears, flames, storm clouds, seaweed, columns):
   - **Garden** (green): springs and moving platforms
   - **Spikes** (pink): spikes on moving and still platforms
   - **Seesaw** (peach): seesaws that tip toward whichever side you stand on, and springs
@@ -62,6 +64,7 @@ js/audio.js       sound effects (generated, no sound files)
 js/state.js       game state, players, starting a new tower
 js/net.js         online play (talks to the server)
 js/level.js       building the tower and its hazards
+js/pieces.js      set pieces (stairs, chimney, wall climb, plaza) and gems
 js/effects.js     particles and floating text
 js/menu.js        buttons: stop menu, online room, end screens
 js/lobby.js       the start scene: mode platforms, sound, joining player 2

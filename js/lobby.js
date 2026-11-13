@@ -136,7 +136,7 @@ function touchLobby(p, pl) {
     } else {
       const look = localLook(p.i), key = { face: 'f', hat: 'h', pattern: 'p' }[pl.wear];
       const list = { face: FACES, hat: HATS, pattern: PATTERNS }[pl.wear];
-      look[key] = (look[key] + 1) % list.length;
+      do { look[key] = (look[key] + 1) % list.length; } while (!unlocked(key, look[key]));   // skip locked ones
       saveLook();
       p.look = { ...look }; what = list[look[key]];
     }

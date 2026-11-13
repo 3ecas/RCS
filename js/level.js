@@ -87,21 +87,19 @@ function genRow(y) {
   // so you never have to dodge hazards on two steps back to back.
   const allowHaz = !gen.prevHaz;
 
-  // The main path: one platform per row, always within reach of the last one
-  const w = wrand(lerp(150, 95, d), lerp(210, 135, d));
-  const cx = pickCx(w, L, W - WALL, gen.prev ? [gen.prev] : [], G);
-  const main = makePlatform(cx, y, w, d, L, W - WALL, allowHaz);
-  platforms.push(main);
-  let rowHaz = !!main.spikes;
+  // The main path, from the current set piece (js/pieces.js): always within reach of the last step
+  const pc = pieceRow(y, m, d, L, G, allowHaz);
+  const main = pc.main, cx = center(main), w = main.w;
+  let rowHaz = pc.rowHaz;
 
   // Extra platforms off to the sides, in the free space between what's already on this row.
   // A narrow tower gets at most one; a wide one gets more tries, so the whole width is used.
-  const row = [main], extras = W > MIN_W + 100 ? Math.round((W - 2 * WALL) / 420) : 1;
+  const row = [...pc.row], extras = W > MIN_W + 100 ? Math.round((W - 2 * WALL) / 420) : 1;
   const pBlade = has(m, 'shuriken') ? lerp(0.25, 0.45, heat(m)) : 0;
   for (let k = 0; k < extras; k++) {
     if (R() >= (k === 0 ? lerp(0.35, 0.15, d) : lerp(0.6, 0.4, d))) continue;
     const GAP = 50, minW = lerp(110, 80, d);
-    const taken = row.map(extent).sort((a, b) => a[0] - b[0]);
+    const taken = [...row.map(extent), ...(pc.block ? [pc.block] : [])].sort((a, b) => a[0] - b[0]);
     const spaces = [];
     let from = L;
     for (const [a, b] of taken) { spaces.push([from, a - GAP]); from = b + GAP; }
@@ -125,13 +123,15 @@ function genRow(y) {
     addPlatformJet(main); rowHaz = true;
   }
   // One flying obstacle (shuriken, wall flame or lightning beam) in the gap above this row
-  if (allowHaz && !rowHaz) {
+  let blade = null;
+  if (allowHaz && !rowHaz && !pc.noFly) {
     const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) : 0;
     const pZap = has(m, 'zapper') ? lerp(0.35, 0.55, heat(m)) : 0;
     const r = R();
     if (r < pJet) { addJet(R() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
     else if (r < pJet + pBlade) {
       addBlade(y, clamp(cx - w / 2 - 90, L, W - WALL), clamp(cx + w / 2 + 90, L, W - WALL), m);
+      blade = blades[blades.length - 1];
       rowHaz = true;
     } else if (r < pJet + pBlade + pZap) { addZapper(y, cx, L, m); rowHaz = true; }
   }
@@ -140,8 +140,9 @@ function genRow(y) {
     const tries = Math.max(1, Math.round((W - WALL - L) / 700));
     for (let k = 0; k < tries; k++) if (R() < 0.3) addBubbles(y, wrand(L + BUBBLE_W, W - WALL - BUBBLE_W));
   }
+  placeGems(y, row, main, blade);   // gems off the path (js/pieces.js)
   gen.prevHaz = rowHaz;
-  gen.prev = main;
+  gen.prev = pc.prev || main;
 }
 
 // Two Paths region: a full-width entrance platform, then a wall up the middle with a separate path on
@@ -154,7 +155,7 @@ function genSplitRow(y, m, d, L) {
     return p;
   };
   if (gen.splitK !== k) {                       // the entrance (the wall starts just above it, so you can walk under)
-    gen.splitK = k;
+    gen.splitK = k; gen.piece = null;           // set pieces start fresh after this region
     const g = full();
     gen.divider = { x: mid - DIVIDER_W / 2, w: DIVIDER_W, bot: y - PS - 36, top: GROUND_Y - (START_REGION + (k + 1) * REGION_LEN) * PX_PER_M };
     dividers.push(gen.divider);

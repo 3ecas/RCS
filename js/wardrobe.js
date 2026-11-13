@@ -27,7 +27,8 @@ function checkWardrobeDoor() {
 }
 
 function enterWardrobe() {
-  wardrobe.saved = platforms;            // the start scene, as it is, for when you come back out
+  wardrobe.saved = platforms; wardrobe.savedGems = gems;   // the start scene, as it is, for when you come back out
+  gems = [];
   state = 'wardrobe';
   sfx.beep(520);
   wardrobe.exitX = WALL + 90;
@@ -46,7 +47,7 @@ function enterWardrobe() {
 }
 
 function leaveWardrobe() {
-  platforms = wardrobe.saved;
+  platforms = wardrobe.saved; gems = wardrobe.savedGems || [];
   state = 'lobby';
   sfx.beep(420);
   const door = platforms.find(q => q.menu === 'door');
@@ -115,6 +116,10 @@ function drawWardrobeRoom() {
     text(`${FACES[L.f]}  ·  ${HATS[L.h]}  ·  ${PATTERNS[L.p]}`, cx, my + 254, 14, PAL.inkSoft, 'center', 800);
     if (n === 2) text(k ? 'PLAYER 2' : 'PLAYER 1', cx, my + 36, 13, PAL.inkSoft, 'center', 900);
   });
+  // Gems: how many you have, and what the next unlock is
+  const nx = nextUnlock();
+  drawGemIcon(mx + 34, my + mh - 30, 9);
+  text(`${totalGems} gems` + (nx ? `  ·  next: ${nx.name} at ${nx.need}` : '  ·  everything unlocked!'), mx + 50, my + mh - 24, 15, PAL.ink, 'left', 900);
 }
 
 function drawWardrobeHUD() {

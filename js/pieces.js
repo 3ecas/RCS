@@ -1,0 +1,140 @@
+// RCS — Set pieces: the tower's path is built from short patterns, a few rows each, picked at random
+// (from the tower's seed, so online everyone gets the same):
+//   scatter  — loose platforms, each within jumping reach of the last (the old way)
+//   stairs   — a zigzag staircase of short steps
+//   chimney  — a narrow shaft between two pillars, with small ledges inside: hop up, or wall-jump
+//   wall     — ledges hugging a side wall, alternating with platforms further out: wall-jump up the side
+//   plaza    — a wide platform, then two routes (one with a gem), then they meet again
+// Each piece places the path's platform(s) for one row; js/level.js adds the extras, hazards and gems.
+'use strict';
+
+const PIECES = {
+  scatter: { rows: [3, 6], weight: 4 },
+  stairs:  { rows: [5, 8], weight: 2 },
+  chimney: { rows: [5, 7], weight: 1.5, minM: 20 },
+  wall:    { rows: [4, 6], weight: 1.4 },
+  plaza:   { rows: [3, 3], weight: 1.1, minM: 8 },
+};
+const SHAFT_W = 200, PILLAR_W = 22;
+
+const plain = (x, y, w, extra = {}) => ({ id: nextPid++, x, y, w, h: 16, type: 'normal', dx: 0, t: 0, falling: false, vy: 0, bounceT: 0, ...extra });
+
+// Pick the next piece (never the same special piece twice in a row)
+function startPiece(m, L) {
+  const prev = gen.piece && gen.piece.kind;
+  const pc = center(gen.prev || { x: W / 2, w: 0 });
+  const nearWall = pc - L < 330 || W - WALL - pc < 330;
+  const opts = Object.entries(PIECES).filter(([k, p]) =>
+    m >= (p.minM || 0) && (k === 'scatter' || k !== prev) && (k !== 'wall' || nearWall));
+  let r = R() * opts.reduce((s, [, p]) => s + p.weight, 0), kind = 'scatter';
+  for (const [k, p] of opts) { r -= p.weight; if (r <= 0) { kind = k; break; } }
+  const [a, b] = PIECES[kind].rows;
+  const rows = a + Math.floor(R() * (b - a + 1));
+  gen.piece = { kind, rows, left: rows, k: 0 };
+}
+
+// The path's platform(s) for this row: { main, row, rowHaz, block, noFly, prev }
+//   main: the path's platform; row: every platform the piece placed; block: [x0, x1] kept clear of extras;
+//   noFly: no flying hazards this row; prev: what the next row must be within reach of (default main)
+function pieceRow(y, m, d, L, G, allowHaz) {
+  if (!gen.piece || gen.piece.left <= 0) startPiece(m, L);
+  const pc = gen.piece;
+  const res = PIECE_ROW[pc.kind](pc, y, m, d, L, G, allowHaz);
+  pc.left--; pc.k++;
+  res.row.forEach(p => platforms.push(p));
+  return res;
+}
+
+const PIECE_ROW = {
+  scatter(pc, y, m, d, L, G, allowHaz) {
+    const w = wrand(lerp(150, 95, d), lerp(210, 135, d));
+    const cx = pickCx(w, L, W - WALL, gen.prev ? [gen.prev] : [], G);
+    const main = makePlatform(cx, y, w, d, L, W - WALL, allowHaz);
+    return { main, row: [main], rowHaz: !!main.spikes };
+  },
+
+  stairs(pc, y, m, d, L, G, allowHaz) {
+    if (pc.k === 0) {
+      pc.w = wrand(100, 130); pc.step = wrand(130, 165); pc.dir = R() < 0.5 ? -1 : 1;
+      pc.cx = pickCx(pc.w, L, W - WALL, gen.prev ? [gen.prev] : [], G);
+    } else {
+      const lo = L + pc.w / 2 + 8, hi = W - WALL - pc.w / 2 - 8;
+      let cx = pc.cx + pc.dir * pc.step;
+      if (cx < lo || cx > hi) { pc.dir = -pc.dir; cx = pc.cx + pc.dir * pc.step; }
+      pc.cx = clamp(cx, lo, hi);
+    }
+    // A narrow lane: steps don't slide around, but can be springs, seesaws or have spikes
+    const main = makePlatform(pc.cx, y, pc.w, d, pc.cx - pc.w / 2 - 20, pc.cx + pc.w / 2 + 20, allowHaz);
+    if (pc.left === 1 && R() < 0.6) addGem(clamp(pc.cx + pc.dir * (pc.w / 2 + 70), L + 20, W - WALL - 20), y - 50);
+    return { main, row: [main], rowHaz: !!main.spikes };
+  },
+
+  chimney(pc, y, m, d, L, G, allowHaz) {
+    if (pc.k === 0) {
+      const half = SHAFT_W / 2 + PILLAR_W + 80;   // keep it away from the side walls
+      pc.cx = clamp(center(gen.prev || { x: W / 2, w: 0 }), L + half, W - WALL - half);
+      const top = y - (pc.rows - 1) * ROW_GAP - 80, bot = y + 14;
+      dividers.push({ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true });
+      dividers.push({ x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true });
+    }
+    // Small ledges, alternately on the shaft's left and right walls
+    const lw = 66, left = pc.k % 2 === 0;
+    const main = plain(left ? pc.cx - SHAFT_W / 2 : pc.cx + SHAFT_W / 2 - lw, y, lw);
+    if (pc.left === 1) addGem(pc.cx, y - 70);    // a gem at the top of the shaft
+    const half = SHAFT_W / 2 + PILLAR_W + 30;
+    return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+  },
+
+  wall(pc, y, m, d, L, G, allowHaz) {
+    if (pc.k === 0) pc.side = center(gen.prev || { x: W / 2, w: 0 }) - L < W - WALL - center(gen.prev || { x: W / 2, w: 0 }) ? -1 : 1;
+    const atWall = pc.k % 2 === 0;
+    let main;
+    // How far the last step reaches out from this wall (so the next one stays within jumping reach)
+    const [a, b] = extent(gen.prev || { x: W / 2, w: 0 });
+    const reach = pc.side < 0 ? a - L : W - WALL - b;
+    if (atWall) {   // a ledge hugging the wall, long enough to reach from the last step
+      const w = clamp(Math.max(wrand(80, 110), reach - G + 12), 80, 420);
+      main = plain(pc.side < 0 ? L : W - WALL - w, y, w, { ledge: pc.side });
+      pc.ledgeW = w;
+      if (R() < 0.35) addGem(pc.side < 0 ? L + 14 : W - WALL - 14, y - 95);   // high up against the wall: wall-jump for it
+    } else {        // a platform further out, within reach of the ledge
+      const w = wrand(100, 130), off = Math.min(wrand(150, 200), pc.ledgeW + G - 12);
+      const cx = pc.side < 0 ? L + off + w / 2 : W - WALL - off - w / 2;
+      main = makePlatform(cx, y, w, d, cx - w / 2 - 20, cx + w / 2 + 20, allowHaz);
+    }
+    return { main, row: [main], rowHaz: !!main.spikes };
+  },
+
+  plaza(pc, y, m, d, L, G, allowHaz) {
+    if (pc.k === 0) {            // the wide platform
+      const w = Math.min(W - WALL - L - 40, wrand(420, 560));
+      pc.cx = pickCx(w, L, W - WALL, gen.prev ? [gen.prev] : [], G);
+      let main = makePlatform(pc.cx, y, w, d, pc.cx - w / 2, pc.cx + w / 2, allowHaz);
+      if (main.type !== 'normal') main = plain(pc.cx - w / 2, y, w);   // always the full wide platform (spikes allowed)
+      return { main, row: [main], rowHaz: !!main.spikes };
+    }
+    if (pc.k === 1) {            // two routes; one has a gem
+      const a = plain(pc.cx - 160 - 55, y, 110), b = plain(pc.cx + 160 - 55, y, 110);
+      const g = R() < 0.5 ? a : b;
+      addGem(g.x + g.w / 2, y - 60);
+      return { main: a, row: [a, b], rowHaz: false, noFly: true, block: [a.x - 40, b.x + b.w + 40],
+               prev: { type: 'normal', x: a.x, w: b.x + b.w - a.x } };
+    }
+    const main = plain(pc.cx - 70, y, 140); // they meet again
+    return { main, row: [main], rowHaz: false };
+  },
+};
+
+// A gem to pick up (in the world, between rows)
+function addGem(x, y) { gems.push({ x, y, t: R() * 6 }); }
+
+// Gems away from the path: above the far end of an extra platform, out in the gap beside the path,
+// or on a shuriken's track (risky)
+function placeGems(y, row, main, blade) {
+  if (blade && R() < 0.35) { addGem(wrand(blade.lo + 10, blade.hi - 10), blade.y); return; }
+  if (R() >= 0.13) return;
+  const extra = row.find(p => p !== main && p.type === 'normal');
+  if (extra) { addGem(extra.x + (R() < 0.5 ? 14 : extra.w - 14), y - 40); return; }
+  const side = R() < 0.5 ? -1 : 1, mc = center(main);
+  addGem(clamp(mc + side * (main.w / 2 + 85), WALL + 20, W - WALL - 20), y - 80);
+}

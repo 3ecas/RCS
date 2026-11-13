@@ -108,6 +108,7 @@ function drawHelp() {
   head('Controls');
   line('Player 1:  W jump  ·  A D move  ·  S drop through   (solo: arrows work too)');
   line('WARDROBE door in the start scene: press S / ↓ at it, then land on platforms to change your cube');
+  line('Wall jump: jump while touching a wall in mid-air. Gems unlock new faces, hats and patterns.');
   line('Player 2:  hold an arrow key for 3 s at the start to join; Esc removes them'); yy += 10;
   head('Platforms');
   const items = [['solid', PAL.normal, PAL.normalD], ['moves', PAL.move, PAL.moveD], ['tilts', PAL.tilt, PAL.tiltD], ['spring', PAL.spring, PAL.springD]];
@@ -162,6 +163,7 @@ function drawHUD() {
       players.forEach((p, k) => text(String(winsOf(p)), WALL + 62 + k * 20, 32, 16, p.dark, 'left', 900));
     } else {
       text('BEST ' + best + ' m', WALL + 14, 32, 15, PAL.good, 'left');
+      drawGemIcon(WALL + 21, 54, 8); text(String(runGems), WALL + 34, 60, 16, '#1f97ab', 'left', 900);
     }
     text(net.status === 'playing' ? 'ONLINE' : 'R  STOP', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
     ctx.restore();
@@ -234,6 +236,7 @@ function drawHUD() {
       text(height + ' m', W / 2, y0 + 140, 74, PAL.ink, 'center', 900);
       if (newBest) text('NEW BEST!', W / 2, y0 + 184, 26, PAL.good, 'center', 900);
       else text('Best: ' + best + ' m', W / 2, y0 + 184, 21, PAL.good, 'center', 800);
+      if (runGems) text(`+${runGems} gems  (${totalGems} in total)`, W / 2, y0 + 216, 17, '#1f97ab', 'center', 900);
     }
     // Online: the next race starts once everyone in the room is ready
     if (net.status === 'playing') text(roomLine(), W / 2, 694, 17, PAL.good, 'center', 900);

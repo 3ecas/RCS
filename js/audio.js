@@ -45,6 +45,7 @@ const sfx = {
   spring: () => tone(240, 1300, 0.3, 'sine', 0.09),
   creak: () => tone(140, 95, 0.18, 'triangle', 0.035),
   flame: () => noise(0.35, 0.03, 2200),
+  gem: () => { tone(1320, 1320, 0.07, 'triangle', 0.06); tone(1760, 1760, 0.12, 'triangle', 0.06, 0.06); },
   zap: () => { noise(0.25, 0.035, 5000); tone(1400, 700, 0.2, 'sawtooth', 0.02); },
   fireball: () => tone(900, 300, 0.4, 'sine', 0.03),
   die: () => { tone(520, 60, 0.7, 'triangle', 0.1); noise(0.4, 0.12, 900); },

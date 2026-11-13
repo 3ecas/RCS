@@ -5,6 +5,20 @@
 const FACES = ['Dots', 'Wide eyes', 'Sleepy', 'Angry', 'Happy', 'Shades', 'Wink'];
 const HATS = ['No hat', 'Cap', 'Crown', 'Top hat', 'Bow', 'Headband', 'Horns', 'Antenna'];
 const PATTERNS = ['Plain', 'Stripes', 'Spots', 'Checks'];
+// Gems you need in total (ever picked up on this computer) to unlock each one; 0 = free from the start
+const NEED = {
+  f: [0, 0, 0, 5, 10, 20, 35],          // faces
+  h: [0, 0, 8, 15, 25, 40, 60, 80],     // hats
+  p: [0, 0, 12, 30],                    // patterns
+};
+const unlocked = (key, i) => totalGems >= NEED[key][i];
+// The next thing gems will unlock, or null
+function nextUnlock() {
+  const names = { f: FACES, h: HATS, p: PATTERNS };
+  let best = null;
+  for (const key in NEED) NEED[key].forEach((n, i) => { if (n > totalGems && (!best || n < best.need)) best = { need: n, name: names[key][i] }; });
+  return best;
+}
 // Other players on your screen: a faded, neutral "ghost" (their face, hat and pattern still show)
 const GHOST = { c: '#ddd5ea', d: '#aa9ec4' };
 
