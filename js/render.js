@@ -197,8 +197,10 @@ function drawPlainPlatform(p) {
   slab(x, y, w, h, c, cd);
   switch (R0.deco) {
     case 'grass':
-      ctx.fillStyle = '#2c8f22';
-      for (let i = 6; i < w - 4; i += 11) { ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + 3, y - 5 - hash(p.id, i) * 3); ctx.lineTo(x + i + 6, y); ctx.fill(); }
+      // a soft green top with little rounded tufts (round, so they don't read as spikes)
+      ctx.fillStyle = '#5bb84c';
+      ctx.fillRect(x, y, w, 4);
+      for (let i = 8; i < w - 6; i += 14) { ctx.beginPath(); ctx.arc(x + i + 3, y, 2.5 + hash(p.id, i) * 1.5, Math.PI, 0); ctx.fill(); }
       break;
     case 'crystal':
       ctx.fillStyle = 'rgba(255,255,255,0.55)';

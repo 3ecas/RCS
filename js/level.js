@@ -144,8 +144,11 @@ function genPathRow(y, m, d, L) {
   }
   // Water region: bubble columns rising from some rows (helpers, not hazards). Wider towers get more.
   if (has(m, 'bubbles')) {
-    const tries = Math.max(1, Math.round((W - WALL - L) / 700));
-    for (let k = 0; k < tries; k++) if (R() < 0.3) addBubbles(y, wrand(L + BUBBLE_W, W - WALL - BUBBLE_W));
+    // Now and then, and never close to another column that overlaps it in height
+    if (R() < 0.18) {
+      const x = wrand(L + BUBBLE_W, W - WALL - BUBBLE_W), top = y - 3 * ROW_GAP - 40;
+      if (!bubbles.some(b => b.top < y + 10 + ROW_GAP && b.bot > top - ROW_GAP && Math.abs(b.x + b.w / 2 - x) < 300)) addBubbles(y, x);
+    }
   }
   placeGems(y, row, main, blade);   // gems off the path (js/pieces.js)
   gen.prevHaz = rowHaz;
