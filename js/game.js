@@ -18,7 +18,7 @@ function update(dt) {
   if (state === 'paused' || state === 'search' || state === 'over') {
     time += dt;
     if (state !== 'paused') updateParticles(dt);
-    if (state === 'over') { overT += dt; shake = Math.max(0, shake - dt); reportRoundOver(); }
+    if (state === 'over') { revealSfx(overT, overT + dt); overT += dt; shake = Math.max(0, shake - dt); reportRoundOver(); }
     if (net.bannerT > 0) net.bannerT -= dt;
     if (state === 'paused' && (pressed.KeyR || pressed.Escape)) { state = pausedFrom; return; }   // R / Esc again: carry on
     if (pressed.Escape) { escAction(); return; }

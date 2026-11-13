@@ -224,6 +224,35 @@ function drawWinnerCube(wp, cx, cy, t, style) {
   ctx.restore();
 }
 
+// Sounds for the reveal, on the exact moments of the animation above (called each update with the reveal
+// clock before and after the step: anything that happens in between plays once)
+function revealSfx(o0, o1) {
+  if (mode !== 'versus') return;
+  const crossed = at => o0 < at && o1 >= at;
+  const ticks = (start, rate) => { const a = Math.floor((o0 - start) * rate), b = Math.floor((o1 - start) * rate); return o1 >= start && b > a ? b : -1; };
+  if (crossed(0.4)) { sfx.fanfare(); sfx.popper(); }
+  const wp = players && players.find(p => p.i === winner);
+  if (wp) {
+    const st = (towerSeed >>> 0) % WIN_STYLES, T = 0.4;   // (the cube starts at overT 0.4)
+    if (st === 0) {
+      const n = ticks(T + 0.6, 2.2);
+      if (n >= 0 && n < 8) { if (n % 4 === 3) sfx.swoosh(); else sfx.bloop(n); }   // (then it dances on quietly)
+    } else if (st === 1) {
+      if (crossed(T)) sfx.whoosh();
+      if (crossed(T + 1.4)) sfx.chime();
+    } else if (st === 2) {
+      if (crossed(T + 0.5)) sfx.boing();
+      const n = ticks(T + 0.5, 1.25);
+      if (n > 0 && n <= 6) sfx.boing();
+    } else {
+      if (crossed(T + 0.7)) sfx.whistle();
+      if (crossed(T + 0.7 + 0.9 / 2.75)) sfx.chime();
+    }
+  }
+  const rest = players ? players.filter(p => p.i !== winner).length : 0;
+  for (let k = 0; k < rest; k++) if (crossed(0.9 + k * 0.12)) sfx.blip(k);
+}
+
 // The other places along the bottom, right to left: 2nd, 3rd, 4th... each cube on a pedestal (lower for
 // lower places) with its place on the front and its name below. Ranked by how long each one lasted.
 function drawPlaces() {

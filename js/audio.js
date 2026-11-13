@@ -51,4 +51,17 @@ const sfx = {
   die: () => { tone(520, 60, 0.7, 'triangle', 0.1); noise(0.4, 0.12, 900); },
   beep: f => tone(f, f, 0.12, 'triangle', 0.07),
   milestone: () => { tone(660, 660, 0.1, 'triangle', 0.08); tone(990, 990, 0.18, 'triangle', 0.08, 0.1); },
+  // The winner reveal
+  fanfare: () => {                       // a bright rising arpeggio, then a held major chord
+    [523, 659, 784, 1047].forEach((f, k) => tone(f, f, 0.14, 'square', 0.035, k * 0.11));
+    [523, 659, 784, 1047].forEach(f => tone(f, f * 1.003, 0.75, 'triangle', 0.045, 0.46));
+  },
+  popper: () => { noise(0.18, 0.09, 4000); tone(300, 1200, 0.12, 'sine', 0.04); },   // confetti
+  bloop: k => tone(k % 2 ? 330 : 392, 220, 0.09, 'triangle', 0.05),               // a dance hop
+  swoosh: () => { tone(300, 1100, 0.3, 'sine', 0.04); noise(0.3, 0.025, 2500); },
+  whoosh: () => tone(180, 900, 1.4, 'sine', 0.04),                                 // the spin-up rising
+  chime: () => { [1568, 2093, 2637].forEach((f, k) => tone(f, f, 0.35, 'triangle', 0.04, k * 0.07)); },
+  boing: () => tone(160, 620, 0.22, 'sine', 0.08),
+  whistle: () => tone(1500, 600, 0.9, 'sine', 0.03),                               // the crown falling
+  blip: k => tone(520 + k * 60, 820 + k * 60, 0.09, 'triangle', 0.05),             // a place pedestal popping in
 };
