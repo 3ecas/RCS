@@ -134,28 +134,44 @@ function retroText(str, x, y, size, faces, edge = PAL.ink) {
   ctx.fillStyle = 'rgba(255,255,255,0.55)';                       // a little shine across the top band
   ctx.save(); ctx.beginPath(); ctx.rect(x - 2000, y - size * 0.8, 4000, size * 0.12); ctx.clip(); ctx.fillText(str, x, y); ctx.restore();
 }
+// The race-over transition: the game stays in view for a moment (WIPE_START s, so you see the knock-out),
+// then the sunset stripes sweep in one after another from alternate sides until they cover the screen;
+// the winner's entrance starts at REVEAL. Leaving, they sweep away again (screenWipe, drawn in render()).
+const WIPE_START = 0.5, REVEAL = 1.15;
+const BANDS = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e8a3c8', '#d4b2ee', '#c8b6f2'];
+const wipeIn = k => clamp((overT - WIPE_START - k * 0.05) / 0.45, 0, 1);   // how far band k has swept in
 function drawResults() {
-  const wp = players.find(p => p.i === winner), t = Math.max(0, overT - 0.4);
+  const wp = players.find(p => p.i === winner), t = overT - REVEAL;
   const cx = W / 2, cy = 300;
-  // retro sunset stripes filling the whole window, all the same height, no gaps...
-  const bands = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e8a3c8', '#d4b2ee', '#c8b6f2'];
-  const bh = VH / bands.length;
-  bands.forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(-OX, -OY + k * bh, VW, bh + 1); });
+  // retro sunset stripes filling the whole window, all the same height, sweeping in...
+  const bh = VH / BANDS.length;
+  BANDS.forEach((c, k) => {
+    const e = 1 - Math.pow(1 - wipeIn(k), 3), off = (1 - e) * VW * (k % 2 ? 1 : -1);
+    if (e > 0) { ctx.fillStyle = c; ctx.fillRect(-OX + off, -OY + k * bh, VW, bh + 1); }
+  });
+  if (wipeIn(BANDS.length - 1) < 1 && t < 0) return;
   // ...and soft light rays turning slowly from behind the winner
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.15);
   const rays = 18;
-  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.28 * clamp((overT - 1.0) / 0.5, 0, 1);   // the rays fade in
   ctx.beginPath();
   for (let k = 0; k < rays; k++) { ctx.moveTo(0, 0); ctx.arc(0, 0, 2000, (k / rays) * Math.PI * 2, ((k + 0.5) / rays) * Math.PI * 2); ctx.closePath(); }
   ctx.fill();
   ctx.restore(); ctx.globalAlpha = 1;
   const R = 150;   // (where the text sits below the winner)
+  // the words pop in (an overshooting scale) just after the winner appears
+  const popIn = (u, draw) => {
+    if (u <= 0) return;
+    const sc = u >= 1 ? 1 : 1 + 2.70158 * Math.pow(u - 1, 3) + 1.70158 * Math.pow(u - 1, 2);
+    ctx.save(); ctx.translate(cx, 0); ctx.scale(sc, sc); ctx.translate(-cx, 0); draw(); ctx.restore();
+  };
+  const title = ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1'];
   if (wp) {
-    drawWinnerCube(wp, cx, cy, t, (towerSeed >>> 0) % WIN_STYLES);
+    if (t > 0) drawWinnerCube(wp, cx, cy, t, (towerSeed >>> 0) % WIN_STYLES);
     const mine = net.status === 'playing' && !wp.remote;
-    retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
-    retroText(wp.name.toUpperCase(), cx, cy + R + 160, 44, [wp.color, wp.color, wp.dark], PAL.ink);
-  } else retroText('DRAW!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
+    ctx.save(); ctx.translate(0, cy + R + 96); popIn((t - 0.25) / 0.35, () => retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, 0, 84, title)); ctx.restore();
+    ctx.save(); ctx.translate(0, cy + R + 160); popIn((t - 0.42) / 0.35, () => retroText(wp.name.toUpperCase(), cx, 0, 44, [wp.color, wp.color, wp.dark], PAL.ink)); ctx.restore();
+  } else { ctx.save(); ctx.translate(0, cy + R + 96); popIn((t - 0.1) / 0.35, () => retroText('DRAW!', cx, 0, 84, title)); ctx.restore(); }
   drawPlaces();
   drawConfetti(t);
 }
@@ -230,10 +246,11 @@ function revealSfx(o0, o1) {
   if (mode !== 'versus') return;
   const crossed = at => o0 < at && o1 >= at;
   const ticks = (start, rate) => { const a = Math.floor((o0 - start) * rate), b = Math.floor((o1 - start) * rate); return o1 >= start && b > a ? b : -1; };
-  if (crossed(0.4)) { sfx.fanfare(); sfx.popper(); }
+  if (crossed(WIPE_START)) sfx.swoosh();                  // the stripes sweep in
+  if (crossed(REVEAL)) { sfx.fanfare(); sfx.popper(); }
   const wp = players && players.find(p => p.i === winner);
   if (wp) {
-    const st = (towerSeed >>> 0) % WIN_STYLES, T = 0.4;   // (the cube starts at overT 0.4)
+    const st = (towerSeed >>> 0) % WIN_STYLES, T = REVEAL;   // (the cube's entrance starts at REVEAL)
     if (st === 0) {
       const n = ticks(T + 0.6, 2.2);
       if (n >= 0 && n < 8) { if (n % 4 === 3) sfx.swoosh(); else sfx.bloop(n); }   // (then it dances on quietly)
@@ -250,7 +267,7 @@ function revealSfx(o0, o1) {
     }
   }
   const rest = players ? players.filter(p => p.i !== winner).length : 0;
-  for (let k = 0; k < rest; k++) if (crossed(0.9 + k * 0.12)) sfx.blip(k);
+  for (let k = 0; k < rest; k++) if (crossed(REVEAL + 0.5 + k * 0.12)) sfx.blip(k);
 }
 
 // The other places along the bottom, right to left: 2nd, 3rd, 4th... each cube on a pedestal (lower for
@@ -262,7 +279,7 @@ function drawPlaces() {
   const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'TH' : ['TH', 'ST', 'ND', 'RD'][n % 10] || 'TH');
   rest.forEach((p, k) => {
     const place = k + 2, x = W - WALL - 50 - k * gap, ph = Math.max(26, 60 - k * 8), cs = 36;
-    const tIn = Math.max(0, overT - 0.9 - k * 0.12), pop = tIn >= 0.35 ? 1 : 1 + 2.70158 * Math.pow(tIn / 0.35 - 1, 3) + 1.70158 * Math.pow(tIn / 0.35 - 1, 2);
+    const tIn = Math.max(0, overT - REVEAL - 0.5 - k * 0.12), pop = tIn >= 0.35 ? 1 : 1 + 2.70158 * Math.pow(tIn / 0.35 - 1, 3) + 1.70158 * Math.pow(tIn / 0.35 - 1, 2);
     if (tIn <= 0) return;
     ctx.save(); ctx.translate(x, base); ctx.scale(pop, pop);
     slab(-cs * 0.8, -ph, cs * 1.6, ph, '#ffffff', PAL.normalD, 2.5);                 // pedestal
@@ -393,9 +410,13 @@ function drawHUD() {
   if (state === 'room') drawRoomHUD();      // the online room scene (js/room.js)
   if (state === 'wardrobe') drawWardrobeHUD();
 
-  if ((state === 'lobby' && ui.help) || state === 'paused' || state === 'search' || state === 'found' || (state === 'over' && overT > 0.4)) {
+  // a soft veil over the game for menus; the game-over one fades in (a race draws its own stripes instead)
+  const overFade = clamp((overT - 0.4) / 0.4, 0, 1);
+  if ((state === 'lobby' && ui.help) || state === 'paused' || state === 'search' || state === 'found' || (state === 'over' && !VS && overT > 0.4)) {
+    ctx.globalAlpha = state === 'over' ? overFade : 1;
     ctx.fillStyle = state === 'search' || state === 'found' ? 'rgba(255,250,248,0.92)' : 'rgba(255,250,248,0.84)';
     ctx.fillRect(-OX, -OY, VW, VH);
+    ctx.globalAlpha = 1;
   }
 
   if (state === 'lobby' && ui.help) drawHelp();
@@ -424,11 +445,12 @@ function drawHUD() {
     text('PAUSED', W / 2, H * 0.42, 64, PAL.ink, 'center', 900);
   }
 
-  if (state === 'over' && overT > 0.4) {
-    const y0 = H * 0.3;
+  if (state === 'over' && (VS ? overT > WIPE_START : overT > 0.4)) {
+    const y0 = H * 0.3 + (1 - overFade) * 24;   // (solo: the text drifts up as it fades in)
     if (VS) {
       drawResults();
     } else {
+      ctx.globalAlpha = overFade;
       text(deathMsg, W / 2, y0 - 10, 20, PAL.spike, 'center', 900);
       text(height + ' m', W / 2, y0 + 90, 96, PAL.ink, 'center', 900);
       if (newBest) text('NEW BEST!', W / 2, y0 + 140, 24, PAL.good, 'center', 900);
@@ -438,9 +460,10 @@ function drawHUD() {
         drawGemIcon(W / 2 - tw / 2 - 12, y0 + 172, 9);
         text('+' + runGems, W / 2 + 6, y0 + 178, 18, '#1f97ab', 'center', 900);
       }
+      ctx.globalAlpha = 1;
     }
     // Online: the next race starts once everyone in the room is ready
-    if (net.status === 'playing') text(roomLine(), W / 2, 694, 17, PAL.good, 'center', 900);
+    if (net.status === 'playing' && overT > REVEAL + 0.6) text(roomLine(), W / 2, 694, 17, PAL.good, 'center', 900);
   }
 
   // Buttons for whatever screen we're on

@@ -103,6 +103,7 @@ function onNet(m) {
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;
     net.round = m.round; net.sentOver = false;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
+    startWipe();                       // (from the results: the stripes sweep away)
     reset(m.seed);
     // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
     foundT = Math.min(1.5, m.startIn / 1000 - 1);

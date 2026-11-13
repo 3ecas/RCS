@@ -2,6 +2,7 @@
 'use strict';
 
 function update(dt) {
+  if (screenWipe && (screenWipe.t += dt) > 0.8) screenWipe = null;   // the end-screen transition (js/menu.js)
   if (state !== 'room' && chatOpen()) closeChat();   // the chat box is only for the room
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();

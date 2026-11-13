@@ -10,6 +10,7 @@ let roomSendT = 0;
 
 // Go to the room scene (after joining, or after a race)
 function enterRoom() {
+  startWipe();                                               // (from the results: the stripes sweep away)
   if (net.status === 'playing') net.status = 'searching';   // the race is over for us: back in the room
   state = 'room'; ui.focus = 0; ui.help = false;
   W = ARENA_W; resize();                                    // the same size on every computer

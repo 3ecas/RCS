@@ -4,9 +4,27 @@
 
 // A new run of the current mode on a clean tower (no start scene), with the 3-2-1 countdown
 // (stop menu → START OVER, end screen → PLAY AGAIN)
-function startGame() { reset(undefined, false); state = 'count'; countdown = 3; sfx.beep(440); }
+function startGame() { startWipe(); reset(undefined, false); state = 'count'; countdown = 3; sfx.beep(440); }
 // Back to the lobby (the start scene); player 2 stays if they joined
-function toMenu() { reset(); state = 'lobby'; ui.focus = 0; ui.help = false; }
+function toMenu() { startWipe(); reset(); state = 'lobby'; ui.focus = 0; ui.help = false; }
+// Leaving an end screen: the race's stripes sweep away to the sides (or, after a solo game, the veil
+// fades), uncovering the new scene underneath (drawn last in render(), timed in update())
+let screenWipe = null;
+function startWipe() {
+  if (state !== 'over') return;
+  screenWipe = { t: 0, kind: mode === 'versus' ? 'stripes' : 'fade' };
+  if (screenWipe.kind === 'stripes') sfx.swoosh();
+}
+function drawScreenWipe() {
+  const w = screenWipe;
+  if (!w) return;
+  if (w.kind === 'fade') { ctx.fillStyle = `rgba(255,250,248,${0.84 * clamp(1 - w.t / 0.35, 0, 1)})`; ctx.fillRect(-OX, -OY, VW, VH); return; }
+  const bh = VH / BANDS.length;
+  BANDS.forEach((c, k) => {
+    const u = clamp((w.t - k * 0.04) / 0.4, 0, 1), e = u * u * u, off = e * VW * (k % 2 ? 1 : -1);
+    if (u < 1) { ctx.fillStyle = c; ctx.fillRect(-OX + off, -OY + k * bh, VW, bh + 1); }
+  });
+}
 
 // Top-right corner icon: instructions (?) in the lobby (its sound switch is a platform there),
 // sound on/off everywhere else
@@ -30,7 +48,7 @@ function layoutButtons() {
     B('restart', 'RESTART', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),
     B('menu', 'MENU', '', cx + 110, H * 0.5, 200, 60),
   ];
-  if (state === 'over' && overT > 0.8) {
+  if (state === 'over' && overT > (mode === 'versus' ? REVEAL + 0.7 : 0.8)) {
     // Online: ready for a rematch (Space; it starts when everyone is ready), back to the room scene, or leave
     if (net.status === 'playing') {
       const ready = iAmReady();
@@ -99,5 +117,5 @@ function activate(id) {
 // ESC: go back one step
 function escAction() {
   if (state === 'search') activate('cancel');
-  else if (state === 'over' && overT > 0.8) activate('menu');
+  else if (state === 'over' && overT > (mode === 'versus' ? REVEAL + 0.7 : 0.8)) activate('menu');
 }

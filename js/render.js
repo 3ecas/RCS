@@ -462,6 +462,7 @@ function render() {
   if (state === 'play') drawDanger();
   ctx.restore();
   drawHUD();
+  drawScreenWipe();   // leaving an end screen (js/menu.js)
 }
 
 // Red glow at the bottom when someone is about to fall off the screen
