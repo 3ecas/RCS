@@ -74,7 +74,7 @@ const inside = (b, x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y +
 // Buttons that keyboard focus moves between (corner icons are mouse / shortcut keys only)
 const focusable = bs => bs.filter(b => !b.nofocus);
 
-// Pause, room and end screens: arrows / WASD move between buttons, Enter or Space presses, or click
+// Pause, room and end screens: arrows / WASD move between buttons, Space presses the selected one, or click
 function menuInput() {
   const bs = layoutButtons();
   const click = ui.click; ui.click = null;
@@ -91,9 +91,8 @@ function menuInput() {
   }
   if (ui.focus !== prev) sfx.beep(600);
   let act = null;
-  if (pressed.Enter && n) act = fb[ui.focus];
   // Space: on the end screen it's always "ready" (online) / "play again" (offline); elsewhere it presses the button
-  if (pressed.Space && n) act = fb[ui.focus];   // Space presses the selected button, like Enter
+  if (pressed.Space && n) act = fb[ui.focus];   // Space presses the selected button (on READY: in / out)
   if (click) act = bs.find(b => inside(b, click.x, click.y));
   if (act && !act.disabled) { sfx.beep(760); activate(act.id); }
 }

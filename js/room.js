@@ -14,7 +14,7 @@ function enterRoom() {
     netSend({ t: 'toRoom' });                               // (if it's still running, we leave it; the next one includes us)
     net.status = 'searching';
   }
-  state = 'room'; ui.focus = 0; ui.help = false;
+  state = 'room'; ui.focus = 0; ui.help = false; net.readyWant = undefined;
   W = ARENA_W; resize();                                    // the same size on every computer
   camY = 0; time = time || 0; shake = 0; height = 0;
   particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = []; dividers = []; gems = [];

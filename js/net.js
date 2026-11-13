@@ -32,6 +32,7 @@ function relay(d) { netSend({ t: 'relay', d }); }
 function netBanner(text) { net.banner = text; net.bannerT = 5; }
 
 function netClose() {
+  net.readyWant = undefined;
   clearTimeout(net.retry);
   const ws = net.ws;
   net.ws = null; net.status = 'off';
@@ -85,8 +86,15 @@ function leaveOnline() {
 
 // The room: am I ready (for the rematch)? Toggle it.
 const meInRoom = () => net.room && net.room.players[net.room.me];
-const iAmReady = () => !!(meInRoom() && meInRoom().ready);
-function toggleReady() { netSend({ t: 'ready', on: !iAmReady() }); sfx.beep(iAmReady() ? 400 : 660); }
+// (net.readyWant: what we last asked for, shown at once until the server's room list agrees)
+const serverReady = () => !!(meInRoom() && meInRoom().ready);
+const iAmReady = () => net.readyWant !== undefined ? net.readyWant : serverReady();
+function toggleReady() {
+  const on = !iAmReady();
+  net.readyWant = on;
+  netSend({ t: 'ready', on });
+  sfx.beep(on ? 660 : 400);
+}
 // Name to show for a room member (their colour if they didn't type one)
 const roomName = p => p.name || p.colors.map(ci => COLORS[ci].name).join(' & ');
 
@@ -118,7 +126,7 @@ function updateRaceStart(dt) {
   if (pendingRoom && (pendingRoom += dt) >= ROOM_IRIS) { pendingRoom = 0; if (state === 'search') enterRoom(); }
 }
 function applyStart(m, late) {
-  pendingStart = null;
+  pendingStart = null; net.readyWant = undefined;
   startWipe();                       // (from the results: the stripes sweep away)
   reset(m.seed);
   // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
@@ -144,6 +152,7 @@ function onNet(m) {
   if (pendingStart && m.t !== 'room') applyStart(pendingStart.m, pendingStart.t);   // (the race comes first)
   if (m.t === 'room') {
     net.room = m;
+    if (net.readyWant !== undefined && serverReady() === net.readyWant) net.readyWant = undefined;   // the server agrees
     if (state === 'search' && !pendingRoom) {     // joined: the circle closes on your cube, then into the room
       pendingRoom = 0.0001; startIris(ROOM_IRIS, [W / 2, 262], myCubeOnScreen);
     }
