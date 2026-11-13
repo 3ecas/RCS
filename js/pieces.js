@@ -73,8 +73,9 @@ const PIECE_ROW = {
     const capW = SHAFT_W + 2 * PILLAR_W + 80, whole = [L, W - WALL];   // (block: no stray extras beside it)
     if (pc.k === 0) {
       // A floor under the shaft. The pillars start a cube's height above it, so you can walk in underneath.
-      const keep = capW / 2 + 40;   // keep it away from the side walls
-      pc.cx = clamp(center(gen.prev || { x: W / 2, w: 0 }), L + keep, W - WALL - keep);
+      // Anywhere across the tower (away from the side walls) that its wide floor is still in jumping reach
+      // of the last step — so chimneys turn up all over, not just straight above the path
+      pc.cx = pickCx(capW, L + 40, W - WALL - 40, gen.prev ? [gen.prev] : [], G);
       const top = y - (pc.rows - 1) * ROW_GAP, bot = y - PS - 34;
       pc.pillars = [{ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true },
                     { x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true }];
