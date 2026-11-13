@@ -107,9 +107,9 @@ function updateRoom(dt) {
 
 // START platform: its name, and how many computers are on it
 function drawStartPlatform(p) {
-  ctx.fillStyle = PAL.move; ctx.fillRect(p.x, p.y, p.w, p.h);
-  ctx.fillStyle = PAL.moveD; ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
-  text('START', p.x + p.w / 2, p.y + 21, 18, PAL.ink, 'center', 900);
+  const on = players.some(q => !q.remote && q.onGround && q.ground === p);
+  slab(p.x, p.y, p.w, p.h, on ? PAL.good : '#ffffff', PAL.good, on ? 2 : 3, 5);
+  text('START', p.x + p.w / 2, p.y + 21, 18, on ? '#ffffff' : PAL.good, 'center', 900);
   const R = net.room;
   if (!R) return;
   const here = R.players.filter(m => !m.racing), n = here.filter(m => m.ready).length;

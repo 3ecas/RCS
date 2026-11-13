@@ -92,10 +92,9 @@ function drawDoor(cx, floorY, label, near) {
 
 // The door platform in the start scene (drawn by drawPlatform)
 function drawDoorPlatform(p) {
-  ctx.fillStyle = PAL.normal; ctx.fillRect(p.x, p.y, p.w, p.h);
-  ctx.fillStyle = PAL.normalD; ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
-  if (state !== 'lobby') return;          // in the game it's a plain platform
+  if (state !== 'lobby') { slab(p.x, p.y, p.w, p.h, PAL.normal, PAL.normalD); return; }   // in the game: a plain platform
   const near = players.some(q => atDoor(q, doorX(p), p.y));
+  buttonSlab(p, near);
   drawDoor(doorX(p), p.y, '', near);
 }
 

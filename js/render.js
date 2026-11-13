@@ -128,6 +128,17 @@ function drawWalls() {
   }
 }
 
+// The look shared by buttons and platforms: a face, a crisp outline, and a solid shadow under it
+function slab(x, y, w, h, face, edge, lw = 2, drop = 4) {
+  ctx.fillStyle = edge; ctx.fillRect(x, y + drop, w, h);
+  ctx.fillStyle = face; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = edge; ctx.lineWidth = lw; ctx.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw);
+}
+// A white button-platform (lobby, wardrobe, room). on: someone stands on it — it lights up in `color`.
+function buttonSlab(p, on, color = PAL.ink) {
+  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.wallLine, on ? 4 : 2, 5);
+}
+
 function drawPlatform(p) {
   if (p.y < camY - OY - 60 || p.y > camY + H + OY + 80) return;
   const y = p.y;
@@ -156,8 +167,7 @@ function drawPlatform(p) {
     ctx.beginPath(); ctx.moveTo(p.px - 14, y + 34); ctx.lineTo(p.px + 14, y + 34); ctx.lineTo(p.px, y + 6); ctx.closePath(); ctx.fill();
     ctx.save();
     ctx.translate(p.px, p.py); ctx.rotate(p.angle);
-    ctx.fillStyle = c; ctx.fillRect(-p.w / 2, 0, p.w, p.h);
-    ctx.fillStyle = cd; ctx.fillRect(-p.w / 2, p.h - 4, p.w, 4);
+    slab(-p.w / 2, 0, p.w, p.h, c, cd);
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 8, 4, 0, 7); ctx.fill();
     ctx.fillStyle = cd; ctx.beginPath(); ctx.arc(0, 8, 2, 0, 7); ctx.fill();
     ctx.restore();
@@ -166,8 +176,7 @@ function drawPlatform(p) {
   } else if (p.type === 'normal') {
     drawPlainPlatform(p);
   } else {
-    ctx.fillStyle = c; ctx.fillRect(x, y, p.w, p.h);
-    ctx.fillStyle = cd; ctx.fillRect(x, y + p.h - 4, p.w, 4);
+    slab(x, y, p.w, p.h, c, cd);
   }
 
   if (p.spikes) {
@@ -186,8 +195,7 @@ function drawPlainPlatform(p) {
   ctx.fillStyle = cd;
   if (x - WALL < 6) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
   else if (W - WALL - (x + w) < 6) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = cd; ctx.fillRect(x, y + h - 4, w, 4);
+  slab(x, y, w, h, c, cd);
   switch (R0.deco) {
     case 'grass':
       ctx.fillStyle = '#6fb35a';
@@ -251,10 +259,7 @@ function drawSpringI(x, y, w, sq) {
   ctx.fillStyle = PAL.springD;
   ctx.fillRect(x + 4, y + 16, w - 8, 6);                 // bottom bar
   ctx.fillRect(x + w / 2 - 5, y + 6 + sq, 10, 10 - sq);  // post
-  ctx.fillStyle = PAL.spring;
-  ctx.fillRect(x, y + sq, w, 7);                         // top bar
-  ctx.fillStyle = PAL.springD;
-  ctx.fillRect(x, y + sq + 5, w, 2);
+  slab(x, y + sq, w, 8, PAL.spring, PAL.springD, 2, 3);   // top bar
 }
 
 function drawBlade(b) {

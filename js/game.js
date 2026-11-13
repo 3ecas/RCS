@@ -162,11 +162,13 @@ function humanInput(p) {
   const online = net.status === 'playing' || state === 'room';
   if (online ? net.local === 2 : playerCount === 2 || state === 'lobby' || state === 'wardrobe') {
     const c = CONTROLS[online ? p.slot || 0 : p.i];   // online: slot = which keys on this computer
-    return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down] };
+    return { left: keys[c.left], right: keys[c.right], jump: keys[c.jump], jumpPressed: pressed[c.jump], down: pressed[c.down],
+             leftPressed: pressed[c.left], rightPressed: pressed[c.right] };
   }
   const a = CONTROLS[0], b = CONTROLS[1];
   return { left: keys[a.left] || keys[b.left], right: keys[a.right] || keys[b.right], jump: keys[a.jump] || keys[b.jump],
-           jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down] };
+           jumpPressed: pressed[a.jump] || pressed[b.jump], down: pressed[a.down] || pressed[b.down],
+           leftPressed: pressed[a.left] || pressed[b.left], rightPressed: pressed[a.right] || pressed[b.right] };
 }
 
 // A seesaw tips toward the side with weight on it: each cube standing on it pushes down in proportion to
@@ -208,19 +210,11 @@ function updatePlayer(p, dt) {
   }
 
   let dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
-  // After a wall jump the cube flies on to the opposite side by itself, until it lands, reaches a wall (and
-  // hangs on it), or the player steers back. A key still held toward the old wall from before the jump
-  // doesn't count as steering back; once it's let go, pressing that way again does.
-  if (p.fly) {
-    if (dir !== -p.fly) p.flyHeld = false;
-    if (p.onGround || (dir === -p.fly && !p.flyHeld)) p.fly = 0;
-    else dir = p.fly;
-  }
-  // Hanging on a wall: stays on it (sliding down slowly) until you jump, land, or press away from it
-  // (again, a key held since before the wall jump doesn't count)
-  if (p.cling && dir !== -p.cling) p.flyHeld = false;
-  if (p.cling && (p.onGround || p.wall !== p.cling || (dir === -p.cling && !p.flyHeld))) p.cling = 0;
-  if (p.cling && dir === -p.cling) dir = 0;
+  // Hanging on a wall: push into a wall in mid-air to grab it; you then slide down it slowly (even after
+  // letting go of the key) until you land, slip off its end, or press the other way — which wall-jumps
+  if (p.cling && (p.onGround || p.wall !== p.cling)) p.cling = 0;
+  if (!p.onGround && p.wall && dir === p.wall) p.cling = p.wall;
+  const wallJump = p.cling && (p.cling < 0 ? inp.rightPressed : inp.leftPressed);
   if (dir) p.face = dir;
   const accel = p.onGround ? 3200 : 2200;
   const tvx = dir * MAX_VX * p.speedMul;
@@ -238,11 +232,11 @@ function updatePlayer(p, dt) {
   if (p.buf > 0 && p.coyote > 0) {
     p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
     sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
-  } else if (p.buf > 0 && !p.onGround && p.wall) {
-    // Wall jump: up and away from the wall you're touching
-    p.vy = -WALLJUMP_V; p.vx = -p.wall * WALLJUMP_PUSH; p.buf = 0; p.face = -p.wall; p.sq = 1.2;
-    p.fly = -p.wall; p.flyHeld = dir === p.wall; p.cling = 0;
-    sfx.jump(p.i); dust(p.wall < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
+  } else if (wallJump) {
+    // Wall jump: up and away from the wall, toward the side you pressed
+    const side = p.cling;
+    p.vy = -WALLJUMP_V; p.vx = -side * WALLJUMP_PUSH; p.buf = 0; p.face = -side; p.sq = 1.2; p.cling = 0;
+    sfx.jump(p.i); dust(side < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
     p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
@@ -277,8 +271,6 @@ function updatePlayer(p, dt) {
     if (Math.abs(p.x - (dv.x + dv.w)) < 0.6) p.wall = -1;
     else if (Math.abs(p.x + p.w - dv.x) < 0.6) p.wall = 1;
   }
-  // A wall-jump flight that reaches the other wall grabs on to it
-  if (p.fly && p.wall === p.fly) { p.cling = p.wall; p.fly = 0; }
 
   const prevBottom = p.y + p.h;
   p.y += p.vy * dt;

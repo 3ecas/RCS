@@ -99,9 +99,11 @@ function drawButton(b, focused) {
 // Small square corner icon: "?" (instructions) or a speaker (sound on / off)
 function drawIcon(b, focused) {
   const hover = focused || inside(b, ui.mx, ui.my);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(b.x, b.y, b.w, b.h);
-  ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
-  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  ctx.fillStyle = PAL.wallLine; ctx.fillRect(b.x, b.y + 4, b.w, b.h);     // solid shadow, like the buttons
+  const lift = hover ? -2 : 0;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(b.x, b.y + lift, b.w, b.h);
+  ctx.strokeStyle = hover ? PAL.ink : PAL.wallLine; ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, b.y + 1 + lift, b.w - 2, b.h - 2);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2 + lift;
   if (b.label === '?') { text('?', cx, cy + 9, 26, PAL.ink, 'center', 900); return; }
   drawSpeaker(cx, cy);
 }
@@ -159,7 +161,7 @@ function drawHelp() {
   // Three tips
   yy += 46;
   const tip = (t, draw) => { draw(L + 14, yy - 6); text(t, L + 44, yy, 15, PAL.ink, 'left', 700); yy += 38; };
-  tip('Jump off a wall to fly across to the other side', (cx, cy) => {
+  tip('On a wall, press the other way to jump off it', (cx, cy) => {
     ctx.fillStyle = PAL.wallLine; ctx.fillRect(cx - 14, cy - 12, 4, 24); ctx.fillRect(cx + 12, cy - 12, 4, 24);
     ctx.strokeStyle = PAL.good; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx + 8, cy - 8); ctx.stroke();
   });

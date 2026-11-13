@@ -154,13 +154,16 @@ function touchLobby(p, pl) {
 // Mode / sound / wardrobe platforms: a normal platform, thicker, with its name (or an icon) on it
 function drawMenuPlatform(p) {
   const x = p.x, y = p.y, cx = x + p.w / 2;
-  ctx.fillStyle = PAL.normal; ctx.fillRect(x, y, p.w, p.h);
-  ctx.fillStyle = PAL.normalD; ctx.fillRect(x, y + p.h - 4, p.w, 4);
-  if (state !== 'lobby' && state !== 'wardrobe') return;     // in the game they're plain platforms: the names go away
+  // In the game they're plain platforms: the names go away
+  if (state !== 'lobby' && state !== 'wardrobe') { slab(x, y, p.w, p.h, PAL.normal, PAL.normalD); return; }
+  // A white button; it lights up (green for a mode) while someone stands on it
+  const on = players.some(q => standingOn(q) === p);
+  const col = isMode(p) ? PAL.good : PAL.ink;
+  buttonSlab(p, on, col);
   // Filling up while everyone stands on it, with the seconds left above
   if (lobby.on === p) {
-    ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.55;
-    ctx.fillRect(x, y, p.w * Math.min(1, lobby.holdT / HOLD_TIME), p.h - 4);
+    ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.25;
+    ctx.fillRect(x + 4, y + 4, (p.w - 8) * Math.min(1, lobby.holdT / HOLD_TIME), p.h - 8);
     ctx.globalAlpha = 1;
     text(String(Math.max(1, Math.ceil(HOLD_TIME - lobby.holdT))), cx, y - 26, 40, PAL.good, 'center', 900);
   } else if (state === 'lobby' && isMode(p)) {
@@ -177,16 +180,16 @@ function drawMenuPlatform(p) {
       ctx.beginPath(); ctx.moveTo(cx - 9, y - 30 - b); ctx.lineTo(cx + 9, y - 30 - b); ctx.lineTo(cx, y - 18 - b); ctx.closePath(); ctx.fill();
     }
   }
-  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + 13, 0.85); return; }
+  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + 15, 0.85); return; }
   if (p.menu === 'wear' && p.wear === 'colour') {   // a thin rainbow along the colour platform
     const sw = (p.w - 8) / COLORS.length;
-    COLORS.forEach((C, k) => { ctx.fillStyle = C.c; ctx.fillRect(x + 4 + k * sw, y + p.h - 4, sw, 4); });
+    COLORS.forEach((C, k) => { ctx.fillStyle = C.c; ctx.fillRect(x + 4 + k * sw, y + p.h - 8, sw, 4); });
   }
   const label = p.menu === 'wear' ? WEAR_LABEL[p.wear] : MENU_LABEL[p.menu];
   let size = 17;
   ctx.font = `900 ${size}px ${FONT}`;
   while (size > 10 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
-  text(label, cx, y + 20, size, PAL.ink, 'center', 900);
+  text(label, cx, y + 20, size, on && isMode(p) ? PAL.good : PAL.ink, 'center', 900);
 }
 
 // The logo, and on the floor who plays with which keys — drawn as keys, not words
