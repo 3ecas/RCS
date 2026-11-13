@@ -302,17 +302,29 @@ function drawDivider(dv) {
 // Bubble column: a pale blue stream with bubbles rising through it
 function drawBubbles(b) {
   if (b.bot < camY - OY - 20 || b.top > camY + H + OY + 20) return;
-  const g = ctx.createLinearGradient(0, b.bot, 0, b.top);
-  g.addColorStop(0, 'rgba(124,200,236,0.32)'); g.addColorStop(1, 'rgba(124,200,236,0.04)');
-  ctx.fillStyle = g; ctx.fillRect(b.x, b.top, b.w, b.bot - b.top);
-  const h = b.bot - b.top;
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
-  for (let k = 0; k < 9; k++) {
-    const sp = 80 + hash(b.seed, k) * 70, r = 3 + hash(k, b.seed) * 5;
-    const y = b.bot - ((time * sp + hash(b.seed + k, 7) * h) % h);
-    const x = b.x + b.w / 2 + Math.sin(time * 3 + k) * (b.w / 2 - 10) * hash(k, 3);
-    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+  const [soft, deep] = SOFT.sky, h = b.bot - b.top, cx = b.x + b.w / 2;
+  // the column: a soft rounded sky shape with a light edge (round at the top, open into the vent below)
+  ctx.globalAlpha = 0.4; ctx.fillStyle = soft;
+  ctx.beginPath(); ctx.roundRect(b.x, b.top, b.w, h, [b.w / 2, b.w / 2, 6, 6]); ctx.fill();
+  ctx.globalAlpha = 0.45; ctx.strokeStyle = soft; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(b.x + 1, b.top + 1, b.w - 2, h - 2, [b.w / 2, b.w / 2, 6, 6]); ctx.stroke();
+  // chevrons drifting up the middle: this way!
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = deep; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let k = 0; k < 4; k++) {
+    const y = b.bot - 20 - ((time * 70 + k * h / 4) % (h - 40));
+    ctx.beginPath(); ctx.moveTo(cx - 7, y + 4); ctx.lineTo(cx, y - 3); ctx.lineTo(cx + 7, y + 4); ctx.stroke();
   }
+  // bubbles: rings and dots rising and swaying, bigger as they go up
+  for (let k = 0; k < 9; k++) {
+    const sp = 80 + hash(b.seed, k) * 70, f = ((time * sp + hash(b.seed + k, 7) * h) % h) / h;
+    const y = b.bot - f * h, x = cx + Math.sin(time * 3 + k) * (b.w / 2 - 12) * hash(k, 3);
+    const r = (2.5 + hash(k, b.seed) * 3.5) * (0.7 + f * 0.6);
+    ctx.globalAlpha = 0.85 * Math.min(1, (1 - f) * 4);
+    drawShape(ctx, k % 3 ? 'ring' : 'dot', x, y, r, k % 3 ? '#ffffff' : deep);
+  }
+  ctx.globalAlpha = 1;
+  // the vent it rises from
+  slab(b.x + 4, b.bot - 4, b.w - 8, 8, soft, deep);
 }
 
 // Flamethrower: a nozzle (on a wall or a platform), a flicker while it warms up, then the flame

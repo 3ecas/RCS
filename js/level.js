@@ -148,7 +148,9 @@ function genPathRow(y, m, d, L) {
     // Now and then, and never close to another column that overlaps it in height
     if (R() < 0.18) {
       const x = wrand(L + BUBBLE_W, W - WALL - BUBBLE_W), top = y - 3 * ROW_GAP - 40;
-      if (!bubbles.some(b => b.top < y + 10 + ROW_GAP && b.bot > top - ROW_GAP && Math.abs(b.x + b.w / 2 - x) < 300)) addBubbles(y, x);
+      const clear = !bubbles.some(b => b.top < y + 10 + ROW_GAP && b.bot > top - ROW_GAP && Math.abs(b.x + b.w / 2 - x) < 300) &&
+                    !dividers.some(dv => dv.top < y + 10 && dv.bot > top && dv.x < x + BUBBLE_W / 2 + 20 && dv.x + dv.w > x - BUBBLE_W / 2 - 20);   // not through a pillar / wall
+      if (clear) addBubbles(y, x);
     }
   }
   placeGems(y, row, main, blade);   // gems off the path (js/pieces.js)

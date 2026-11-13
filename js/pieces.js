@@ -82,6 +82,9 @@ const PIECE_ROW = {
       pc.pillars = [{ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true },
                     { x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true }];
       dividers.push(...pc.pillars);
+      // a bubble column from lower down that would reach into the pillars stops just below them
+      for (const b of bubbles) if (b.top < bot && b.bot > top && b.x < pc.cx + SHAFT_W / 2 + PILLAR_W + 20 && b.x + b.w > pc.cx - SHAFT_W / 2 - PILLAR_W - 20) b.top = Math.max(b.top, bot + 12);
+      bubbles = bubbles.filter(b => b.bot - b.top >= 80);
       const main = plain(pc.cx - capW / 2, y, capW);
       return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
     }
