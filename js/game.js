@@ -502,6 +502,7 @@ function knockOut(p) {
   const fly = (dx, dy, vx, vy) => ({ x: x + dx, y: y + dy, vx, vy, rot: 0, vr: rand(-14, 14) });
   if (p.look && p.look.h) p.deathAnim.hat = fly(0, -p.h / 2, rand(-220, 220), -980);
   if (p.look && p.look.f === 5) p.deathAnim.shades = fly(0, -p.h * 0.14 + 3, (Math.random() < 0.5 ? -1 : 1) * rand(160, 260), -620);
+  if (p.look && p.look.p) p.deathAnim.pattern = fly(0, 0, (Math.random() < 0.5 ? -1 : 1) * rand(90, 170), -840);   // the pattern peels off as a tile
 }
 function updateDeaths(dt) {
   if (!players) return;
@@ -509,7 +510,7 @@ function updateDeaths(dt) {
     const a = p.deathAnim;
     if (!a || a.t > 3) continue;
     a.t += dt;
-    for (const o of [a, a.hat, a.shades]) if (o) { o.vy += GRAV * 0.75 * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.rot += o.vr * dt; }
+    for (const o of [a, a.hat, a.shades, a.pattern]) if (o) { o.vy += GRAV * 0.75 * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.rot += o.vr * dt; }
   }
 }
 

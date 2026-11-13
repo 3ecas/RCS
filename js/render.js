@@ -373,11 +373,18 @@ function drawPlayer(p) {
     ctx.globalAlpha = (p.remote ? 0.5 : 1) * clamp(2.6 - a.t, 0, 1);
     ctx.translate(a.x + p.w / 2, a.y + p.h / 2); ctx.rotate(a.rot);
     const P = p.remote ? GHOST : { c: p.color, d: p.dark }, k = p.w / PS;
-    drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, P, p.look, 0, 1, true);   // X eyes, hat off
+    drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, P, { ...p.look, p: 0 }, 0, 1, true);   // X eyes; hat, shades and pattern off
     ctx.restore();
     // the hat and the shades, flying off on their own
+    const tile = () => {   // the body pattern, peeled off as a small patterned tile
+      const s = p.w * 0.72;
+      ctx.fillStyle = P.c; ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, s * 0.22); ctx.fill();
+      drawPattern(-s / 2, -s / 2, s, s, p.look.p, k * 0.9, s * 0.22);
+      ctx.strokeStyle = P.d; ctx.lineWidth = 2 * k; ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, s * 0.22); ctx.stroke();
+    };
     for (const [o, draw] of [[a.hat, () => drawHat(-p.w / 2, 0, p.w, p.look.h, k, 0, P)],
-                             [a.shades, () => drawFace(-p.w / 2, -p.h * 0.36 - 3, p.w, p.h, 5, k, 0, false)]]) {
+                             [a.shades, () => drawFace(-p.w / 2, -p.h * 0.36 - 3, p.w, p.h, 5, k, 0, false)],
+                             [a.pattern, tile]]) {
       if (!o) continue;
       ctx.save(); ctx.globalAlpha = (p.remote ? 0.5 : 1) * clamp(2.6 - a.t, 0, 1);
       ctx.translate(o.x, o.y); ctx.rotate(o.rot); draw(); ctx.restore();
