@@ -76,7 +76,7 @@ function connectOnce() {
 }
 
 function leaveOnline() {
-  pendingStart = null; raceIris = null; netSend({ t: 'leave' }); netClose(); toMenu(); }
+  pendingStart = null; pendingRoom = 0; iris = null; netSend({ t: 'leave' }); netClose(); toMenu(); }
 
 // The room: am I ready (for the rematch)? Toggle it.
 const meInRoom = () => net.room && net.room.players[net.room.me];
@@ -92,14 +92,19 @@ function reportRoundOver() {
   netSend({ t: 'roundOver', round: net.round });
 }
 
-// Room -> race: the circle closes on the START platform first (RACE_IRIS s), then the race is set up; the
-// 'Match found' screen is shortened by the same amount, so the countdown still ends at the same moment on
-// every computer. Anything else for the race that arrives meanwhile sets it up at once.
-const RACE_IRIS = 0.4;
-let pendingStart = null, raceIris = null;
+// Circle transitions for online play: the circle closes on one spot, the next scene is set up, and it
+// opens again on another spot (iris: { t, close, open, from: [x, y], to: () => [x, y] }, screen coordinates).
+//  - connecting -> room: closes on your bouncing cube, opens on your cube in the room
+//  - room -> race: closes on the START platform, opens on the 'Match found' cubes. The 'Match found' screen
+//    is shortened by the closing time, so the countdown still ends together on every computer; anything else
+//    for the race that arrives meanwhile sets it up at once.
+const RACE_IRIS = 0.4, ROOM_IRIS = 0.3;
+let pendingStart = null, pendingRoom = 0, iris = null;
+function startIris(close, from, to) { iris = { t: 0, close, open: 0.55, from, to }; sfx.swoosh(); }
 function updateRaceStart(dt) {
-  if (raceIris) { raceIris.t += dt; if (raceIris.t > RACE_IRIS + 0.55) raceIris = null; }
+  if (iris && (iris.t += dt) > iris.close + iris.open) iris = null;
   if (pendingStart && (pendingStart.t += dt) >= RACE_IRIS) applyStart(pendingStart.m, pendingStart.t);
+  if (pendingRoom && (pendingRoom += dt) >= ROOM_IRIS) { pendingRoom = 0; if (state === 'search') enterRoom(); }
 }
 function applyStart(m, late) {
   pendingStart = null;
@@ -111,23 +116,26 @@ function applyStart(m, late) {
   countdown = total - foundT;
   state = 'found'; sfx.milestone();
 }
-// The circle (screen coordinates): closing on the START platform, then opening on the 'Match found' cubes
-function drawRaceIris() {
-  if (!raceIris) return;
-  const t = raceIris.t, Rmax = Math.hypot(VW, VH), closing = t < RACE_IRIS;
-  const u = closing ? t / RACE_IRIS : clamp((t - RACE_IRIS) / 0.55, 0, 1);
+function drawIris() {
+  if (!iris) return;
+  const t = iris.t, Rmax = Math.hypot(VW, VH), closing = t < iris.close;
+  const u = closing ? t / iris.close : clamp((t - iris.close) / iris.open, 0, 1);
   const r = Math.max(0.1, Rmax * (closing ? Math.pow(1 - u, 2.2) : Math.pow(u, 2.2)));
-  const cx = W / 2, cy = closing ? GROUND_Y - ROW_GAP + 15 - camY : 280;
+  const [cx, cy] = closing ? iris.from : iris.to();
   ctx.fillStyle = SOFT.lilac[0];
   ctx.beginPath(); ctx.rect(-OX, -OY, VW, VH); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.fill('evenodd');
   ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
 }
+// where your own cube is on screen (the circle opens on it)
+const myCubeOnScreen = () => { const p = players && players.find(q => !q.remote); return p ? [p.x + p.w / 2, p.y + p.h / 2 - camY] : [W / 2, H / 2]; };
 
 function onNet(m) {
   if (pendingStart && m.t !== 'room') applyStart(pendingStart.m, pendingStart.t);   // (the race comes first)
   if (m.t === 'room') {
     net.room = m;
-    if (state === 'search') enterRoom();          // joined: into the room scene
+    if (state === 'search' && !pendingRoom) {     // joined: the circle closes on your cube, then into the room
+      pendingRoom = 0.0001; startIris(ROOM_IRIS, [W / 2, 262], myCubeOnScreen);
+    }
     else if (state === 'room') syncRoomCubes();   // someone joined, left, got ready…
   }
   else if (m.t === 'old') { netClose(); netBanner('The game was updated — please refresh the page'); toMenu(); }
@@ -136,7 +144,7 @@ function onNet(m) {
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;
     net.round = m.round; net.sentOver = false;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
-    if (state === 'room') { pendingStart = { m, t: 0 }; raceIris = { t: 0 }; sfx.swoosh(); }   // the circle closes first
+    if (state === 'room') { pendingStart = { m, t: 0 }; startIris(RACE_IRIS, [W / 2, GROUND_Y - ROW_GAP + 15 - camY], () => [W / 2, 280]); }   // the circle closes first
     else applyStart(m, 0);
   }
   else if (m.t === 'gone') playersLeft(m.owner);
