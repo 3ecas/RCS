@@ -205,16 +205,19 @@ function updateTilt(pl, dt) {
   if (push && before !== Math.sign(pl.angle) && Math.abs(pl.av) > 0.3) sfx.creak();
 }
 
-// Is there a wall (the tower's sides, a pillar or the Two Paths wall) within `reach` of the cube's side?
-// -1 = on its left, 1 = on its right, 0 = none
+// Is there a wall (the tower's sides, or either face of a chimney pillar) within `reach` of the cube's side?
+// Returns -1 = on its left, 1 = on its right, 0 = none; nearWallId = which wall (so the same one can't be
+// jumped off twice in a row, but another wall on the same side can)
+let nearWallId = null;
 function wallNear(p, reach) {
-  if (p.x - WALL <= reach) return -1;
-  if (W - WALL - (p.x + p.w) <= reach) return 1;
+  nearWallId = null;
+  if (p.x - WALL <= reach) { nearWallId = 'towerL'; return -1; }
+  if (W - WALL - (p.x + p.w) <= reach) { nearWallId = 'towerR'; return 1; }
   for (const dv of dividers) {
     if (p.y + p.h <= dv.top || p.y >= dv.bot) continue;
     const dl = p.x - (dv.x + dv.w), dr = dv.x - (p.x + p.w);
-    if (dl > -1 && dl <= reach) return -1;
-    if (dr > -1 && dr <= reach) return 1;
+    if (dl > -1 && dl <= reach) { nearWallId = dv; return -1; }
+    if (dr > -1 && dr <= reach) { nearWallId = dv; return 1; }
   }
   return 0;
 }
@@ -247,16 +250,17 @@ function updatePlayer(p, dt) {
   if (!p.onGround && p.wall && dir !== -p.wall) p.cling = p.wall;
   // Wall jump: press the other way while on (or close to) a wall. Forgiving on timing: being near the wall
   // counts, so does having just left it, and a press made just before reaching it is remembered.
-  if (p.onGround) { p.wallT = 0; p.lastJumpSide = 0; }
+  if (p.onGround) { p.wallT = 0; p.lastWall = null; }
   else {
     const nw = wallNear(p, WALL_REACH);
-    if (nw) { p.wallSide = nw; p.wallT = WALL_COYOTE; }
+    if (nw) { p.wallSide = nw; p.wallId = nearWallId; p.wallT = WALL_COYOTE; }
   }
   if (inp.leftPressed) p.awayBuf = { d: -1, t: WALL_BUFFER };
   if (inp.rightPressed) p.awayBuf = { d: 1, t: WALL_BUFFER };
-  // (not off the same wall twice in a row without landing, so you can't climb a single wall)
+  // (not off the same wall twice in a row without landing, so you can't climb a single wall — any other
+  // wall is fine, including the outside of a pillar on the same side)
   const wallJump = !p.onGround && p.wallT > 0 && p.awayBuf && p.awayBuf.t > 0 &&
-                   p.awayBuf.d === -p.wallSide && p.lastJumpSide !== p.wallSide;
+                   p.awayBuf.d === -p.wallSide && p.lastWall !== p.wallId;
   if (p.wallT > 0) p.wallT -= dt;
   if (p.awayBuf) p.awayBuf.t -= dt;
   if (dir) p.face = dir;
@@ -280,7 +284,7 @@ function updatePlayer(p, dt) {
     // Wall jump: up and away from the wall, toward the side you pressed
     const side = p.wallSide;
     p.vy = -WALLJUMP_V; p.vx = -side * WALLJUMP_PUSH; p.buf = 0; p.face = -side; p.sq = 1.2; p.cling = 0;
-    p.wallT = 0; p.awayBuf = null; p.lastJumpSide = side;
+    p.wallT = 0; p.awayBuf = null; p.lastWall = p.wallId;
     sfx.jump(p.i); dust(side < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
@@ -463,6 +467,7 @@ function updateHazards(dt) {
 function updateParticles(dt) {
   if (!particles) return;
   for (const q of particles) { q.vy += q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; if (q.vr) q.rot += q.vr * dt; }
+  updateDeaths(dt);
   particles = particles.filter(q => q.life > 0);
   if (texts) { for (const t of texts) { t.t -= dt; t.y -= 40 * dt; } texts = texts.filter(t => t.t > 0); }
 }
@@ -474,19 +479,34 @@ function die(p, reason) {
   deathMsg = `${p.name} ${reason}!`;
   sfx.die();
   const left = alive();
+  knockOut(p);
   if (mode === 'versus' && left.length > 1) {
     // Knocked out, but the race goes on — and you keep watching until one is left
-    const cy = Math.min(p.y + p.h / 2, camY + H - 20);
-    burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
     floatText(net.status === 'playing' && !p.remote ? 'You’re out!' : `${p.name} is out!`, W / 2, camY + H * 0.5, p.dark, 34);
     return;
   }
   state = 'over'; overT = 0;
-  const cy = Math.min(p.y + p.h / 2, camY + H - 20);
-  burst(p.x + p.w / 2, cy, 18, p.color, 360, 0.9, 9);
-  burst(p.x + p.w / 2, cy, 8, p.dark, 260, 0.7, 6);
   if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[left[0].uid] = winsOf(left[0]) + 1; }
   else if (height > best) { best = height; newBest = true; saveBest(); }
+}
+
+// The death animation: a burst of shapes in the cube's colours, and the cube itself pops up spinning, then
+// tumbles down and away (from the bottom edge of the screen if it fell behind, so you see it go)
+function knockOut(p) {
+  const x = p.x + p.w / 2, y = Math.min(p.y + p.h / 2, camY + H - PS);
+  burst(x, y, 26, p.color, 420, 1.0, 10);
+  burst(x, y, 12, p.dark, 300, 0.8, 7);
+  for (let k = 0; k < 3; k++)    // a few big rings flying out
+    particles.push({ x, y, vx: rand(-160, 160), vy: rand(-260, -120), life: 0.9, max: 0.9, color: p.dark, size: rand(14, 20), grav: 300, kind: 'ring', rot: 0, vr: 0 });
+  p.deathAnim = { x: x - p.w / 2, y: y - p.h / 2, vx: rand(-150, 150), vy: -760, rot: 0, vr: rand(7, 11) * (Math.random() < 0.5 ? -1 : 1), t: 0 };
+}
+function updateDeaths(dt) {
+  if (!players) return;
+  for (const p of players) {
+    const a = p.deathAnim;
+    if (!a || a.t > 3) continue;
+    a.t += dt; a.vy += GRAV * 0.75 * dt; a.x += a.vx * dt; a.y += a.vy * dt; a.rot += a.vr * dt;
+  }
 }
 
 function toggleFullscreen() {

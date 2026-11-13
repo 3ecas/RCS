@@ -109,32 +109,48 @@ function drawIcon(b, focused) {
   drawSpeaker(cx, cy);
 }
 
-// End of an online race: the winner, then everyone ranked by how long they lasted
+// End of a race: the winner revealed big, 80s style — a slowly turning pastel sunburst, a striped sunset
+// disc, the winner's cube springing up in the middle and fat chrome-striped letters with a deep 3D shadow
+function retroText(str, x, y, size, faces, edge = PAL.ink) {
+  ctx.font = `900 ${size}px ${FONT}`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  const depth = Math.round(size * 0.09);
+  ctx.fillStyle = edge;                                           // the 3D extrusion, down-right
+  for (let k = depth; k > 0; k--) ctx.fillText(str, x + k, y + k);
+  ctx.lineWidth = size * 0.12; ctx.strokeStyle = edge; ctx.strokeText(str, x, y);
+  const g = ctx.createLinearGradient(0, y - size * 0.8, 0, y);    // chrome: hard bands of colour
+  faces.forEach((c, k) => { g.addColorStop(k / faces.length, c); g.addColorStop((k + 1) / faces.length - 0.001, c); });
+  ctx.fillStyle = g; ctx.fillText(str, x, y);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';                       // a little shine across the top band
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 2000, y - size * 0.8, 4000, size * 0.12); ctx.clip(); ctx.fillText(str, x, y); ctx.restore();
+}
 function drawResults() {
-  const wp = players.find(p => p.i === winner);
-  if (wp) {
-    cube(W / 2 - 30, 92, 60, { c: wp.color, d: wp.dark }, wp.look);
-    const mine = net.status === 'playing' && !wp.remote;   // online: you won
-    text(mine ? 'YOU WIN!' : wp.name.toUpperCase() + ' WINS!', W / 2, 218, 54, wp.dark, 'center', 900);
-  } else text('DRAW!', W / 2, 218, 60, PAL.ink, 'center', 900);
-  // Ranking: the winner, then whoever was knocked out last, and so on
-  const ranked = [...players].sort((a, b) => (b.i === winner) - (a.i === winner) || (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
-  const x = W / 2 - 250, w = 500, top = 262, rh = Math.min(38, 360 / ranked.length);
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.beginPath(); ctx.roundRect(x, top, w, 40 + ranked.length * rh, 18); ctx.fill();
-  text('LEADERBOARD', x + 20, top + 27, 14, PAL.inkSoft, 'left', 900);
-  text('HEIGHT', x + w - 110, top + 27, 12, PAL.inkSoft, 'right', 800);
-  text('WINS', x + w - 20, top + 27, 12, PAL.inkSoft, 'right', 800);
-  ranked.forEach((p, k) => {
-    const y = top + 40 + k * rh, mid = y + rh / 2 + 6;
-    const you = net.status === 'playing' && !p.remote;
-    if (you) { ctx.fillStyle = 'rgba(255,231,160,0.45)'; ctx.beginPath(); ctx.roundRect(x + 6, y + 1, w - 12, rh - 2, 10); ctx.fill(); }
-    text(String(k + 1), x + 34, mid, 18, k ? PAL.inkSoft : PAL.good, 'right', 900);
-    ctx.fillStyle = p.dark; ctx.beginPath(); ctx.roundRect(x + 50, y + rh / 2 - 9, 18, 18, 5); ctx.fill();
-    ctx.fillStyle = p.color; ctx.beginPath(); ctx.roundRect(x + 52, y + rh / 2 - 7, 14, 14, 3); ctx.fill();
-    text(p.name + (you ? '  (you)' : ''), x + 82, mid, 17, PAL.ink, 'left', 800);
-    text(p.best + ' m', x + w - 110, mid, 16, PAL.ink, 'right', 800);
-    text(String(winsOf(p)), x + w - 20, mid, 16, PAL.ink, 'right', 900);
+  const wp = players.find(p => p.i === winner), t = Math.max(0, overT - 0.4);
+  const cx = W / 2, cy = 300;
+  // sunburst
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.15);
+  const rays = 18, cols = Object.values(SOFT);
+  for (let k = 0; k < rays; k++) {
+    ctx.fillStyle = cols[k % cols.length][0]; ctx.globalAlpha = 0.55;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 900, (k / rays) * Math.PI * 2, ((k + 0.5) / rays) * Math.PI * 2); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+  // sunset disc: bands from butter to rose, with gaps that widen toward the bottom
+  const R = 150, bands = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e88fb5'];
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+  bands.forEach((c, k) => {
+    const y0 = cy - R + k * (2 * R / bands.length), gap = k < 2 ? 0 : (k - 1) * 3;
+    ctx.fillStyle = c; ctx.fillRect(cx - R, y0 + gap, 2 * R, 2 * R / bands.length - gap);
   });
+  ctx.restore();
+  if (wp) {
+    // the cube springs up out of the sun (an overshooting pop), then bobs
+    const pop = t < 0.6 ? 1 + 2.70158 * Math.pow(t / 0.6 - 1, 3) + 1.70158 * Math.pow(t / 0.6 - 1, 2) : 1;
+    const s = 130 * Math.max(0, pop), bob = Math.sin(time * 2.5) * 6;
+    cube(cx - s / 2, cy - s / 2 + bob, s, { c: wp.color, d: wp.dark }, wp.look);
+    const mine = net.status === 'playing' && !wp.remote;
+    retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
+    retroText(wp.name.toUpperCase(), cx, cy + R + 160, 44, [wp.color, wp.color, wp.dark], PAL.ink);
+  } else retroText('DRAW!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
 }
 
 // Instructions overlay (the ? icon): mostly keys and pictures

@@ -41,8 +41,8 @@ function layoutButtons() {
       ];
     }
     return [...icons,
-      B('again', 'PLAY AGAIN', 'space', cx - 260, H * 0.3 + 250, 250, 64, { color: PAL.good }),
-      B('menu', 'MENU', '', cx + 10, H * 0.3 + 250, 250, 64),
+      B('again', 'PLAY AGAIN', 'space', cx - 260, mode === 'versus' ? 690 : H * 0.3 + 250, 250, 64, { color: PAL.good }),
+      B('menu', 'MENU', '', cx + 10, mode === 'versus' ? 690 : H * 0.3 + 250, 250, 64),
     ];
   }
   return icons;    // in game: just the sound icon

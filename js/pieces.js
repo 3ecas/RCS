@@ -85,19 +85,35 @@ const PIECE_ROW = {
       // Mostly the chimney is the only way up. Sometimes (if there's room) a second route climbs the outside:
       // a column of platforms on the roomier side, each within reach of the last, ending beside the cap.
       const roomL = pc.cx - capW / 2 - 30 - L, roomR = W - WALL - (pc.cx + capW / 2 + 30);
-      const wantAlt = R() < 0.3;
+      const wantAlt = R() < 0.3, wantSide = R() < 0.45;
       pc.alt = wantAlt && Math.max(roomL, roomR) >= 120
-        ? (roomL >= roomR ? { lo: L + 6, hi: pc.cx - capW / 2 - 30 } : { lo: pc.cx + capW / 2 + 30, hi: W - WALL - 6 }) : null;
+        ? (roomL >= roomR ? { lo: L + 6, hi: pc.cx - capW / 2 - 30, side: -1 } : { lo: pc.cx + capW / 2 + 30, hi: W - WALL - 6, side: 1 }) : null;
+      // The way out at the top: a cap over the shaft, or (sometimes) a ledge beside it — you wall-jump out of
+      // the top and step across. With an outside route, the ledge is on that route's side so it leads there too.
+      const [pl, pr] = pc.pillars, LEDGE = 110;
+      const ledgeL = pl.x - LEDGE - L >= 10, ledgeR = W - WALL - (pr.x + pr.w + LEDGE) >= 10;
+      pc.exit = 'cap';
+      if (wantSide) {
+        const side = pc.alt ? pc.alt.side : (ledgeL && ledgeR ? (R() < 0.5 ? -1 : 1) : ledgeL ? -1 : ledgeR ? 1 : 0);
+        if (side && (side < 0 ? ledgeL : ledgeR)) pc.exit = { side, x: side < 0 ? pl.x - LEDGE : pr.x + pr.w, w: LEDGE };
+      }
       const main = plain(pc.cx - capW / 2, y, capW);
       pc.altPrev = main;
       return { main, row: [main], rowHaz: false, block: whole, noFly: true };
     }
-    const row = [];
-    if (pc.alt) {   // the outside route's step on this row
+    const row = [], ex = pc.exit !== 'cap' ? pc.exit : null;
+    if (pc.alt && !(ex && pc.left === 1)) {   // the outside route's step on this row (the ledge is its last step)
       const a = pc.alt, w = Math.min(wrand(90, 120), a.hi - a.lo - 4);
-      const refs = pc.left === 1 ? [pc.altPrev, { type: 'normal', x: pc.cx - capW / 2, w: capW }] : [pc.altPrev];
+      const topRef = ex ? { type: 'normal', x: ex.x, w: ex.w } : { type: 'normal', x: pc.cx - capW / 2, w: capW };
+      const refs = pc.left === 1 || (ex && pc.left === 2) ? [pc.altPrev, topRef] : [pc.altPrev];
       const q = makePlatform(pickCx(w, a.lo, a.hi, refs, G - 10), y, w, d, a.lo, a.hi, false);
       q.alt = true; row.push(q); pc.altPrev = q;
+    }
+    if (pc.left === 1 && ex) {
+      // A ledge beside the top of the shaft, level with the pillars' tops
+      const main = plain(ex.x, y, ex.w);
+      for (const dv of pc.pillars) dv.top = y;
+      return { main, row: [main], rowHaz: false, block: whole, noFly: true };
     }
     if (pc.left === 1) {
       // The cap on top of the shaft: you jump up through it (it's one-way) and climb out onto it

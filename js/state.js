@@ -60,7 +60,7 @@ function mkPlayer(i, x, colorIdx = localColor(i), look = localLook(i)) {
     speedMul: 1, uid: 'L' + i,           // uid: for win counts (online players get the server's id)
     i, x, y: GROUND_Y - PS, w: PS, h: PS, vx: 0, vy: 0, prevX: x, prevY: GROUND_Y - PS,
     onGround: true, ground: null, coyote: 0, buf: 0, face: x < W / 2 ? 1 : -1, sq: 1, dropT: 0,
-    blink: rand(1, 4), dead: false, springT: 0, springPad: null, best: 0,
+    blink: rand(1, 4), dead: false, deathAnim: null, springT: 0, springPad: null, best: 0,
     color: P.c, dark: P.d, name: P.name, look: { ...look },
   };
 }

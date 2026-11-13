@@ -20,9 +20,9 @@ const PJET_LEN = 250, PJET_THICK = 32; // flamethrowers on platforms
 // Wall jumping: push into a wall in mid-air to hang on it (sliding down slowly); press the other way to jump
 // up and off it toward that side
 const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 90;
-// How forgiving the wall jump is: how close to a wall counts (px), how long after leaving it, and how long a
-// press made just before reaching it is remembered (seconds)
-const WALL_REACH = 26, WALL_COYOTE = 0.14, WALL_BUFFER = 0.16;
+// How forgiving the wall jump is: how close to a wall counts (px — touching only), how long after leaving it
+// it still works, and how long a press made just before reaching it is remembered (seconds)
+const WALL_REACH = 1, WALL_COYOTE = 0.14, WALL_BUFFER = 0.16;   // reach 1: you must actually touch the wall
 const GEMS_ON = false;       // gems are switched off for now (true brings them back, with wardrobe unlocks)
 const GEM_R = 12;            // gems: pick-up radius
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
