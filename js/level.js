@@ -47,9 +47,8 @@ function spawnPos(i, n) {
 
 function generate() {
   while (GROUND_Y - rowK * ROW_GAP > camY - OY - 300) {   // build a little past the top of the window
-    // Rows next to a Two Paths region stay on the grid, so its entrance and exit rows land where they should
-    const y0 = GROUND_Y - rowK * ROW_GAP, nearSplit = [-1, 0, 1].some(k => has(heightM(y0 + k * ROW_GAP), 'divider'));
-    const nudge = R() < ROW_WOBBLE && !nearSplit ? wrand(-14, 14) : 0;
+    const y0 = GROUND_Y - rowK * ROW_GAP;
+    const nudge = R() < ROW_WOBBLE ? wrand(-14, 14) : 0;
     genRow(y0 + nudge);
     placeDecor(y0 + nudge);
     rowK++;
@@ -85,8 +84,7 @@ function genRow(y) {
   const m = heightM(y), d = diff(y);
   const L = gen.lo && y > gen.loUntil ? gen.lo : WALL;   // left edge (the lobby's colour column takes the left)
   const first = platforms.length;
-  if (has(m, 'divider')) genSplitRow(y, m, d, L);
-  else genPathRow(y, m, d, L);
+  genPathRow(y, m, d, L);
   clearGems(platforms.slice(first));   // no gem tucked under this row's platforms (js/pieces.js)
 }
 function genPathRow(y, m, d, L) {
@@ -113,9 +111,12 @@ function genPathRow(y, m, d, L) {
     spaces.push([from, W - WALL]);
     const free = spaces.filter(([a, b]) => b - a >= minW);
     if (!free.length) break;
-    const [lo, hi] = free[Math.floor(R() * free.length)];
+    // Mostly (90%) right beside the path — another way through the same route — now and then anywhere free
+    const r = R(), dist = sp => Math.max(0, sp[0] - cx, cx - sp[1]);
+    const near = r < 0.9;
+    const [lo, hi] = near ? free.reduce((a, b) => dist(b) < dist(a) ? b : a) : free[Math.floor((r - 0.9) / 0.1 * free.length)];
     const w2 = Math.min(wrand(minW, minW * 1.5), hi - lo);
-    const sx = wrand(lo + w2 / 2, hi - w2 / 2);
+    const sx = near ? clamp(cx + wrand(-30, 30), lo + w2 / 2, hi - w2 / 2) : wrand(lo + w2 / 2, hi - w2 / 2);
     // The first extra follows the path's hazard rules. Further ones are off the path,
     // so they can have their own spikes or shuriken (they don't make the next row hazard-free).
     const first = k === 0;
@@ -190,55 +191,6 @@ function placeDecor(y) {
     decor.push({ x, y: cy, r, kind: R0.shapes[Math.floor(h(40 + t) * R0.shapes.length)], col: R0.plat[0], spin: (h(50 + t) - 0.5) * 0.2, a0: h(60 + t) * 6 });
     return;
   }
-}
-
-// Two Paths region: a full-width entrance platform, then a wall up the middle with a separate path on
-// each side (you can't cross it), then a full-width exit platform where the paths meet again.
-function genSplitRow(y, m, d, L) {
-  const k = regionIndex(m), mid = W / 2;
-  const full = () => {
-    const p = { id: nextPid++, x: L, y, w: W - WALL - L, h: 16, type: 'normal', dx: 0, t: 0, falling: false, vy: 0, bounceT: 0 };
-    platforms.push(p);
-    return p;
-  };
-  if (gen.splitK !== k) {                       // the entrance (the wall starts just above it, so you can walk under)
-    gen.splitK = k; gen.piece = null;           // set pieces start fresh after this region
-    const g = full();
-    gen.divider = { x: mid - DIVIDER_W / 2, w: DIVIDER_W, bot: y - PS - 36, top: GROUND_Y - (START_REGION + (k + 1) * REGION_LEN) * PX_PER_M };
-    dividers.push(gen.divider);
-    gen.lanes = [{ lo: L, hi: mid - DIVIDER_W / 2, prev: g }, { lo: mid + DIVIDER_W / 2, hi: W - WALL, prev: g }];
-    gen.prev = g; gen.prevHaz = true;
-    return;
-  }
-  if (regionIndex(heightM(y - ROW_GAP)) !== k) { // the exit: the paths meet again
-    const r = full();
-    gen.divider.top = y + r.h;
-    gen.prev = r; gen.prevHaz = true; gen.lanes = null;
-    return;
-  }
-  // One path per side, each always within jumping reach of its last step, plus extra platforms on wide sides
-  const G = lerp(110, 160, d), allowHaz = !gen.prevHaz;
-  let rowHaz = false;
-  for (const lane of gen.lanes) {
-    const span = lane.hi - lane.lo;
-    const w = Math.min(wrand(lerp(150, 95, d), lerp(210, 135, d)), span - 30);
-    const cx = pickCx(w, lane.lo + 6, lane.hi - 6, [lane.prev], G);
-    const p = makePlatform(cx, y, w, d, lane.lo + 6, lane.hi - 6, allowHaz);
-    platforms.push(p); lane.prev = p; snapToWalls([p]);
-    rowHaz = rowHaz || !!p.spikes;
-    const tries = Math.max(1, Math.round(span / 450));
-    for (let t = 0; t < tries; t++) {
-      if (R() >= 0.35) continue;
-      const [a, b] = extent(p), sw = wrand(80, 130);
-      const spaces = [[lane.lo + 6, a - 50], [b + 50, lane.hi - 6]].filter(([u, v]) => v - u >= sw);
-      if (!spaces.length) break;
-      const [u, v] = spaces[Math.floor(R() * spaces.length)];
-      const q = makePlatform(wrand(u + sw / 2, v - sw / 2), y, sw, d, u, v, false);
-      platforms.push(q); snapToWalls([q]);
-      break;
-    }
-  }
-  gen.prevHaz = rowHaz;
 }
 
 // A still platform that ends just short of a wall (the tower's sides, a pillar, the Two Paths wall) is

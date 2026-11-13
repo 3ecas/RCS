@@ -17,7 +17,6 @@ const PS = 34;              // player cube size
 const STEP = 1 / 120;
 const JET_LEN = 330, JET_THICK = 38;   // wall flamethrowers: reach and flame thickness
 const PJET_LEN = 250, PJET_THICK = 32; // flamethrowers on platforms
-const DIVIDER_W = 26;        // Two Paths region: the dividing wall's width
 // Wall jumping: push into a wall in mid-air to hang on it (sliding down slowly); press the other way to jump
 // up and off it toward that side
 const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 90;
@@ -71,7 +70,6 @@ const REGIONS = {
   fire:    { has: ['wallflame', 'fireball'], bg: ['#fff4ec', '#ffe5d6'], plat: ['#ffc7a1', '#e39a6c'], shapes: ['tri', 'dot'] },          // flamethrowers on the walls, falling fireballs
   storm:   { has: ['zapper', 'move'],        bg: ['#f6f1ff', '#ebe2fc'], plat: ['#d4c2f7', '#8e74d0'], shapes: ['plus', 'ring'] },        // lightning beams between two posts, on and off
   water:   { has: ['bubbles'],               bg: ['#effbfb', '#dcf4f4'], plat: ['#a6e3e3', '#5fb7b9'], shapes: ['ring', 'dot'] },         // helper: bubble columns push you up
-  split:   { has: ['divider', 'move', 'spikes'], bg: ['#fafbea', '#f0f3d4'], plat: ['#dbe4a6', '#a6b45e'], shapes: ['sq', 'bar'] }, // two paths with a wall between them
 };
 const REGION_POOL = Object.keys(REGIONS).filter(k => k !== 'start');
 

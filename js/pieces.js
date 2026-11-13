@@ -11,7 +11,7 @@
 const PIECES = {
   scatter: { rows: [3, 6], weight: 4 },
   stairs:  { rows: [5, 8], weight: 2 },
-  chimney: { rows: [5, 7], weight: 1.5, minM: 20 },
+  chimney: { rows: [3, 10], weight: 1.5, minM: 20 },
   wall:    { rows: [4, 6], weight: 1.4 },
   plaza:   { rows: [3, 3], weight: 1.1, minM: 8 },
 };
@@ -30,8 +30,6 @@ function startPiece(m, L) {
   for (const [k, p] of opts) { r -= p.weight; if (r <= 0) { kind = k; break; } }
   const [a, b] = PIECES[kind].rows;
   const rows = a + Math.floor(R() * (b - a + 1));
-  // A chimney's pillars must not reach into a Two Paths region (its entrance spans the whole width)
-  if (kind === 'chimney' && has(m + (rows + 1) * ROW_GAP / PX_PER_M, 'divider')) kind = 'scatter';
   gen.piece = { kind, rows, left: rows, k: 0 };
 }
 
@@ -72,8 +70,7 @@ const PIECE_ROW = {
   },
 
   chimney(pc, y, m, d, L, G, allowHaz) {
-    const half = SHAFT_W / 2 + PILLAR_W + 30;
-    const capW = SHAFT_W + 2 * PILLAR_W + 80;
+    const capW = SHAFT_W + 2 * PILLAR_W + 80, whole = [L, W - WALL];   // (block: no stray extras beside it)
     if (pc.k === 0) {
       // A floor under the shaft. The pillars start a cube's height above it, so you can walk in underneath.
       const keep = capW / 2 + 40;   // keep it away from the side walls
@@ -85,19 +82,33 @@ const PIECE_ROW = {
       // a bubble column from lower down that would reach into the pillars stops just below them
       for (const b of bubbles) if (b.top < bot && b.bot > top && b.x < pc.cx + SHAFT_W / 2 + PILLAR_W + 20 && b.x + b.w > pc.cx - SHAFT_W / 2 - PILLAR_W - 20) b.top = Math.max(b.top, bot + 12);
       bubbles = bubbles.filter(b => b.bot - b.top >= 80);
+      // Mostly the chimney is the only way up. Sometimes (if there's room) a second route climbs the outside:
+      // a column of platforms on the roomier side, each within reach of the last, ending beside the cap.
+      const roomL = pc.cx - capW / 2 - 30 - L, roomR = W - WALL - (pc.cx + capW / 2 + 30);
+      const wantAlt = R() < 0.3;
+      pc.alt = wantAlt && Math.max(roomL, roomR) >= 120
+        ? (roomL >= roomR ? { lo: L + 6, hi: pc.cx - capW / 2 - 30 } : { lo: pc.cx + capW / 2 + 30, hi: W - WALL - 6 }) : null;
       const main = plain(pc.cx - capW / 2, y, capW);
-      return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+      pc.altPrev = main;
+      return { main, row: [main], rowHaz: false, block: whole, noFly: true };
+    }
+    const row = [];
+    if (pc.alt) {   // the outside route's step on this row
+      const a = pc.alt, w = Math.min(wrand(90, 120), a.hi - a.lo - 4);
+      const refs = pc.left === 1 ? [pc.altPrev, { type: 'normal', x: pc.cx - capW / 2, w: capW }] : [pc.altPrev];
+      const q = makePlatform(pickCx(w, a.lo, a.hi, refs, G - 10), y, w, d, a.lo, a.hi, false);
+      q.alt = true; row.push(q); pc.altPrev = q;
     }
     if (pc.left === 1) {
       // The cap on top of the shaft: you jump up through it (it's one-way) and climb out onto it
       const main = plain(pc.cx - capW / 2, y, capW);
       for (const dv of pc.pillars) dv.top = y + main.h;   // the pillars hold the cap up
       addGem(pc.cx, y - 50);
-      return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+      return { main, row: [main, ...row], rowHaz: false, block: whole, noFly: true };
     }
     // Inside the shaft there's nothing to stand on: wall-jump between the pillars
     const main = { type: 'shaft', x: pc.cx - SHAFT_W / 2, w: SHAFT_W };
-    return { main, row: [], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+    return { main, row, rowHaz: false, block: whole, noFly: true };
   },
 
   wall(pc, y, m, d, L, G, allowHaz) {

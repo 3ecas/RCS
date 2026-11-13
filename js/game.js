@@ -104,12 +104,22 @@ function clampX(p) {
   if (p.x + p.w > W - WALL) { p.x = W - WALL - p.w; p.vx = 0; }
 }
 // Two Paths region: the wall up the middle can't be crossed (you stay on the side you came from)
+// Pillars are solid: from the side they stop you (blockDividers, after moving sideways), from below
+// they're a ceiling and from above a floor (blockDividersY, after moving up / down). Resolving each
+// direction separately means a cube can never end up inside one and be pushed out the wrong side.
 function blockDividers(p) {
   for (const dv of dividers) {
-    if (p.y + p.h <= dv.top || p.y >= dv.bot) continue;
-    const wasLeft = p.prevX + p.w / 2 < dv.x + dv.w / 2;
-    if (wasLeft && p.x + p.w > dv.x) { p.x = dv.x - p.w; p.vx = 0; }
-    else if (!wasLeft && p.x < dv.x + dv.w) { p.x = dv.x + dv.w; p.vx = 0; }
+    if (p.y + p.h <= dv.top || p.y >= dv.bot) continue;            // not level with it
+    if (p.x + p.w <= dv.x || p.x >= dv.x + dv.w) continue;          // not touching it
+    if (p.prevX + p.w <= dv.x + 1) { p.x = dv.x - p.w; p.vx = 0; }              // came from the left
+    else if (p.prevX >= dv.x + dv.w - 1) { p.x = dv.x + dv.w; p.vx = 0; }       // came from the right
+  }
+}
+function blockDividersY(p, prevTop, prevBottom) {
+  for (const dv of dividers) {
+    if (p.x + p.w <= dv.x + 0.5 || p.x >= dv.x + dv.w - 0.5) continue;
+    if (p.vy < 0 && prevTop >= dv.bot - 0.5 && p.y < dv.bot) { p.y = dv.bot; p.vy = 0; }                 // head on its bottom
+    else if (p.vy >= 0 && prevBottom <= dv.top + 0.5 && p.y + p.h > dv.top) { p.y = dv.top - p.h; p.vy = 0; p.onGround = true; p.ground = { type: 'normal', dx: 0, dy: 0, noDrop: true, pillarTop: true }; }   // standing on its top
   }
 }
 // Has something scrolled far enough off-screen to be thrown away?
@@ -307,7 +317,7 @@ function updatePlayer(p, dt) {
     else if (Math.abs(p.x + p.w - dv.x) < 0.6) p.wall = 1;
   }
 
-  const prevBottom = p.y + p.h;
+  const prevBottom = p.y + p.h, prevTop = p.y;
   p.y += p.vy * dt;
   const wasGround = p.onGround;
   p.onGround = false; p.ground = null;
@@ -333,6 +343,7 @@ function updatePlayer(p, dt) {
     }
     // Cubes don't collide with each other (no standing on heads): everyone climbs on their own
   }
+  blockDividersY(p, prevTop, prevBottom);
 
   p.sq += (1 - p.sq) * Math.min(1, dt * 12);
   p.blink -= dt; if (p.blink < -0.12) p.blink = rand(2, 5);

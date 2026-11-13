@@ -164,13 +164,18 @@ function drawPlatform(p) {
   }
   if (p.type === 'tilt') {
     // Seesaw: a post and pivot pin, and the plank turned around the pivot (centre of its top)
-    ctx.fillStyle = cd; ctx.strokeStyle = cd; ctx.lineWidth = 5; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(p.px - 12, y + 32); ctx.lineTo(p.px + 12, y + 32); ctx.lineTo(p.px, y + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // the pivot: a soft triangle with a deeper edge, on a little base plate
+    ctx.fillStyle = c; ctx.strokeStyle = cd; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(p.px - 13, y + 31); ctx.lineTo(p.px + 13, y + 31); ctx.lineTo(p.px, y + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+    slab(p.px - 19, y + 30, 38, 6, cd, cd);
+    // the plank, turned around the pin at its middle; a dot near each end shows which way it tips
     ctx.save();
     ctx.translate(p.px, p.py); ctx.rotate(p.angle);
     slab(-p.w / 2, 0, p.w, p.h, c, cd);
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 8, 4, 0, 7); ctx.fill();
-    ctx.fillStyle = cd; ctx.beginPath(); ctx.arc(0, 8, 2, 0, 7); ctx.fill();
+    ctx.fillStyle = cd;
+    for (const dx of [-p.w / 2 + 10, p.w / 2 - 10]) { ctx.beginPath(); ctx.arc(dx, p.h / 2, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = cd; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 8, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.restore();
   } else if (p.type === 'spring') {
     drawSpringI(x, y, p.w, p.comp || 0);
@@ -223,14 +228,17 @@ function drawGem(g) {
 function drawSpringI(x, y, w, comp) {
   const ty = y + clamp(comp, -0.9, 1.05) * SPRING_DEPTH;   // the pad's top
   const by = y + 22;                                      // the base's top
-  // the coil: a zigzag squeezed between the pad and the base
-  const c0 = ty + 7, h = by - c0, cx = x + w / 2, cw = Math.min(14, w * 0.22), turns = 3;
-  ctx.strokeStyle = PAL.springD; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(cx, c0);
-  for (let i = 1; i <= turns * 2; i++) ctx.lineTo(i === turns * 2 ? cx : cx + (i % 2 ? cw : -cw), c0 + h * i / (turns * 2));
-  ctx.stroke();
-  slab(x + 6, by, w - 12, 6, PAL.springD, PAL.springD);   // base
-  slab(x, ty, w, 8, PAL.spring, PAL.springD);             // pad
+  const cx = x + w / 2, rx = Math.min(13, w * 0.2);
+  // the coil: three loops squeezed between the pad and the base
+  const c0 = ty + 9, h = Math.max(2, by - c0), turns = 3, ry = h / (turns * 2);
+  ctx.strokeStyle = PAL.springD; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let i = 0; i < turns; i++) {
+    ctx.beginPath(); ctx.ellipse(cx, c0 + ry * (2 * i + 1), rx, Math.max(1, ry), 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  slab(x + 8, by, w - 16, 7, PAL.springD, PAL.springD);   // base
+  slab(x, ty, w, 10, PAL.spring, PAL.springD);            // pad
+  ctx.fillStyle = '#ffffff';                              // two little highlights on the pad
+  for (const dx of [10, w - 10]) { ctx.beginPath(); ctx.arc(x + dx, ty + 5, 1.8, 0, Math.PI * 2); ctx.fill(); }
 }
 
 function drawBlade(b) {
