@@ -46,18 +46,29 @@ function drawScenery() {
   ctx.globalAlpha = 1;
 }
 
+// Soft rounded blocks, laid in staggered courses on the world grid (so they scroll with the tower),
+// filling the box x0…x1, y0…y1: the walls, the floor and the pillars are built from them
+const TILE = '#f4effc';
+function tiles(x0, x1, y0, y1, bw = 58, bh = 30, gap = 6, color = TILE) {
+  if (x1 <= x0 || y1 <= y0) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
+  ctx.fillStyle = color; ctx.beginPath();
+  const rh = bh + gap, cw = bw + gap;
+  for (let r = Math.floor(y0 / rh); r * rh < y1; r++) {
+    const off = (r & 1) ? cw / 2 : 0;
+    for (let x = Math.floor((x0 - off) / cw) * cw + off; x < x1; x += cw) ctx.roundRect(x + gap / 2, r * rh + gap / 2, bw, bh, 8);
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawWalls() {
   // The side walls, carried on out to the edges of the window (and above / below on tall windows)
   const top = camY - OY, tall = VH;
   ctx.fillStyle = PAL.wall;
   ctx.fillRect(-OX, top, OX + WALL, tall); ctx.fillRect(W - WALL, top, WALL + OX, tall);
-  if (OX > 0) {   // faint stone courses on the wide parts
-    ctx.fillStyle = 'rgba(199,186,223,0.45)';
-    for (let y = Math.floor(top / 60) * 60; y < top + tall; y += 60) {
-      ctx.fillRect(-OX, y, OX, 2); ctx.fillRect(W, y, OX, 2);
-    }
-  }
-  ctx.fillStyle = PAL.wallLine;
+  tiles(-OX, WALL - 4, top, top + tall); tiles(W - WALL + 4, W + OX, top, top + tall);
+  ctx.fillStyle = PAL.wallLine;   // the tower's inner edge
   ctx.fillRect(WALL - 3, top, 3, tall); ctx.fillRect(W - WALL, top, 3, tall);
   // Height markers every 25 m
   ctx.font = `700 12px ${FONT}`; ctx.textAlign = 'center';
@@ -96,8 +107,10 @@ function drawPlatform(p) {
   if (p.y < camY - OY - 60 || p.y > camY + H + OY + 80) return;
   const y = p.y;
   if (p.type === 'ground') {
-    ctx.fillStyle = PAL.ground; ctx.fillRect(p.x, y, p.w, p.h);
-    ctx.fillStyle = PAL.groundD; ctx.fillRect(p.x, y, p.w, 5);
+    // The floor: a lilac slab with a rounded deep edge on top, built of the same soft blocks
+    ctx.fillStyle = PAL.ground; ctx.fillRect(-OX, y, VW, p.h + OY + 20);
+    tiles(-OX, W + OX, y + 6, y + p.h + OY + 20, 58, 30, 6, 'rgba(255,255,255,0.28)');
+    ctx.fillStyle = PAL.groundD; ctx.beginPath(); ctx.roundRect(p.x - 2, y, p.w + 4, 5, 2.5); ctx.fill();
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
     if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe') ctx.fillText('START', W / 2, y + 40);
     return;
@@ -225,12 +238,13 @@ function drawZapper(z) {
 function drawDivider(dv) {
   const top = Math.max(dv.top, camY - OY - 10), bot = Math.min(dv.bot, camY + H + OY + 10);
   if (bot <= top) return;
-  ctx.fillStyle = PAL.wall; ctx.fillRect(dv.x, top, dv.w, bot - top);
-  ctx.fillStyle = PAL.wallLine;
-  ctx.fillRect(dv.x, top, 3, bot - top); ctx.fillRect(dv.x + dv.w - 3, top, 3, bot - top);
-  for (let y = Math.ceil(top / 60) * 60; y < bot; y += 60) ctx.fillRect(dv.x + 3, y, dv.w - 6, 2);
-  if (dv.bot <= bot) { ctx.fillStyle = PAL.nozzle; ctx.fillRect(dv.x - 3, dv.bot - 6, dv.w + 6, 6); }   // its foot
-  if (dv.pillar && dv.top >= top) { ctx.fillStyle = PAL.nozzle; ctx.fillRect(dv.x - 4, dv.top, dv.w + 8, 7); }   // a pillar's cap
+  // A column of the wall's soft blocks, with a rounded deep edge, a foot and (pillars) a cap
+  ctx.fillStyle = PAL.wall; ctx.beginPath(); ctx.roundRect(dv.x, top, dv.w, bot - top, 6); ctx.fill();
+  tiles(dv.x + 3, dv.x + dv.w - 3, top + 2, bot - 2, dv.w - 6, 30, 6);
+  ctx.strokeStyle = PAL.wallLine; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(dv.x + 1, top + 1, dv.w - 2, bot - top - 2, 6); ctx.stroke();
+  ctx.fillStyle = PAL.nozzle;
+  if (dv.bot <= bot) { ctx.beginPath(); ctx.roundRect(dv.x - 4, dv.bot - 7, dv.w + 8, 7, 3.5); ctx.fill(); }    // its foot
+  if (dv.pillar && dv.top >= top) { ctx.beginPath(); ctx.roundRect(dv.x - 4, dv.top, dv.w + 8, 7, 3.5); ctx.fill(); }   // a pillar's cap
 }
 
 // Bubble column: a pale blue stream with bubbles rising through it

@@ -73,4 +73,4 @@ const REGION_POOL = Object.keys(REGIONS).filter(k => k !== 'start');
 
 // Seesaw platforms: how strongly weight tips them, how they spring back, the most they tip,
 // and how fast you slide toward the low end
-const TILT = { push: 7, spring: 3.5, damp: 3.2, max: 0.5, slide: 230 };
+const TILT = { push: 13, spring: 1.6, damp: 2.0, max: 0.62, slide: 260 };   // delicate: tips easily, wobbles, springs back slowly
