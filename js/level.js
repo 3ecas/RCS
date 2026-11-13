@@ -124,6 +124,7 @@ function genPathRow(y, m, d, L) {
     else if (!side.spikes && R() < pBlade) addBlade(y, clamp(sx - w2 / 2 - 60, lo, hi), clamp(sx + w2 / 2 + 60, lo, hi), m);
   }
 
+  snapToWalls(row);   // no thin gaps between a platform and a wall
   // Fire region: a flamethrower on the path's platform (strategic: you have to land / jump past it)
   if (has(m, 'wallflame') && allowHaz && !rowHaz && main.type === 'normal' && main.w >= 110 && R() < lerp(0.3, 0.5, heat(m))) {
     addPlatformJet(main); rowHaz = true;
@@ -183,7 +184,7 @@ function genSplitRow(y, m, d, L) {
     const w = Math.min(wrand(lerp(150, 95, d), lerp(210, 135, d)), span - 30);
     const cx = pickCx(w, lane.lo + 6, lane.hi - 6, [lane.prev], G);
     const p = makePlatform(cx, y, w, d, lane.lo + 6, lane.hi - 6, allowHaz);
-    platforms.push(p); lane.prev = p;
+    platforms.push(p); lane.prev = p; snapToWalls([p]);
     rowHaz = rowHaz || !!p.spikes;
     const tries = Math.max(1, Math.round(span / 450));
     for (let t = 0; t < tries; t++) {
@@ -192,11 +193,30 @@ function genSplitRow(y, m, d, L) {
       const spaces = [[lane.lo + 6, a - 50], [b + 50, lane.hi - 6]].filter(([u, v]) => v - u >= sw);
       if (!spaces.length) break;
       const [u, v] = spaces[Math.floor(R() * spaces.length)];
-      platforms.push(makePlatform(wrand(u + sw / 2, v - sw / 2), y, sw, d, u, v, false));
+      const q = makePlatform(wrand(u + sw / 2, v - sw / 2), y, sw, d, u, v, false);
+      platforms.push(q); snapToWalls([q]);
       break;
     }
   }
   gen.prevHaz = rowHaz;
+}
+
+// A still platform that ends just short of a wall (the tower's sides, a pillar, the Two Paths wall) is
+// stretched to touch it: a gap too narrow to fall through would only look wrong
+const SNAP = 30;
+function snapToWalls(row) {
+  for (const p of row) {
+    if (p.type !== 'normal' || p.menu) continue;
+    const near = dividers.filter(dv => p.y >= dv.top - 2 && p.y <= dv.bot + 2);
+    for (const e of [WALL, ...near.map(dv => dv.x + dv.w)]) {        // walls on its left
+      const g = p.x - e;
+      if (g > 0 && g < SNAP) { p.x = e; p.w += g; if (p.spikes) { p.spikes.x0 += g; p.spikes.x1 += g; } }
+    }
+    for (const e of [W - WALL, ...near.map(dv => dv.x)]) {           // walls on its right
+      const g = e - (p.x + p.w);
+      if (g > 0 && g < SNAP) p.w += g;
+    }
+  }
 }
 
 // lo/hi: the horizontal lane this platform must stay inside
