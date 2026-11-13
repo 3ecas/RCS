@@ -1,4 +1,4 @@
-// RCS online server: serves the game (index.html, css/, js/) and runs a shared room where up to 10 players get ready and race.
+// RCS online server: serves the game (index.html, css/, js/, fonts/) and runs a shared room where up to 10 players get ready and race.
 // No dependencies — uses only Node's built-in modules (Node 18+).
 //
 //   node server/server.js            (listens on $PORT, or 10000)
@@ -30,8 +30,8 @@ const path = require('path');
 
 const PORT = Number(process.argv[2] || process.env.PORT || 10000);
 const ROOT = path.join(__dirname, '..');                 // the game's files
-const PUBLIC_DIRS = ['css', 'js'];                        // folders browsers may load from
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+const PUBLIC_DIRS = ['css', 'js', 'fonts'];               // folders browsers may load from
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.woff2': 'font/woff2' };
 const MAX_FRAME = 64 * 1024;
 
 // ---------- HTTP: the game files + health check ----------
@@ -48,7 +48,7 @@ const server = http.createServer((req, res) => {
   try { url = decodeURIComponent((req.url || '/').split('?')[0]); } catch (e) { url = '/'; }
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok'); return; }
   if (url === '/' || url === '/index.html') return sendFile(res, path.join(ROOT, 'index.html'));
-  // Only files inside css/ and js/ with a known type — never the server code or anything else
+  // Only files inside css/, js/ and fonts/ with a known type — never the server code or anything else
   const file = path.normalize(path.join(ROOT, url));
   const inPublic = PUBLIC_DIRS.some(d => file.startsWith(path.join(ROOT, d) + path.sep));
   if (inPublic && TYPES[path.extname(file)]) return sendFile(res, file);

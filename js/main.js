@@ -3,6 +3,9 @@
 // updates per second would land unevenly on the frames and make the motion judder.
 'use strict';
 
+// Start loading the font straight away (the canvas only asks for it when it first draws text; until it
+// arrives the fallback font is used, and every frame is redrawn, so it simply switches over)
+try { document.fonts.load(`600 20px ${FONT}`); document.fonts.load(`700 20px ${FONT}`); } catch (e) {}
 reset();          // the lobby: the bottom of a new tower
 let last = performance.now();
 function frame(now) {

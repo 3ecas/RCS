@@ -26,7 +26,8 @@ const WALL_REACH = 1, WALL_COYOTE = 0.14, WALL_BUFFER = 0.16;   // reach 1: you 
 const GEMS_ON = false;       // gems are switched off for now (true brings them back, with wardrobe unlocks)
 const GEM_R = 12;            // gems: pick-up radius
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
-const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
+// The game's font: Fredoka (rounded; fonts/, declared in css/style.css), with rounded system fonts as a fallback
+const FONT = '"Fredoka", ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", sans-serif';
 
 // The "Soft Ascent" style (design/soft-ascent.md): pastel pairs, a soft face and a deeper edge
 const PAL = {
