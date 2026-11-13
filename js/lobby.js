@@ -1,12 +1,12 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
 // - mode platforms (SOLO / MULTIPLAYER, or CO-OP / RACE / MULTIPLAYER with two players): everyone stands
-//   on one for 3 seconds to start — the screen then starts scrolling up this same tower
+//   on one for 2 seconds to start — the screen then starts scrolling up this same tower
 // - a SOUND platform: land on it to turn the sound on or off
 // - a WARDROBE door a jump higher: press down at it to go inside and change your cube (js/wardrobe.js)
-// Player 1 plays with W A S D. Holding an arrow key for 3 seconds adds player 2 (Esc removes them).
+// Player 1 plays with W A S D. Holding an arrow key for 2 seconds adds player 2 (Esc removes them).
 'use strict';
 
-const HOLD_TIME = 3;          // seconds to stand on a mode platform / hold an arrow key
+const HOLD_TIME = 2;          // seconds to stand on a mode platform / hold an arrow key
 const lobby = { join: 0, on: null, holdT: 0 };
 
 // The modes on offer: one player can play solo or online; two players co-op or race (online is one per PC)
@@ -72,7 +72,7 @@ function updateLobby(dt) {
   checkWardrobeDoor();                 // down at the WARDROBE door: go inside (js/wardrobe.js)
   if (state !== 'lobby') return;
 
-  // Everyone on the same mode platform for 3 seconds starts that mode
+  // Everyone on the same mode platform for 2 seconds starts that mode
   const pl = standingOn(players[0]);
   const ok = pl && pl.menu && pl.menu !== 'sound' && pl.menu !== 'wear' && pl.menu !== 'door' && players.every(p => standingOn(p) === pl);
   if ((ok ? pl : null) !== lobby.on) { lobby.on = ok ? pl : null; lobby.holdT = 0; }

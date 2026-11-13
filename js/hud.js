@@ -167,7 +167,7 @@ function drawHelp() {
   });
   tip('Press jump as you land on a spring: big boost', (cx, cy) => drawSpringI(cx - 14, cy - 10, 28, 0));
   tip('Gems unlock new looks in the wardrobe', (cx, cy) => drawGemIcon(cx, cy, 10));
-  tip('Stand on a mode for 3 s to start', (cx, cy) => { ctx.fillStyle = PAL.good; ctx.fillRect(cx - 14, cy, 28, 8); text('3', cx, cy - 4, 14, PAL.good, 'center', 900); });
+  tip('Stand on a mode for 2 s to start', (cx, cy) => { ctx.fillStyle = PAL.good; ctx.fillRect(cx - 14, cy, 28, 8); text('2', cx, cy - 4, 14, PAL.good, 'center', 900); });
   // Other keys
   yy += 10;
   let kx = L + 14;
