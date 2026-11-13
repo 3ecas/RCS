@@ -166,7 +166,7 @@ setInterval(() => {
 // a race starts with all of them. After the race they come back to the room. Anyone joining while a race
 // is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 19;              // game and server must speak the same version
+const PROTOCOL = 20;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -255,6 +255,16 @@ function onMessage(c, text) {
     if (!maybeStart(r)) roomStatus(r);
   } else if (m.t === 'cancel' || m.t === 'leave') {
     leaveRoom(c);
+  } else if (m.t === 'toRoom') {
+    // Back to the room scene (e.g. knocked out and done watching): out of the race, still in the room.
+    // The racers carry on (to them it's as if this computer left the race); the next race includes it.
+    const r = c.room;
+    if (!r || r.phase !== 'playing' || !r.racers.includes(c)) return;
+    r.racers = r.racers.filter(o => o !== c);
+    for (const o of r.racers) o.send({ t: 'gone', owner: c.owner });
+    if (!r.racers.length) r.phase = 'lobby';
+    roomStatus(r);
+    maybeStart(r);
   } else if (m.t === 'relay') {
     const r = c.room;
     if (!r) return;

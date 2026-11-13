@@ -279,17 +279,17 @@ function revealSfx(o0, o1) {
 // Everyone but the winner, best first (whoever lasted longest)
 const runnersUp = () => players.filter(p => p.i !== winner).sort((a, b) => (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
 
-// The podium, with depth: the winner in front on the tallest block; 2nd on the right, further back
-// (smaller, higher up the scene); 3rd on the left, a little back. Back ones are drawn first. Each block has a
+// The podium, with depth: the winner in front on the tallest block; 2nd on the left, a little back;
+// 3rd on the right, further back (smaller, higher up the scene). Back ones are drawn first. Each block has a
 // lighter top face, a deeper edge and a soft shadow; blocks rise up as the reveal starts, their cubes pop on.
 const PODIUM = [   // place: x offset, how far back (0 front … 1 far), block height, colours
   { place: 1, dx: 0,    back: 0,    h: 92, col: SOFT.butter },
-  { place: 2, dx: 200,  back: 0.55, h: 70, col: SOFT.sky },
-  { place: 3, dx: -185, back: 0.3,  h: 56, col: SOFT.apricot },
+  { place: 2, dx: -185, back: 0.3,  h: 70, col: SOFT.sky },
+  { place: 3, dx: 200,  back: 0.55, h: 56, col: SOFT.apricot },
 ];
 function drawPodium(cx, cy, t) {
   const ranked = runnersUp(), feet0 = cy + 65;
-  const order = [1, 2, 0];   // far to near: 2nd, 3rd, then the winner's block
+  const order = [2, 1, 0];   // far to near: 3rd, 2nd, then the winner's block
   for (const i of order) {
     const P = PODIUM[i], who = i === 0 ? null : ranked[i - 1];
     if (i > 0 && !who) continue;

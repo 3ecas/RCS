@@ -63,6 +63,11 @@ function layoutButtons() {
       B('menu', 'MENU', '', cx + 10, mode === 'versus' ? 690 : H * 0.3 + 250, 250, 64),
     ];
   }
+  // Online, knocked out and watching the others: you can go back to the room or leave
+  if (spectating()) return [...icons,
+    B('room', 'ROOM', '', cx - 200, H - 96, 190, 54),
+    B('menu', 'LEAVE', '', cx + 10, H - 96, 190, 54),
+  ];
   return icons;    // in game: just the sound icon
 }
 const inside = (b, x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
@@ -115,7 +120,10 @@ function activate(id) {
 }
 
 // ESC: go back one step
+// Online race, all of this computer's cubes knocked out: watching the others
+const spectating = () => state === 'play' && net.status === 'playing' && players && players.some(p => !p.remote) && !players.some(p => !p.remote && !p.dead);
 function escAction() {
   if (state === 'search') activate('cancel');
+  else if (spectating()) activate('room');
   else if (state === 'over' && overT > (mode === 'versus' ? REVEAL + 0.7 : 0.8)) activate('menu');
 }

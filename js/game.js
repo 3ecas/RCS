@@ -29,7 +29,10 @@ function update(dt) {
     menuInput();
     return;
   }
-  gameClicks();   // the sound icon
+  if (spectating()) {   // knocked out online: the ROOM / LEAVE buttons (and Esc back to the room)
+    if (pressed.Escape) { escAction(); return; }
+    menuInput(); if (state !== 'play') return;
+  } else gameClicks();   // the sound icon
   // R or Esc pauses the game. Not online — the other computers' games can't be paused.
   if ((pressed.KeyR || pressed.Escape) && net.status !== 'playing') { pausedFrom = state; state = 'paused'; ui.focus = 0; return; }
 

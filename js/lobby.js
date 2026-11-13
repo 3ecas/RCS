@@ -92,7 +92,8 @@ function updateLobby(dt) {
 function chooseMode(menu) {
   lobby.on = null; lobby.holdT = 0;
   if (!tutDone) { tutDone = true; try { localStorage.setItem('rcs.tut', '1'); } catch (e) {} }
-  if (menu === 'multi') { mode = 'versus'; startSearch(); return; }   // online: one cube per computer
+  // online (one cube per computer): the circle closes on your cube, then the 'Connecting' screen
+  if (menu === 'multi') { mode = 'versus'; startIris(0.3, myCubeOnScreen(), () => [W / 2, 262], startSearch); return; }
   mode = menu === 'solo' ? 'solo' : menu === 'coop' ? 'split' : 'versus';
   beginPlay();
 }
