@@ -32,13 +32,13 @@ In the lobby player 1 is W A S D only (the arrow keys add player 2).
 
 **R** stops the game (press **R** again to start over; not online) · **M** sound · **F** full screen.
 
-The tower **fills the whole screen**: it is as wide as your window's shape (from 800 up to 2400 wide, at a fixed height), and wider towers get more platforms, spikes, shurikens and fireballs spread across them. On a very tall window the tower stays 800 wide and you see more sky above. **Online**, everyone races one shared 16:9 tower (1600 wide) so the race is fair; on other screen shapes it is scaled to fit.
+The tower is **800 wide** for everyone, offline and online, so every race is fair. It is scaled to fit and centred in the window: a wide window shows more of the side walls, a tall one more sky above.
 
 Springs: press jump right as you land on one for a big launch; otherwise it's a normal bounce.
 
 ## The tower
-- The path is built from **set pieces**, a few rows each, picked at random: loose **scatter** platforms, a zigzag **staircase**, a **chimney** (a narrow shaft between two pillars with small ledges — hop up them or wall-jump), a **wall climb** (ledges hugging a side wall, alternating with platforms further out) and a **plaza** (a wide platform, then two routes, one with a gem, that meet again). Every step stays within jumping reach. Extra platforms fill the rest of the width.
-- **Wall jumping:** jump while touching a wall in mid-air (the tower's sides, pillars, the Two Paths wall) to spring up and away from it. Pushing against a wall while falling slides down it slowly.
+- The path is built from **set pieces**, a few rows each, picked at random: loose **scatter** platforms, a zigzag **staircase**, a **chimney** (a floor, a narrow empty shaft between two pillars, and a cap on top — wall-jump up it), a **wall climb** (ledges hugging a side wall, alternating with platforms further out) and a **plaza** (a wide platform, then two routes, one with a gem, that meet again). Every step stays within jumping reach. Now and then an extra platform sits off to the side.
+- **Wall jumping:** jump while touching a wall in mid-air (the tower's sides, pillars, the Two Paths wall) to spring up and away from it — you fly across to the opposite side by yourself and hang on the wall you reach, sliding down slowly, ready to jump again (in a chimney, just keep tapping jump). Press the other way to steer out of a wall jump or let go of a wall. Pushing against a wall while falling also slides down it slowly.
 - **Gems** sit off the main path — at the top of chimneys, on the risky route of a plaza, high up against walls, on a shuriken's track. Gems are counted per computer and unlock **wardrobe items**: more faces, hats and patterns (the wardrobe mirror shows your total and the next unlock).
 - A row right after a row with a hazard is always hazard-free.
 - **Regions:** the first 100 m are a plain region with just platforms. After that a new region starts every 200 m (`REGION_LEN` in `js/config.js`), picked at random and never the same twice in a row. Each region has its own dangers, background colour, platform style (grass, crystals, planks, rivets, embers, hazard stripes, drips, bricks) and background scenery (clouds, trees, crystals, hills, gears, flames, storm clouds, seaweed, columns):

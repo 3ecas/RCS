@@ -187,7 +187,7 @@ function drawPlainPlatform(p) {
   ctx.fillStyle = cd;
   if (x - WALL < 6) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
   else if (W - WALL - (x + w) < 6) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
-  else if (hash(p.id, 9) < 0.22) {
+  else if (!p.noChain && hash(p.id, 9) < 0.22) {
     ctx.globalAlpha = 0.5; ctx.fillRect(x + 12, y - 110, 2, 110); ctx.fillRect(x + w - 14, y - 110, 2, 110); ctx.globalAlpha = 1;
   }
   ctx.fillStyle = c; ctx.fillRect(x, y, w, h);

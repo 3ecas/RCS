@@ -12,7 +12,7 @@ let roomSendT = 0;
 function enterRoom() {
   if (net.status === 'playing') net.status = 'searching';   // the race is over for us: back in the room
   state = 'room'; ui.focus = 0; ui.help = false;
-  W = ONLINE_W; resize();                                   // the same size on every computer
+  W = ARENA_W; resize();                                    // the same size on every computer
   camY = 0; time = time || 0; shake = 0; height = 0;
   particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = []; dividers = []; gems = [];
   platforms = [
@@ -20,13 +20,13 @@ function enterRoom() {
     { id: 1, x: W / 2 - START_W / 2, y: GROUND_Y - ROW_GAP, w: START_W, h: 30, type: 'normal', menu: 'start', dx: 0, dy: 0, t: 0, falling: false },
   ];
   // A few platforms to hop around on while waiting
-  [[0.18, 2], [0.32, 1], [0.68, 1], [0.82, 2], [0.25, 3], [0.75, 3]].forEach(([f, row], k) => {
-    platforms.push({ id: 2 + k, x: W * f - 80, y: GROUND_Y - row * ROW_GAP, w: 160, h: 16, type: 'normal', dx: 0, dy: 0, t: 0, falling: false });
+  [[0.12, 1], [0.88, 1], [0.3, 2], [0.7, 2], [0.14, 3], [0.86, 3]].forEach(([f, row], k) => {
+    platforms.push({ id: 2 + k, x: W * f - 60, y: GROUND_Y - row * ROW_GAP, w: 120, h: 16, type: 'normal', dx: 0, dy: 0, t: 0, falling: false });
   });
   // Your cubes: player 1 (WASD) and player 2 (arrow keys) if you're two on this computer
   players = [];
   for (let j = 0; j < net.local; j++) {
-    const p = mkPlayer(j, W / 2 - 300 - j * 60);
+    const p = mkPlayer(j, W / 2 - 200 - j * 60);
     p.slot = j; p.uid = 'me:' + j;
     players.push(p);
   }
@@ -138,7 +138,7 @@ function drawRoomHUD() {
   ctx.restore();
   const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
   drawChatLog(); drawChatBubbles();
-  text('Everyone stands on START to begin  ·  Enter to chat  ·  Esc leaves the room', W / 2, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
-  text(keysTxt, W / 2, GROUND_Y + 54, 14, localCube(0).d, 'center', 900);
+  text('Everyone on START to begin  ·  Enter: chat  ·  Esc: leave', W / 2 - 60, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
+  text(keysTxt, W / 2 - 60, GROUND_Y + 54, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }

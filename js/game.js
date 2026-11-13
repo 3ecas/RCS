@@ -342,7 +342,7 @@ function updateHazards(dt) {
   if (state === 'play' && has(m, 'fireball') && !(net.status === 'playing' && net.me !== 0)) {
     fireTimer -= dt;
     if (fireTimer <= 0) {
-      fireTimer = rand(lerp(3, 1.2, fd), lerp(4.5, 2.2, fd)) * MIN_W / W;   // wider tower, more fireballs
+      fireTimer = rand(lerp(3, 1.2, fd), lerp(4.5, 2.2, fd));
       const x = fireballX();
       warnings.push({ x, t: 1.1 });
       if (net.status === 'playing') relay({ k: 'f', x });

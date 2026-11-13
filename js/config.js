@@ -1,11 +1,11 @@
 // RCS — Game settings: sizes, physics, colours and when each obstacle appears.
 'use strict';
 
-// The arena is H tall and W wide. W follows the window's shape (wider screens get a wider tower), from
-// MIN_W up to MAX_W. Online everyone shares one width (ONLINE_W, 16:9) so all players race the same tower.
-let W = 800;
+// The arena is H tall and ARENA_W wide, the same for everyone (offline and online). A wider window shows
+// more of the tower's side walls around it.
+const ARENA_W = 800;
+let W = ARENA_W;
 const H = 900, WALL = 40;
-const MIN_W = 800, MAX_W = 2400, ONLINE_W = 1600;
 const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;
 const PX_PER_M = 40;
 const GROUND_Y = H - 70;

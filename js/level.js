@@ -99,12 +99,11 @@ function genPathRow(y, m, d, L) {
   const main = pc.main, cx = center(main), w = main.w;
   let rowHaz = pc.rowHaz;
 
-  // Extra platforms off to the sides, in the free space between what's already on this row.
-  // A narrow tower gets at most one; a wide one gets more tries, so the whole width is used.
-  const row = [...pc.row], extras = W > MIN_W + 100 ? Math.round((W - 2 * WALL) / 420) : 1;
+  // Sometimes an extra platform off to the side, in the free space beside the path
+  const row = [...pc.row], extras = 1;
   const pBlade = has(m, 'shuriken') ? lerp(0.25, 0.45, heat(m)) : 0;
   for (let k = 0; k < extras; k++) {
-    if (R() >= (k === 0 ? lerp(0.35, 0.15, d) : lerp(0.6, 0.4, d))) continue;
+    if (R() >= lerp(0.28, 0.12, d)) continue;
     const GAP = 50, minW = lerp(110, 80, d);
     const taken = [...row.map(extent), ...(pc.block ? [pc.block] : [])].sort((a, b) => a[0] - b[0]);
     const spaces = [];
