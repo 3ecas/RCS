@@ -458,6 +458,7 @@ function render() {
   drawHUD();
   drawScreenWipe();   // leaving an end screen (js/menu.js)
   drawDoorIris();     // going through the wardrobe door (js/wardrobe.js)
+  drawRaceIris();     // from the online room into a race (js/net.js)
 }
 
 // Red glow at the bottom when someone is about to fall off the screen

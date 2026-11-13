@@ -8,7 +8,7 @@ const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 // me: which computer we are in the race. roster: every cube's colour, owner and name.
 // room: the shared room (who's in it, who's ready). round: which race in the room this is;
 // sentOver: told the server this race has ended.
-const PROTOCOL = 18;   // must match the server's; an outdated copy of the game is told to refresh
+const PROTOCOL = 19;   // must match the server's; an outdated copy of the game is told to refresh
 const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, room: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
@@ -75,7 +75,8 @@ function connectOnce() {
   };
 }
 
-function leaveOnline() { netSend({ t: 'leave' }); netClose(); toMenu(); }
+function leaveOnline() {
+  pendingStart = null; raceIris = null; netSend({ t: 'leave' }); netClose(); toMenu(); }
 
 // The room: am I ready (for the rematch)? Toggle it.
 const meInRoom = () => net.room && net.room.players[net.room.me];
@@ -91,7 +92,39 @@ function reportRoundOver() {
   netSend({ t: 'roundOver', round: net.round });
 }
 
+// Room -> race: the circle closes on the START platform first (RACE_IRIS s), then the race is set up; the
+// 'Match found' screen is shortened by the same amount, so the countdown still ends at the same moment on
+// every computer. Anything else for the race that arrives meanwhile sets it up at once.
+const RACE_IRIS = 0.4;
+let pendingStart = null, raceIris = null;
+function updateRaceStart(dt) {
+  if (raceIris) { raceIris.t += dt; if (raceIris.t > RACE_IRIS + 0.55) raceIris = null; }
+  if (pendingStart && (pendingStart.t += dt) >= RACE_IRIS) applyStart(pendingStart.m, pendingStart.t);
+}
+function applyStart(m, late) {
+  pendingStart = null;
+  startWipe();                       // (from the results: the stripes sweep away)
+  reset(m.seed);
+  // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
+  const total = m.startIn / 1000 - late;
+  foundT = Math.max(0.3, Math.min(1.5, total - 1));
+  countdown = total - foundT;
+  state = 'found'; sfx.milestone();
+}
+// The circle (screen coordinates): closing on the START platform, then opening on the 'Match found' cubes
+function drawRaceIris() {
+  if (!raceIris) return;
+  const t = raceIris.t, Rmax = Math.hypot(VW, VH), closing = t < RACE_IRIS;
+  const u = closing ? t / RACE_IRIS : clamp((t - RACE_IRIS) / 0.55, 0, 1);
+  const r = Math.max(0.1, Rmax * (closing ? Math.pow(1 - u, 2.2) : Math.pow(u, 2.2)));
+  const cx = W / 2, cy = closing ? GROUND_Y - ROW_GAP + 15 - camY : 280;
+  ctx.fillStyle = SOFT.lilac[0];
+  ctx.beginPath(); ctx.rect(-OX, -OY, VW, VH); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.fill('evenodd');
+  ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+}
+
 function onNet(m) {
+  if (pendingStart && m.t !== 'room') applyStart(pendingStart.m, pendingStart.t);   // (the race comes first)
   if (m.t === 'room') {
     net.room = m;
     if (state === 'search') enterRoom();          // joined: into the room scene
@@ -103,12 +136,8 @@ function onNet(m) {
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;
     net.round = m.round; net.sentOver = false;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
-    startWipe();                       // (from the results: the stripes sweep away)
-    reset(m.seed);
-    // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
-    foundT = Math.min(1.5, m.startIn / 1000 - 1);
-    countdown = m.startIn / 1000 - foundT;
-    state = 'found'; sfx.milestone();
+    if (state === 'room') { pendingStart = { m, t: 0 }; raceIris = { t: 0 }; sfx.swoosh(); }   // the circle closes first
+    else applyStart(m, 0);
   }
   else if (m.t === 'gone') playersLeft(m.owner);
   else if (m.t === 'chat') onChat(m);

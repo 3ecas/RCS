@@ -166,7 +166,7 @@ setInterval(() => {
 // a race starts with all of them. After the race they come back to the room. Anyone joining while a race
 // is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 18;              // game and server must speak the same version
+const PROTOCOL = 19;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
