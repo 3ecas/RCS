@@ -415,7 +415,7 @@ function updateHazards(dt) {
     for (const b of blades) if (circleHit(p, b.x, b.y, b.r - 5)) return 'was hit by a shuriken';
     for (const j of jets) {
       if (jetState(j) !== 2) continue;
-      const [x0, x1, y0, y1] = jetBox(j);
+      const [x0, x1, y0, y1] = jetBox(j, 0.86);
       if (px1 > x0 + 4 && px0 < x1 - 4 && py1 > y0 + 4 && py0 < y1 - 4) return 'got burned';
     }
     for (const f of fireballs) if (circleHit(p, f.x, f.y, f.r - 2)) return 'was hit by a fireball';

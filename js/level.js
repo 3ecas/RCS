@@ -349,8 +349,10 @@ function jetState(j) {
   return 0;
 }
 // The flame's box [x0, x1, y0, y1]
-function jetBox(j) {
-  const ex = j.ox + j.dx * j.len, ey = j.oy + j.dy * j.len, h = j.thick / 2;
+// reach: how much of the flame's length counts (the drawn flame narrows to a point, so the part that
+// burns stops a little short of its tip)
+function jetBox(j, reach = 1) {
+  const len = j.len * reach, ex = j.ox + j.dx * len, ey = j.oy + j.dy * len, h = j.thick / 2;
   return j.dy ? [j.ox - h, j.ox + h, Math.min(j.oy, ey), Math.max(j.oy, ey)]
               : [Math.min(j.ox, ex), Math.max(j.ox, ex), j.oy - h, j.oy + h];
 }

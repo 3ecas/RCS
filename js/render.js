@@ -207,7 +207,7 @@ function drawBlade(b) {
   if (b.y < camY - OY - 40 || b.y > camY + H + OY + 40) return;
   ctx.save();
   ctx.translate(b.x, b.y); ctx.rotate(b.ang);
-  ctx.fillStyle = PAL.blade; ctx.strokeStyle = PAL.blade; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  ctx.fillStyle = PAL.blade; ctx.strokeStyle = PAL.bladeD; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
   ctx.beginPath();
   for (let k = 0; k < 8; k++) {
     const r = k % 2 ? b.r * 0.4 : b.r - 1;
@@ -215,11 +215,11 @@ function drawBlade(b) {
     k ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(r, 0);
   }
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = PAL.bladeD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.restore();
   // its patrol track: small dots
-  ctx.fillStyle = PAL.blade; ctx.globalAlpha = 0.18;
+  ctx.fillStyle = PAL.bladeD; ctx.globalAlpha = 0.22;
   for (let tx = b.lo; tx <= b.hi; tx += 14) { ctx.beginPath(); ctx.arc(tx, b.y, 1.8, 0, Math.PI * 2); ctx.fill(); }
   ctx.globalAlpha = 1;
 }
@@ -291,16 +291,33 @@ function drawJet(j) {
   ctx.fillStyle = s ? PAL.flame : PAL.nozzle; // nozzle
   if (j.wall) { ctx.beginPath(); ctx.roundRect(-12, -h * 0.6, 14, h * 1.2, 5); ctx.fill(); }
   else { ctx.beginPath(); ctx.roundRect(-4, -h * 0.55, 14, h * 1.1, 4); ctx.fill(); ctx.fillStyle = PAL.zapPost; ctx.beginPath(); ctx.roundRect(-4, -h * 0.55, 5, h * 1.1, 2); ctx.fill(); }
-  if (s === 1 && Math.floor(time * 12) % 2) {
-    ctx.fillStyle = 'rgba(255,154,118,0.6)'; ctx.fillRect(0, -h * 0.4, 18, h * 0.8);
+  if (s === 1 && Math.floor(time * 12) % 2) {   // warming up: a small flickering tongue
+    ctx.fillStyle = PAL.flame; ctx.beginPath(); ctx.roundRect(0, -h * 0.4, 22, h * 0.8, h * 0.4); ctx.fill();
   }
   if (s === 2) {
-    const len = j.len * (0.92 + 0.08 * Math.sin(time * 30 + j.ox));
-    const g = ctx.createLinearGradient(0, 0, len, 0);
-    g.addColorStop(0, PAL.flame2); g.addColorStop(0.5, PAL.flame); g.addColorStop(1, 'rgba(255,154,118,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.moveTo(0, -h * 0.7); ctx.lineTo(len * 0.25, -h); ctx.lineTo(len, -h * 0.6); ctx.lineTo(len, h * 0.6); ctx.lineTo(len * 0.25, h); ctx.lineTo(0, h * 0.7); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(0, -h * 0.25, len * 0.5, h * 0.5);
+    // Burning: three rounded tongues (apricot, butter, cream), each flickering on its own,
+    // and a few little shapes drifting off the tip
+    const f = k => 0.9 + 0.1 * Math.sin(time * (24 + k * 7) + j.ox * 0.1 + k);
+    ctx.save(); ctx.beginPath(); ctx.rect(-1, -h * 2, j.len * 1.4, h * 4); ctx.clip();   // nothing behind the nozzle
+    // a tongue: round at the nozzle, swelling a little, then narrowing to a soft point
+    const tongue = (len, th, col) => {
+      ctx.fillStyle = col; ctx.beginPath();
+      ctx.moveTo(0, -th);
+      ctx.bezierCurveTo(len * 0.45, -th * 1.2, len * 0.8, -th * 0.5, len, 0);
+      ctx.bezierCurveTo(len * 0.8, th * 0.5, len * 0.45, th * 1.2, 0, th);
+      ctx.arc(0, 0, th, Math.PI / 2, Math.PI * 1.5);
+      ctx.fill();
+    };
+    tongue(j.len * f(0), h * 0.9, PAL.flame);
+    tongue(j.len * 0.74 * f(1), h * 0.6, PAL.flame2);
+    tongue(j.len * 0.42 * f(2), h * 0.28, PAL.flameCore);
+    ctx.restore();
+    for (let k = 0; k < 3; k++) {
+      const ph = (time * 2.2 + k / 3 + j.ox * 0.01) % 1;
+      ctx.globalAlpha = 1 - ph;
+      drawShape(ctx, k % 2 ? 'tri' : 'dot', j.len * (0.88 + ph * 0.2), Math.sin(time * 5 + k * 2) * h * 0.6, 3.5 - ph * 2, PAL.flame, time * 3 + k);
+    }
+    ctx.globalAlpha = 1;
   }
   ctx.restore();
 }
@@ -336,9 +353,11 @@ function render() {
   for (const p of players) if (p.remote) drawPlayer(p);
   for (const p of players) if (!p.remote) drawPlayer(p);
   for (const f of fireballs) {
-    ctx.fillStyle = 'rgba(249,139,108,0.22)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 1.7, 0, Math.PI * 2); ctx.fill();
+    // a little flame-coloured ball: a soft halo, an apricot ball, a butter middle and a cream spark
+    ctx.fillStyle = PAL.flame; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(f.x, f.y - f.r * 0.3, f.r * 1.6, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
     ctx.fillStyle = PAL.fire; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = PAL.flame2; ctx.beginPath(); ctx.arc(f.x - f.r * 0.25, f.y - f.r * 0.25, f.r * 0.42, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.flame2; ctx.beginPath(); ctx.arc(f.x, f.y + f.r * 0.15, f.r * 0.62, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.flameCore; ctx.beginPath(); ctx.arc(f.x - f.r * 0.15, f.y + f.r * 0.25, f.r * 0.28, 0, Math.PI * 2); ctx.fill();
   }
   for (const q of particles) {
     ctx.globalAlpha = clamp(q.life / q.max, 0, 1);
