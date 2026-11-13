@@ -126,22 +126,22 @@ function retroText(str, x, y, size, faces, edge = PAL.ink) {
 function drawResults() {
   const wp = players.find(p => p.i === winner), t = Math.max(0, overT - 0.4);
   const cx = W / 2, cy = 300;
-  // sunburst
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.15);
-  const rays = 18, cols = Object.values(SOFT);
-  for (let k = 0; k < rays; k++) {
-    ctx.fillStyle = cols[k % cols.length][0]; ctx.globalAlpha = 0.55;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 900, (k / rays) * Math.PI * 2, ((k + 0.5) / rays) * Math.PI * 2); ctx.closePath(); ctx.fill();
-  }
-  ctx.restore(); ctx.globalAlpha = 1;
-  // sunset disc: bands from butter to rose, with gaps that widen toward the bottom
-  const R = 150, bands = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e88fb5'];
-  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+  // retro sunset stripes across the whole window (thin gaps that widen toward the bottom)...
+  const bands = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e8a3c8', '#d4b2ee', '#c8b6f2'];
+  const bh = VH / bands.length;
   bands.forEach((c, k) => {
-    const y0 = cy - R + k * (2 * R / bands.length), gap = k < 2 ? 0 : (k - 1) * 3;
-    ctx.fillStyle = c; ctx.fillRect(cx - R, y0 + gap, 2 * R, 2 * R / bands.length - gap);
+    const gap = k < 2 ? 0 : (k - 1) * 4;
+    ctx.fillStyle = c; ctx.fillRect(-OX, -OY + k * bh + gap, VW, bh - gap);
   });
-  ctx.restore();
+  // ...and soft light rays turning slowly from behind the winner
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.15);
+  const rays = 18;
+  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.28;
+  ctx.beginPath();
+  for (let k = 0; k < rays; k++) { ctx.moveTo(0, 0); ctx.arc(0, 0, 2000, (k / rays) * Math.PI * 2, ((k + 0.5) / rays) * Math.PI * 2); ctx.closePath(); }
+  ctx.fill();
+  ctx.restore(); ctx.globalAlpha = 1;
+  const R = 150;   // (where the text sits below the winner)
   if (wp) {
     // the cube springs up out of the sun (an overshooting pop), then bobs
     const pop = t < 0.6 ? 1 + 2.70158 * Math.pow(t / 0.6 - 1, 3) + 1.70158 * Math.pow(t / 0.6 - 1, 2) : 1;
@@ -163,6 +163,27 @@ function drawResults() {
     retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
     retroText(wp.name.toUpperCase(), cx, cy + R + 160, 44, [wp.color, wp.color, wp.dark], PAL.ink);
   } else retroText('DRAW!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
+  drawConfetti(t);
+}
+
+// Confetti over the reveal: pastel strips, dots and triangles fluttering down the whole window, flipping
+// as they fall and swaying side to side. Starts above the screen and keeps raining while it's shown.
+function drawConfetti(t) {
+  const cols = Object.values(SOFT), span = VH + 80;
+  for (let k = 0; k < 90; k++) {
+    const sp = 120 + hash(k, 21) * 140, raw = t * sp - hash(k, 22) * VH * 0.9;
+    if (raw < 0) continue;                                         // not fallen into view yet
+    const y = -OY - 40 + (raw % span);
+    const x = -OX + hash(k, 23) * VW + Math.sin(t * (1.5 + hash(k, 24) * 2) + k) * 26;
+    const flip = Math.cos(t * (4 + hash(k, 25) * 6) + k), col = cols[k % cols.length][k % 3 ? 0 : 1];
+    ctx.save(); ctx.translate(x, y); ctx.rotate(t * (1 + hash(k, 26) * 3) + k);
+    ctx.globalAlpha = 0.95;
+    if (k % 5 === 0) drawShape(ctx, 'dot', 0, 0, 3.5, col);
+    else if (k % 5 === 1) { ctx.scale(flip, 1); drawShape(ctx, 'tri', 0, 0, 5, col); }
+    else { ctx.scale(flip, 1); ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(-3.5, -7, 7, 14, 2); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 }
 
 // Instructions overlay (the ? icon): mostly keys and pictures
