@@ -162,24 +162,27 @@ setInterval(() => {
 // ---------- Rooms ----------
 // Everyone who clicks Multiplayer goes into the same room (a new room only opens once one is full,
 // MAX_PLAYERS cubes). The room is a small scene everyone walks around in; a computer is ready when its
-// cubes stand on the START platform. When every computer in the room is ready (and there are at least 2),
-// a race starts with all of them. After the race they come back to the room. Anyone joining while a race
-// is on waits in the room for the next one.
+// cubes stand on the START platform (or, on the results screen after a race, when it presses READY).
+// The next race starts:
+//  - after a race, when everyone still on the results screen is ready (at least 2 ready in all). Anyone who
+//    went back to the room scene joins only if they're on START when it starts; otherwise they wait.
+//  - otherwise (everyone in the room scene), when every computer in the room is ready (at least 2).
+// Anyone joining while a race is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 21;              // game and server must speak the same version
+const PROTOCOL = 22;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
 
 // Send each player the room: who's in it, who's ready, who's racing, and which one is them
 function roomStatus(r) {
-  const list = r.members.map(c => ({ id: c.id, name: c.name, colors: c.colors, looks: c.looks, ready: r.ready.has(c), racing: r.racers.includes(c) }));
+  const list = r.members.map(c => ({ id: c.id, name: c.name, colors: c.colors, looks: c.looks, ready: r.ready.has(c), racing: r.racers.includes(c), results: r.atResults.has(c) }));
   r.members.forEach((c, i) => c.send({ t: 'room', phase: r.phase, players: list, me: i, max: MAX_PLAYERS, round: r.round }));
 }
 
 function joinRoom(c) {
   let r = rooms.find(x => cubesIn(x.members) + c.colors.length <= MAX_PLAYERS);
-  if (!r) { r = { members: [], racers: [], ready: new Set(), phase: 'lobby', round: 0, mode: 'versus' }; rooms.push(r); }
+  if (!r) { r = { members: [], racers: [], ready: new Set(), atResults: new Set(), phase: 'lobby', round: 0, mode: 'versus' }; rooms.push(r); }
   c.room = r;
   r.members.push(c);
   roomStatus(r);
@@ -187,11 +190,16 @@ function joinRoom(c) {
 
 // Start when everyone in the room is ready (and there are at least 2)
 function maybeStart(r) {
-  if (r.phase !== 'lobby' || r.members.length < 2 || !r.members.every(c => r.ready.has(c))) return false;
+  if (r.phase !== 'lobby') return false;
+  const ready = r.members.filter(c => r.ready.has(c));
+  const ok = r.atResults.size
+    ? [...r.atResults].every(c => r.ready.has(c)) && ready.length >= 2   // after a race: the results screen decides
+    : r.members.length >= 2 && ready.length === r.members.length;      // all in the room scene: everyone
+  if (!ok) return false;
   r.phase = 'playing';
   r.round++;
-  r.racers = [...r.members];
-  r.ready.clear();
+  r.racers = ready;                    // only the ready ones race; the others wait in the room
+  r.ready.clear(); r.atResults.clear();
   // Everyone in the race: colour, computer (owner), keys there (slot), name, and a stable id for win counts
   const roster = [];
   r.racers.forEach((cl, owner) => {
@@ -209,6 +217,7 @@ function roundOver(c, round) {
   const r = c.room;
   if (!r || r.phase !== 'playing' || round !== r.round || !r.racers.includes(c)) return;
   r.phase = 'lobby';
+  r.atResults = new Set(r.racers);     // they're on the results screen now (until they go to the room / leave)
   r.racers = [];
   roomStatus(r);
   maybeStart(r);
@@ -222,7 +231,7 @@ function leaveRoom(c) {
   const racing = r.phase === 'playing' && r.racers.includes(c);
   r.members = r.members.filter(o => o !== c);
   r.racers = r.racers.filter(o => o !== c);
-  r.ready.delete(c);
+  r.ready.delete(c); r.atResults.delete(c);
   if (!r.members.length) { rooms.splice(rooms.indexOf(r), 1); return; }
   if (racing) for (const o of r.racers) o.send({ t: 'gone', owner: c.owner });
   if (r.phase === 'playing' && !r.racers.length) r.phase = 'lobby';   // everyone racing left
@@ -267,10 +276,14 @@ function onMessage(c, text) {
     // Back to the room scene (e.g. knocked out and done watching): out of the race, still in the room.
     // The racers carry on (to them it's as if this computer left the race); the next race includes it.
     const r = c.room;
-    if (!r || r.phase !== 'playing' || !r.racers.includes(c)) return;
-    r.racers = r.racers.filter(o => o !== c);
-    for (const o of r.racers) o.send({ t: 'gone', owner: c.owner });
-    if (!r.racers.length) r.phase = 'lobby';
+    if (!r) return;
+    r.atResults.delete(c);             // not on the results screen any more: joins the next race only from START
+    r.ready.delete(c);
+    if (r.phase === 'playing' && r.racers.includes(c)) {
+      r.racers = r.racers.filter(o => o !== c);
+      for (const o of r.racers) o.send({ t: 'gone', owner: c.owner });
+      if (!r.racers.length) r.phase = 'lobby';
+    }
     roomStatus(r);
     maybeStart(r);
   } else if (m.t === 'relay') {

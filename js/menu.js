@@ -110,7 +110,8 @@ function activate(id) {
     case 'mute': toggleMute(); break;
     case 'cancel': leaveOnline(); break;
     case 'room':   // from the results: the circle closes on the winner, then opens on your cube in the room
-      if (state === 'over') { const prev = state; startIris(0.35, [W / 2, 300], myCubeOnScreen, () => { if (state === prev) enterRoom(); }); }
+      // (and while watching a race after being knocked out: the circle closes on the middle of the screen)
+      if (state === 'over' || spectating()) startIris(0.35, [W / 2, state === 'over' ? 300 : H / 2], myCubeOnScreen, () => { if (state === 'over' || state === 'play') enterRoom(); });
       else enterRoom();
       break;
     case 'ready': toggleReady(); break;

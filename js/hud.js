@@ -407,8 +407,18 @@ function roomLine() {
   const R = net.room;
   if (!R) return 'Joining the room…';
   if (R.phase === 'playing') return 'A race is on — wait here for the next one';
-  const n = R.players.length, waiting = R.players.map((p, i) => ({ p, i })).filter(x => !x.p.ready);
+  const n = R.players.length;
   if (n < 2) return 'Waiting for more players to join…';
+  // Right after a race the players still on the results screen decide; the room scene joins from START
+  if (R.players.some(p => p.results)) {
+    const atRes = R.players.map((p, i) => ({ p, i })).filter(x => x.p.results), slow = atRes.filter(x => !x.p.ready);
+    const meRes = R.players[R.me] && R.players[R.me].results;
+    if (!meRes) return (R.players[R.me] && R.players[R.me].ready ? 'On START — you’ll join' : 'Stand on START to join') + ' the next race (it starts when the results screen is ready)';
+    if (!slow.length) return 'Everyone’s ready — starting!';
+    if (slow.length <= 3) return 'Waiting for ' + slow.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to get ready';
+    return `${atRes.length - slow.length}/${atRes.length} ready`;
+  }
+  const waiting = R.players.map((p, i) => ({ p, i })).filter(x => !x.p.ready);
   if (!waiting.length) return 'Everyone’s ready — starting!';
   if (waiting.length <= 3) return 'Waiting for ' + waiting.map(x => x.i === R.me ? 'you' : roomName(x.p)).join(', ') + ' to get ready';
   return `${n - waiting.length}/${n} ready — the race starts when everyone is ready`;
