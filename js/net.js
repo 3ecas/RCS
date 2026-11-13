@@ -126,8 +126,9 @@ function updateRaceStart(dt) {
   if (pendingRoom && (pendingRoom += dt) >= ROOM_IRIS) { pendingRoom = 0; if (state === 'search') enterRoom(); }
 }
 function applyStart(m, late) {
+  const viaIris = !!pendingStart;
   pendingStart = null; net.readyWant = undefined;
-  startWipe();                       // (from the results: the stripes sweep away)
+  if (!viaIris) startWipe();         // (from the results without the circle: the stripes sweep away)
   reset(m.seed);
   // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
   const total = m.startIn / 1000 - late;
@@ -164,7 +165,9 @@ function onNet(m) {
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;
     net.round = m.round; net.sentOver = false;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
-    if (state === 'room') { pendingStart = { m, t: 0 }; startIris(RACE_IRIS, [W / 2, GROUND_Y - ROW_GAP + 15 - camY], () => [W / 2, 280]); }   // the circle closes first
+    // The circle closes first — on START in the room, on the winner on the results screen — then opens on MATCH FOUND
+    if (state === 'room') { pendingStart = { m, t: 0 }; startIris(RACE_IRIS, [W / 2, GROUND_Y - ROW_GAP + 15 - camY], () => [W / 2, 280]); }
+    else if (state === 'over') { pendingStart = { m, t: 0 }; startIris(RACE_IRIS, [W / 2, 300], () => [W / 2, 280]); }
     else applyStart(m, 0);
   }
   else if (m.t === 'gone') playersLeft(m.owner);
