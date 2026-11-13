@@ -21,42 +21,16 @@ function drawBackground() {
 
 // Background: big soft geometric shapes drifting slower than the tower (each region has its own family of
 // shapes, in its colours), and a sparse layer of small shapes rising through the air
-// Where the big background shapes sit: a random-looking spread laid out once (per tower width and window
-// height) so that no two of them ever overlap, not even across the point where the pattern repeats
-let sceneryLayout = null, sceneryKey = '';
-function sceneryItems(span) {
-  const key = W + 'x' + Math.round(span);
-  if (key === sceneryKey) return sceneryLayout;
-  let seed = 7;
-  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const items = [], want = Math.round(span / 190);
-  for (let tries = 0; items.length < want && tries < 2000; tries++) {
-    const sz = 26 + rnd() * 54, x = WALL + sz * 0.8 + rnd() * (W - 2 * WALL - sz * 1.6), y = rnd() * span;
-    const clash = items.some(o => {
-      let dy = Math.abs(o.y - y); dy = Math.min(dy, span - dy);
-      return Math.hypot(o.x - x, dy) < (o.sz + sz) * 0.75 + 60;     // (bars reach 1.4 × their size: leave room)
-    });
-    if (!clash) items.push({ x, y, sz, k: items.length });
-  }
-  sceneryKey = key; sceneryLayout = items;
-  return items;
-}
+// The rising air: a sparse layer of little shapes drifting up the screen (the big background shapes are
+// part of the tower, see placeDecor / drawDecor). They stay out of the big shapes' way.
 function drawScenery() {
-  const span = VH * 2.4;
-  for (const it of sceneryItems(span)) {
-    let y = (it.y - camY * 0.3) % span;
-    if (y < 0) y += span;
-    y -= it.sz + OY;
-    if (y > H + OY + it.sz) continue;
-    const R0 = REGIONS[regionAt(heightM(camY + y))];
-    ctx.globalAlpha = 0.3;
-    drawShape(ctx, R0.shapes[it.k % R0.shapes.length], it.x, y, it.sz / 2, R0.plat[0], time * 0.08 * (it.k % 2 ? 1 : -1) + it.k);
-  }
+  const bigs = decor.filter(o => o.y > camY - OY - 60 && o.y < camY + H + OY + 60).map(o => ({ x: o.x, y: o.y - camY, r: o.r * 1.45 }));
   // The rising air: little shapes drifting up the screen, swaying, fading in and out
   const AIR = ['dot', 'tri', 'ring', 'plus', 'sq'];
   for (let k = 0; k < 18; k++) {
     const sp = 18 + hash(k, 11) * 26, f = ((hash(k, 12) * VH + time * sp) % VH) / VH;
     const y = H + OY - f * VH, x = WALL + 10 + hash(k, 13) * (W - 2 * WALL - 20) + Math.sin(time * 0.7 + k) * 10;
+    if (bigs.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 10)) continue;   // never over a big shape
     const R0 = REGIONS[regionAt(heightM(camY + y))];
     ctx.globalAlpha = 0.55 * Math.sin(f * Math.PI);
     drawShape(ctx, AIR[k % AIR.length], x, y, 2.2 + hash(k, 14) * 2.6, R0.plat[1], time * 0.5 + k);
@@ -78,6 +52,16 @@ function tiles(x0, x1, y0, y1, bw = 58, bh = 30, gap = 6, color = TILE) {
   }
   ctx.fill();
   ctx.restore();
+}
+
+// The big soft background shapes, fixed in the tower's empty gaps (placeDecor in js/level.js)
+function drawDecor() {
+  ctx.globalAlpha = 0.32;
+  for (const o of decor) {
+    if (o.y < camY - OY - 60 || o.y > camY + H + OY + 60) continue;
+    drawShape(ctx, o.kind, o.x, o.y, o.r, o.col, o.a0 + time * o.spin);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawWalls() {
@@ -140,14 +124,18 @@ function drawPlatform(p) {
   const [c, cd] = colors[p.type];
 
   if (p.type === 'move') {
-    // faint track showing how far it slides
-    ctx.fillStyle = 'rgba(127,207,176,0.35)';
-    ctx.fillRect(p.baseX - p.amp, y + p.h / 2 - 1, p.w + 2 * p.amp, 2);
+    // Its track: a row of small dots between two rings, showing how far it slides
+    const t0 = p.baseX - p.amp + 6, t1 = p.baseX + p.amp + p.w - 6, ty = y + p.h / 2;
+    ctx.fillStyle = cd; ctx.globalAlpha = 0.35;
+    for (let tx = t0 + 14; tx < t1 - 10; tx += 14) { ctx.beginPath(); ctx.arc(tx, ty, 2, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 0.6;
+    drawShape(ctx, 'ring', t0, ty, 6, cd); drawShape(ctx, 'ring', t1, ty, 6, cd);
+    ctx.globalAlpha = 1;
   }
   if (p.type === 'tilt') {
     // Seesaw: a post and pivot pin, and the plank turned around the pivot (centre of its top)
-    ctx.fillStyle = cd;
-    ctx.beginPath(); ctx.moveTo(p.px - 14, y + 34); ctx.lineTo(p.px + 14, y + 34); ctx.lineTo(p.px, y + 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = cd; ctx.strokeStyle = cd; ctx.lineWidth = 5; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(p.px - 12, y + 32); ctx.lineTo(p.px + 12, y + 32); ctx.lineTo(p.px, y + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.save();
     ctx.translate(p.px, p.py); ctx.rotate(p.angle);
     slab(-p.w / 2, 0, p.w, p.h, c, cd);
@@ -160,24 +148,28 @@ function drawPlatform(p) {
     drawPlainPlatform(p);
   } else {
     slab(x, y, p.w, p.h, c, cd);
+    if (p.type === 'move') {   // two small dots on its face, marking it as one that moves
+      ctx.fillStyle = cd;
+      for (const dx of [10, p.w - 10]) { ctx.beginPath(); ctx.arc(x + dx, y + p.h / 2, 2.6, 0, Math.PI * 2); ctx.fill(); }
+    }
   }
 
   if (p.spikes) {
     const x0 = x + p.spikes.x0, len = p.spikes.x1 - p.spikes.x0;
     const n = Math.max(1, Math.floor(len / 11)), sw = len / n;
-    ctx.fillStyle = PAL.spike;
-    for (let k = 0; k < n; k++) {
-      ctx.beginPath(); ctx.moveTo(x0 + k * sw, y); ctx.lineTo(x0 + k * sw + sw / 2, y - 11); ctx.lineTo(x0 + (k + 1) * sw, y); ctx.closePath(); ctx.fill();
-    }
+    ctx.fillStyle = PAL.spike; ctx.strokeStyle = PAL.spike; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let k = 0; k < n; k++) { ctx.moveTo(x0 + k * sw + 1, y); ctx.lineTo(x0 + k * sw + sw / 2, y - 10); ctx.lineTo(x0 + (k + 1) * sw - 1, y); ctx.closePath(); }
+    ctx.fill(); ctx.stroke();
   }
 }
 
 // A plain platform in its region's style: colours, a decoration, and a bracket into the wall when it's next to one
 function drawPlainPlatform(p) {
   const R0 = REGIONS[regionAt(heightM(p.y))], [c, cd] = R0.plat, x = p.x, y = p.y, w = p.w, h = p.h;
-  ctx.fillStyle = cd;
-  if (x - WALL < 0.5) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
-  else if (W - WALL - (x + w) < 0.5) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = cd; ctx.strokeStyle = cd; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+  if (x - WALL < 0.5) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  else if (W - WALL - (x + w) < 0.5) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); ctx.stroke(); }
   slab(x, y, w, h, c, cd);
 }
 
@@ -215,20 +207,21 @@ function drawBlade(b) {
   if (b.y < camY - OY - 40 || b.y > camY + H + OY + 40) return;
   ctx.save();
   ctx.translate(b.x, b.y); ctx.rotate(b.ang);
-  ctx.fillStyle = PAL.blade;
+  ctx.fillStyle = PAL.blade; ctx.strokeStyle = PAL.blade; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
   ctx.beginPath();
   for (let k = 0; k < 8; k++) {
-    const r = k % 2 ? b.r * 0.38 : b.r;
+    const r = k % 2 ? b.r * 0.4 : b.r - 1;
     const a = k * Math.PI / 4;
     k ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(r, 0);
   }
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.beginPath(); ctx.arc(0, 0, 3, 0, 7); ctx.fill();
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
-  // faint patrol track
-  ctx.fillStyle = 'rgba(108,91,123,0.12)';
-  ctx.fillRect(b.lo, b.y - 1, b.hi - b.lo, 2);
+  // its patrol track: small dots
+  ctx.fillStyle = PAL.blade; ctx.globalAlpha = 0.18;
+  for (let tx = b.lo; tx <= b.hi; tx += 14) { ctx.beginPath(); ctx.arc(tx, b.y, 1.8, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalAlpha = 1;
 }
 
 // Lightning beam: two posts, a flicker while it warms up, then a jagged bolt while it's on
@@ -253,8 +246,8 @@ function drawZapper(z) {
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; path();
   }
   for (const [x, y] of [[z.x1, z.y1], [z.x2, z.y2]]) {
-    ctx.fillStyle = PAL.zapPost; ctx.fillRect(x - 7, y - 7, 14, 14);
-    ctx.fillStyle = s ? PAL.zap : '#b4a5d1'; ctx.fillRect(x - 3, y - 3, 6, 6);
+    ctx.fillStyle = PAL.zapPost; ctx.beginPath(); ctx.roundRect(x - 8, y - 8, 16, 16, 5); ctx.fill();
+    ctx.fillStyle = s ? PAL.zap : PAL.nozzle; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -296,8 +289,8 @@ function drawJet(j) {
   ctx.translate(j.ox, j.oy);
   ctx.rotate(Math.atan2(j.dy, j.dx));        // draw it along +x
   ctx.fillStyle = s ? PAL.flame : PAL.nozzle; // nozzle
-  if (j.wall) ctx.fillRect(-12, -h * 0.6, 12, h * 1.2);
-  else { ctx.fillRect(-4, -h * 0.55, 14, h * 1.1); ctx.fillStyle = PAL.blade; ctx.fillRect(-4, -h * 0.55, 4, h * 1.1); }
+  if (j.wall) { ctx.beginPath(); ctx.roundRect(-12, -h * 0.6, 14, h * 1.2, 5); ctx.fill(); }
+  else { ctx.beginPath(); ctx.roundRect(-4, -h * 0.55, 14, h * 1.1, 4); ctx.fill(); ctx.fillStyle = PAL.zapPost; ctx.beginPath(); ctx.roundRect(-4, -h * 0.55, 5, h * 1.1, 2); ctx.fill(); }
   if (s === 1 && Math.floor(time * 12) % 2) {
     ctx.fillStyle = 'rgba(255,154,118,0.6)'; ctx.fillRect(0, -h * 0.4, 18, h * 0.8);
   }
@@ -331,6 +324,7 @@ function render() {
 
   ctx.save();
   ctx.translate(0, -camY);
+  if (state !== 'wardrobe') drawDecor();
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
@@ -342,8 +336,9 @@ function render() {
   for (const p of players) if (p.remote) drawPlayer(p);
   for (const p of players) if (!p.remote) drawPlayer(p);
   for (const f of fireballs) {
-    ctx.fillStyle = 'rgba(255,140,105,0.25)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 1.8, 0, 7); ctx.fill();
-    ctx.fillStyle = PAL.fire; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(249,139,108,0.22)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 1.7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.fire; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.flame2; ctx.beginPath(); ctx.arc(f.x - f.r * 0.25, f.y - f.r * 0.25, f.r * 0.42, 0, Math.PI * 2); ctx.fill();
   }
   for (const q of particles) {
     ctx.globalAlpha = clamp(q.life / q.max, 0, 1);

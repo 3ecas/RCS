@@ -66,15 +66,17 @@ function updateWardrobe(dt) {
 // near: someone is standing at it — the down key(s) to go through bob beside it.
 function drawDoor(cx, floorY, label, near) {
   const x = cx - DOOR_W / 2, y = floorY - DOOR_H;
-  ctx.fillStyle = PAL.wallLine; ctx.fillRect(x - 6, y - 6, DOOR_W + 12, DOOR_H + 6);
-  ctx.fillStyle = '#c99a6c'; ctx.fillRect(x, y, DOOR_W, DOOR_H);
-  ctx.fillStyle = '#b3845a';
-  ctx.fillRect(x + 6, y + 7, DOOR_W - 12, 20); ctx.fillRect(x + 6, y + 33, DOOR_W - 12, 26);
-  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(x + DOOR_W - 9, y + DOOR_H / 2 + 4, 3.5, 0, 7); ctx.fill();
+  // A rounded lilac frame, an apricot door with two soft panels and a butter knob
+  ctx.fillStyle = PAL.normal; ctx.beginPath(); ctx.roundRect(x - 6, y - 6, DOOR_W + 12, DOOR_H + 6, [10, 10, 0, 0]); ctx.fill();
+  ctx.fillStyle = SOFT.apricot[0]; ctx.beginPath(); ctx.roundRect(x, y, DOOR_W, DOOR_H, [7, 7, 0, 0]); ctx.fill();
+  ctx.fillStyle = SOFT.apricot[1]; ctx.globalAlpha = 0.45;
+  ctx.beginPath(); ctx.roundRect(x + 7, y + 8, DOOR_W - 14, 20, 5); ctx.roundRect(x + 7, y + 34, DOOR_W - 14, 24, 5); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = SOFT.butter[1]; ctx.beginPath(); ctx.arc(x + DOOR_W - 9, y + DOOR_H / 2 + 4, 3.5, 0, Math.PI * 2); ctx.fill();
   ctx.font = `900 13px ${FONT}`;
   const sw = label ? ctx.measureText(label).width + 18 : 44;
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - sw / 2, y - 32, sw, 22);
-  ctx.strokeStyle = PAL.ink; ctx.lineWidth = 2; ctx.strokeRect(cx - sw / 2 + 1, y - 31, sw - 2, 20);
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(cx - sw / 2, y - 32, sw, 22, 7); ctx.fill();
+  ctx.strokeStyle = PAL.normalD; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(cx - sw / 2 + 1, y - 31, sw - 2, 20, 6); ctx.stroke();
   if (label) text(label, cx, y - 16, 13, PAL.ink, 'center', 900);
   else drawHanger(cx, y - 22);
   if (near) {   // the down key(s), bobbing beside the door
@@ -92,18 +94,21 @@ function drawLobbyDoor() {
 
 // Inside: striped wallpaper, the exit door and the mirror with a big view of each cube
 function drawWardrobeRoom() {
-  ctx.fillStyle = 'rgba(201,154,108,0.08)';
+  // Wallpaper: soft lilac stripes with a little row of dots
+  ctx.fillStyle = 'rgba(200,182,242,0.14)';
   for (let x = WALL; x < W - WALL; x += 60) ctx.fillRect(x, -OY, 30, GROUND_Y + OY);
   const near = players.some(q => atDoor(q, wardrobe.exitX, GROUND_Y));
   drawDoor(wardrobe.exitX, GROUND_Y, 'EXIT', near);
   // Mirror
   const n = players.length, mw = 260 * n + 80, mh = 330, mx = W / 2 - mw / 2, my = 120;
-  ctx.fillStyle = '#c99a6c'; ctx.fillRect(mx - 12, my - 12, mw + 24, mh + 24);
-  const g = ctx.createLinearGradient(mx, my, mx + mw, my + mh);
-  g.addColorStop(0, '#f4fbff'); g.addColorStop(1, '#dcebf5');
-  ctx.fillStyle = g; ctx.fillRect(mx, my, mw, mh);
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';   // a glint
-  ctx.beginPath(); ctx.moveTo(mx + 30, my); ctx.lineTo(mx + 70, my); ctx.lineTo(mx + 10, my + 90); ctx.lineTo(mx, my + 90); ctx.lineTo(mx, my + 40); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = SOFT.lilac[0]; ctx.beginPath(); ctx.roundRect(mx - 12, my - 12, mw + 24, mh + 24, 22); ctx.fill();
+  ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(mx - 11, my - 11, mw + 22, mh + 22, 21); ctx.stroke();
+  ctx.fillStyle = '#f3f9ff'; ctx.beginPath(); ctx.roundRect(mx, my, mw, mh, 12); ctx.fill();
+  // a glint: two soft diagonal bars, kept inside the glass
+  ctx.save(); ctx.beginPath(); ctx.roundRect(mx, my, mw, mh, 12); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.translate(mx + 40, my + 30); ctx.rotate(-0.7);
+  ctx.beginPath(); ctx.roundRect(-60, -9, 120, 18, 9); ctx.roundRect(-40, 18, 80, 8, 4); ctx.fill();
+  ctx.restore();
   players.forEach((p, k) => {
     const cx = mx + 40 + 260 * k + 130, s = 110;
     const bob = Math.sin(time * 3 + k) * 4;
