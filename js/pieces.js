@@ -15,7 +15,7 @@ const PIECES = {
   wall:    { rows: [4, 6], weight: 1.4 },
   plaza:   { rows: [3, 3], weight: 1.1, minM: 8 },
 };
-const SHAFT_W = 200, PILLAR_W = 22;
+const SHAFT_W = 130, PILLAR_W = 22;
 
 const plain = (x, y, w, extra = {}) => ({ id: nextPid++, x, y, w, h: 16, type: 'normal', dx: 0, t: 0, falling: false, vy: 0, bounceT: 0, ...extra });
 

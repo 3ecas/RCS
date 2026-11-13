@@ -190,6 +190,20 @@ function updateTilt(pl, dt) {
   if (push && before !== Math.sign(pl.angle) && Math.abs(pl.av) > 0.3) sfx.creak();
 }
 
+// Is there a wall (the tower's sides, a pillar or the Two Paths wall) within `reach` of the cube's side?
+// -1 = on its left, 1 = on its right, 0 = none
+function wallNear(p, reach) {
+  if (p.x - WALL <= reach) return -1;
+  if (W - WALL - (p.x + p.w) <= reach) return 1;
+  for (const dv of dividers) {
+    if (p.y + p.h <= dv.top || p.y >= dv.bot) continue;
+    const dl = p.x - (dv.x + dv.w), dr = dv.x - (p.x + p.w);
+    if (dl > -1 && dl <= reach) return -1;
+    if (dr > -1 && dr <= reach) return 1;
+  }
+  return 0;
+}
+
 function updatePlayer(p, dt) {
   const inp = humanInput(p);
   p.prevX = p.x; p.prevY = p.y;
@@ -214,7 +228,20 @@ function updatePlayer(p, dt) {
   // letting go of the key) until you land, slip off its end, or press the other way — which wall-jumps
   if (p.cling && (p.onGround || p.wall !== p.cling)) p.cling = 0;
   if (!p.onGround && p.wall && dir === p.wall) p.cling = p.wall;
-  const wallJump = p.cling && (p.cling < 0 ? inp.rightPressed : inp.leftPressed);
+  // Wall jump: press the other way while on (or close to) a wall. Forgiving on timing: being near the wall
+  // counts, so does having just left it, and a press made just before reaching it is remembered.
+  if (p.onGround) { p.wallT = 0; p.lastJumpSide = 0; }
+  else {
+    const nw = wallNear(p, WALL_REACH);
+    if (nw) { p.wallSide = nw; p.wallT = WALL_COYOTE; }
+  }
+  if (inp.leftPressed) p.awayBuf = { d: -1, t: WALL_BUFFER };
+  if (inp.rightPressed) p.awayBuf = { d: 1, t: WALL_BUFFER };
+  // (not off the same wall twice in a row without landing, so you can't climb a single wall)
+  const wallJump = !p.onGround && p.wallT > 0 && p.awayBuf && p.awayBuf.t > 0 &&
+                   p.awayBuf.d === -p.wallSide && p.lastJumpSide !== p.wallSide;
+  if (p.wallT > 0) p.wallT -= dt;
+  if (p.awayBuf) p.awayBuf.t -= dt;
   if (dir) p.face = dir;
   const accel = p.onGround ? 3200 : 2200;
   const tvx = dir * MAX_VX * p.speedMul;
@@ -234,8 +261,9 @@ function updatePlayer(p, dt) {
     sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
   } else if (wallJump) {
     // Wall jump: up and away from the wall, toward the side you pressed
-    const side = p.cling;
+    const side = p.wallSide;
     p.vy = -WALLJUMP_V; p.vx = -side * WALLJUMP_PUSH; p.buf = 0; p.face = -side; p.sq = 1.2; p.cling = 0;
+    p.wallT = 0; p.awayBuf = null; p.lastJumpSide = side;
     sfx.jump(p.i); dust(side < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {

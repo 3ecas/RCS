@@ -280,7 +280,8 @@ function addJet(side, rowY) {
 function addPlatformJet(p) {
   const left = R() < 0.5;
   const base = { period: wrand(2.4, 3.4), off: wrand(0, 3), t: 0, last: 0 };
-  if (R() < 0.6) jets.push({ ...base, ox: left ? p.x + 18 : p.x + p.w - 18, oy: p.y, dx: 0, dy: -1, len: PJET_LEN, thick: PJET_THICK });
+  // (straight up it stops short of the row above: it mustn't reach that row's platform)
+  if (R() < 0.6) jets.push({ ...base, ox: left ? p.x + 18 : p.x + p.w - 18, oy: p.y, dx: 0, dy: -1, len: Math.min(PJET_LEN, ROW_GAP + 80), thick: PJET_THICK });
   else jets.push({ ...base, ox: left ? p.x : p.x + p.w, oy: p.y - 20, dx: left ? -1 : 1, dy: 0, len: PJET_LEN + 20, thick: PJET_THICK });
 }
 function jetState(j) {

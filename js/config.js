@@ -13,12 +13,15 @@ const ROW_GAP = 120;        // every row of platforms sits this far above the la
 const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid
 const PS = 34;              // player cube size
 const STEP = 1 / 120;
-const JET_LEN = 230, JET_THICK = 38;   // wall flamethrowers: reach and flame thickness
-const PJET_LEN = 180, PJET_THICK = 32; // flamethrowers on platforms
+const JET_LEN = 330, JET_THICK = 38;   // wall flamethrowers: reach and flame thickness
+const PJET_LEN = 250, PJET_THICK = 32; // flamethrowers on platforms
 const DIVIDER_W = 26;        // Two Paths region: the dividing wall's width
 // Wall jumping: push into a wall in mid-air to hang on it (sliding down slowly); press the other way to jump
 // up and off it toward that side
-const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 170;
+const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 90;
+// How forgiving the wall jump is: how close to a wall counts (px), how long after leaving it, and how long a
+// press made just before reaching it is remembered (seconds)
+const WALL_REACH = 26, WALL_COYOTE = 0.14, WALL_BUFFER = 0.16;
 const GEM_R = 12;            // gems: pick-up radius
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
