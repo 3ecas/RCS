@@ -6,7 +6,7 @@
 // (stop menu → START OVER, end screen → PLAY AGAIN)
 function startGame() { startWipe(); reset(undefined, false); state = 'count'; countdown = 3; sfx.beep(440); }
 // Back to the lobby (the start scene); player 2 stays if they joined
-function toMenu() { startWipe(); reset(); state = 'lobby'; ui.focus = 0; ui.help = false; }
+function toMenu() { startWipe(); reset(); lobbyFade = 0; state = 'lobby'; ui.focus = 0; ui.help = false; }
 // Leaving an end screen: the race's stripes sweep away to the sides (or, after a solo game, the veil
 // fades), uncovering the new scene underneath (drawn last in render(), timed in update())
 let screenWipe = null;

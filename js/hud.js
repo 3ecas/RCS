@@ -30,6 +30,7 @@ function onlineKeysText() {
 
 // A keyboard key: a small rounded cap with its label. a = how see-through (0…1), fill = 0…1 lights it up
 function keycap(label, x, y, s = 26, color = PAL.ink, a = 1, fill = 0) {
+  const base = ctx.globalAlpha; a *= base;          // (respects a fade already in progress)
   ctx.globalAlpha = a;
   const w = Math.max(s, label.length > 1 ? s * 0.4 * label.length + 14 : s), r = 5;
   const box = (yy, h) => { ctx.beginPath(); ctx.roundRect(x - w / 2, yy, w, h, r); };
@@ -39,7 +40,7 @@ function keycap(label, x, y, s = 26, color = PAL.ink, a = 1, fill = 0) {
   ctx.strokeStyle = color; ctx.lineWidth = 1.5; box(y + 0.75, s - 1.5); ctx.stroke();
   if (label in ARROW_DIR) drawArrow(x, y + s * 0.47, s * 0.5, ARROW_DIR[label], color);
   else text(label, x, y + s * (label.length > 1 ? 0.66 : 0.72), Math.round(s * (label.length > 1 ? 0.46 : 0.62)), color, 'center', 900);
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = base;
   return w;
 }
 // The arrow keys' arrows, drawn as rounded strokes in the weight of the game's font (Fredoka has no ← →)
@@ -376,6 +377,7 @@ function drawHUD() {
   const inGame = state === 'count' || state === 'play' || state === 'paused' || state === 'over';
   if (inGame) {
     ctx.save(); ctx.translate(0, -OY);     // pinned to the top of the window
+    if (lobbyFade > 0) ctx.globalAlpha = clamp(lobbyFade / LOBBY_FADE, 0, 1);   // fading in as the lobby fades out
     ctx.save(); OUTLINE = true;     // a soft white edge keeps the text readable over the tower
     text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
     if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
@@ -407,6 +409,10 @@ function drawHUD() {
   }
 
   if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
+  else if (lobbyFade > 0) {                 // ...fading away as a game starts
+    const k = clamp(lobbyFade / LOBBY_FADE, 0, 1);
+    ctx.globalAlpha = 1 - k; drawLobbyHUD(k); ctx.globalAlpha = 1;
+  }
   if (state === 'room') drawRoomHUD();      // the online room scene (js/room.js)
   if (state === 'wardrobe') drawWardrobeHUD();
 

@@ -3,6 +3,7 @@
 
 function update(dt) {
   if (screenWipe && (screenWipe.t += dt) > 0.8) screenWipe = null;   // the end-screen transition (js/menu.js)
+  if (lobbyFade > 0 && (lobbyFade += dt) > LOBBY_FADE) lobbyFade = 0;   // the lobby fading away (js/lobby.js)
   if (state !== 'room' && chatOpen()) closeChat();   // the chat box is only for the room
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();

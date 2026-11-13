@@ -69,9 +69,10 @@ function drawDoor(cx, floorY, label, near) {
   // A rounded lilac frame, an apricot door with two soft panels and a butter knob
   ctx.fillStyle = PAL.normal; ctx.beginPath(); ctx.roundRect(x - 6, y - 6, DOOR_W + 12, DOOR_H + 6, [10, 10, 0, 0]); ctx.fill();
   ctx.fillStyle = SOFT.apricot[0]; ctx.beginPath(); ctx.roundRect(x, y, DOOR_W, DOOR_H, [7, 7, 0, 0]); ctx.fill();
-  ctx.fillStyle = SOFT.apricot[1]; ctx.globalAlpha = 0.45;
+  const base = ctx.globalAlpha;   // (respects a fade in progress)
+  ctx.fillStyle = SOFT.apricot[1]; ctx.globalAlpha = base * 0.45;
   ctx.beginPath(); ctx.roundRect(x + 7, y + 8, DOOR_W - 14, 20, 5); ctx.roundRect(x + 7, y + 34, DOOR_W - 14, 24, 5); ctx.fill();
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = base;
   ctx.fillStyle = SOFT.butter[1]; ctx.beginPath(); ctx.arc(x + DOOR_W - 9, y + DOOR_H / 2 + 4, 3.5, 0, Math.PI * 2); ctx.fill();
   ctx.font = `900 13px ${FONT}`;
   const sw = label ? ctx.measureText(label).width + 18 : 44;

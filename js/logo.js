@@ -48,6 +48,7 @@ function drawLogoArt(c, cx, baseY, u, t = 0, opts = {}) {
   const widths = letters.map(([L]) => { c.beginPath(); return LOGO_LETTERS[L](c, 0, top, bot, u); });
   const total = widths.reduce((a, b) => a + b, 0) + gap * (letters.length - 1);
   let x = cx - total / 2;
+  const base = c.globalAlpha;   // (respects a fade already in progress)
   c.save();
   c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = u;
   // The platform they stand on (a rounded bar with its deeper layer)
@@ -83,10 +84,10 @@ function drawLogoArt(c, cx, baseY, u, t = 0, opts = {}) {
     const ry = ((k >> 3) * 0.5 + lane * 0.27 + h(2) * 0.1 + t * 0.05) % 1;
     const yy = baseY - ry * 6.2 * u;
     const xx = cx + side * (total / 2 + 1.0 * u + lane * 0.95 * u + h(1) * 0.3 * u);
-    c.globalAlpha = 0.8 * Math.sin(ry * Math.PI);
+    c.globalAlpha = base * 0.8 * Math.sin(ry * Math.PI);
     drawShape(c, SH[(k + lane) % SH.length], xx, yy, (0.15 + h(4) * 0.1) * u, cols[(k + lane) % cols.length][1], t * (0.4 + h(6) * 0.6) + k);
   }
-  c.globalAlpha = 1;
+  c.globalAlpha = base;
   c.restore();
 }
 

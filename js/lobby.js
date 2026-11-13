@@ -97,8 +97,11 @@ function chooseMode(menu) {
   beginPlay();
 }
 // The screen starts scrolling up the tower, from right where everyone is standing
+// lobbyFade: seconds since leaving the lobby for a game — its logo, keys and labels fade out over LOBBY_FADE
+let lobbyFade = 0;
+const LOBBY_FADE = 0.65;
 function beginPlay() {
-  state = 'play';
+  state = 'play'; lobbyFade = 0.0001;
   sfx.beep(880);
   floatText('GO!', W / 2, camY + H * 0.4, PAL.good);
 }
@@ -159,7 +162,17 @@ function touchLobby(p, pl) {
 function drawMenuPlatform(p) {
   const x = p.x, y = p.y, cx = x + p.w / 2;
   // In the game they're plain platforms: the names go away
-  if (state !== 'lobby' && state !== 'wardrobe') { slab(x, y, p.w, p.h, PAL.normal, PAL.normalD); return; }
+  if (state !== 'lobby' && state !== 'wardrobe') {
+    slab(x, y, p.w, p.h, PAL.normal, PAL.normalD);
+    if (lobbyFade > 0) {   // just after the start: the white button and its label fade into the plain platform
+      const a = ctx.globalAlpha; ctx.globalAlpha = a * (1 - clamp(lobbyFade / LOBBY_FADE, 0, 1));
+      buttonSlab(p, false);
+      if (p.menu === 'sound') drawSpeaker(cx + 2, y + p.h / 2, 0.5);
+      else if (MENU_LABEL[p.menu]) text(MENU_LABEL[p.menu], cx, y + p.h / 2 + 3.6, 10, PAL.ink, 'center', 900);
+      ctx.globalAlpha = a;
+    }
+    return;
+  }
   // A white button; it lights up (green for a mode) while someone stands on it
   const on = players.some(q => standingOn(q) === p);
   const col = isMode(p) ? PAL.good : PAL.ink;
@@ -197,8 +210,10 @@ function drawMenuPlatform(p) {
 }
 
 // The logo, and on the floor who plays with which keys — drawn as keys, not words
-function drawLobbyHUD() {
-  ctx.save(); ctx.translate(0, -OY);
+// k: 0 in the lobby; 0…1 while it fades away after a game starts (the logo floats up, the floor's keys
+// go down with the floor as the camera rises)
+function drawLobbyHUD(k = 0) {
+  ctx.save(); ctx.translate(0, -OY - k * k * 140);
   // Soft light behind the logo so the tower's platforms don't clash with it (the gradient fades out
   // before the edges of the area it fills, so it has no visible edge)
   const g = ctx.createRadialGradient(W / 2, 130, 30, W / 2, 130, 300);
@@ -207,6 +222,7 @@ function drawLobbyHUD() {
   drawLogoArt(ctx, W / 2, 182, 25, time);                        // the mark (js/logo.js)
   if (best > 0) text('BEST ' + best + ' m', W / 2, 228, 14, PAL.inkSoft, 'center', 800);
   ctx.restore();
+  if (k > 0) { ctx.save(); ctx.translate(0, -camY); }   // the floor strip rides down with the floor
 
   // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
   const y = GROUND_Y + 9, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
@@ -229,5 +245,6 @@ function drawLobbyHUD() {
     ctx.strokeStyle = PAL.inkSoft; ctx.lineWidth = 2.4; ctx.lineCap = 'round';   // a small rounded ✕
     ctx.beginPath(); ctx.moveTo(rx - 132, y + 35); ctx.lineTo(rx - 124, y + 43); ctx.moveTo(rx - 124, y + 35); ctx.lineTo(rx - 132, y + 43); ctx.stroke();
   }
+  if (k > 0) { ctx.restore(); return; }
   drawBanner(250);
 }

@@ -410,6 +410,7 @@ function render() {
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
+  else if (lobbyFade > 0) { ctx.globalAlpha = 1 - clamp(lobbyFade / LOBBY_FADE, 0, 1); drawLobbyDoor(); ctx.globalAlpha = 1; }
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);
   for (const g of gems) drawGem(g);
