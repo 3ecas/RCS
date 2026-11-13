@@ -108,7 +108,7 @@ function updateRoom(dt) {
 // START platform: its name, and how many computers are on it
 function drawStartPlatform(p) {
   const on = players.some(q => !q.remote && q.onGround && q.ground === p);
-  slab(p.x, p.y, p.w, p.h, on ? PAL.good : '#ffffff', PAL.good, on ? 2 : 3, 5);
+  slab(p.x, p.y, p.w, p.h, on ? PAL.good : '#ffffff', PAL.good, on ? 2 : 3);
   text('START', p.x + p.w / 2, p.y + 21, 18, on ? '#ffffff' : PAL.good, 'center', 900);
   const R = net.room;
   if (!R) return;

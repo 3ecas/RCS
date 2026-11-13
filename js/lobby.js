@@ -163,7 +163,7 @@ function drawMenuPlatform(p) {
   // A white button; it lights up (green for a mode) while someone stands on it
   const on = players.some(q => standingOn(q) === p);
   const col = isMode(p) ? PAL.good : PAL.ink;
-  buttonSlab(p, on, col, p.h < 20 ? 4 : 5);
+  buttonSlab(p, on, col);
   // Filling up while everyone stands on it, with the seconds left above
   if (lobby.on === p) {
     ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.25;

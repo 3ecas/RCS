@@ -28,17 +28,16 @@ const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: co
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
 
 const PAL = {
-  ink: '#5b4b6b', inkSoft: 'rgba(91,75,107,0.6)',
-  wall: '#dcd2ec', wallLine: '#c7badf', nozzle: '#b4a5d1',
-  ground: '#cfc3e8', groundD: '#b6a8d8',
-  normal: '#c5b9e6', normalD: '#a99bd3',
-  move: '#a8e6cf', moveD: '#7fcfb0',
-  tilt: '#ffd3b6', tiltD: '#f0b28c',          // seesaw platforms
-  spring: '#fff0a0', springD: '#ecd060',
-  spike: '#ff7b9c', zap: '#ffd84a', zapPost: '#6c5b7b', water: '#7cc8ec', blade: '#6c5b7b', flame: '#ff9a76', flame2: '#ffe0a8', fire: '#ff8c69',
-  good: '#4fb386',
+  ink: '#2d1b4e', inkSoft: 'rgba(45,27,78,0.62)',
+  wall: '#c3b2f0', wallLine: '#9a82e0', nozzle: '#7d63c9',
+  ground: '#a68cf0', groundD: '#7457d8',
+  normal: '#9b7bff', normalD: '#5b3fd1',
+  move: '#22dfa0', moveD: '#0f9c6c',
+  tilt: '#ff9a4d', tiltD: '#d2601a',          // seesaw platforms
+  spring: '#ffd52e', springD: '#d99a00',
+  spike: '#ff2d6f', zap: '#ffd000', zapPost: '#3b2a5e', water: '#2fb5ff', blade: '#3b2a5e', flame: '#ff6233', flame2: '#ffd36b', fire: '#ff4a2a',
+  good: '#12a865',
 };
-
 // The 10 cube colours players can pick from (c = body, d = darker outline)
 const COLORS = [
   { name: 'Pink',   c: '#ff4fa3', d: '#c21f72' },
@@ -60,15 +59,15 @@ const START_REGION = 100, REGION_LEN = 200;
 // plat: [body, underside] colours of plain platforms there; deco: the platforms' decoration;
 // scenery: the shapes drifting in the background
 const REGIONS = {
-  start:   { has: [],                        bg: ['#fff4e9', '#fde3e6'], plat: ['#c5b9e6', '#a99bd3'], deco: 'none',    scenery: 'cloud' },   // just platforms
-  garden:  { has: ['spring', 'move'],        bg: ['#e9f7f1', '#d6f0e7'], plat: ['#b5dca2', '#86bf72'], deco: 'grass',   scenery: 'tree' },    // springs and moving platforms
-  spikes:  { has: ['spikes', 'move'],        bg: ['#fde8ef', '#f8d5e1'], plat: ['#f0bfd0', '#d996ae'], deco: 'crystal', scenery: 'crystal' }, // spikes on moving and still platforms
-  seesaw:  { has: ['tilt', 'spring'],        bg: ['#fff7dc', '#fdeacb'], plat: ['#efcf9f', '#cfa46c'], deco: 'planks',  scenery: 'hill' },    // seesaws that tip under your weight
-  blades:  { has: ['shuriken', 'move'],      bg: ['#e8edff', '#d7e0fc'], plat: ['#c2cae0', '#939fbf'], deco: 'rivets',  scenery: 'gear' },    // spinning shurikens
-  fire:    { has: ['wallflame', 'fireball'], bg: ['#ffeee2', '#fbd8c6'], plat: ['#d8b0a2', '#a7766a'], deco: 'embers',  scenery: 'flame' },   // flamethrowers on the walls, falling fireballs
-  storm:   { has: ['zapper', 'move'],        bg: ['#f1edff', '#e2daf8'], plat: ['#cbbdf0', '#a190da'], deco: 'stripe',  scenery: 'storm' },   // lightning beams between two posts, on and off
-  water:   { has: ['bubbles'],               bg: ['#dff8f6', '#c3eeea'], plat: ['#a6e0dc', '#71c4bf'], deco: 'drips',   scenery: 'weed' },    // helper: bubble columns push you up
-  split:   { has: ['divider', 'move', 'spikes'], bg: ['#f6f8e0', '#e8eec4'], plat: ['#d6dcae', '#b1b97f'], deco: 'bricks', scenery: 'column' }, // two paths with a wall between them
+  start:   { has: [],                        bg: ['#ffeedd', '#ffd9e4'], plat: ['#9b7bff', '#5b3fd1'], deco: 'none',    scenery: 'cloud' },   // just platforms
+  garden:  { has: ['spring', 'move'],        bg: ['#dcf8ea', '#bff0d8'], plat: ['#5fcf4f', '#2c8f22'], deco: 'grass',   scenery: 'tree' },    // springs and moving platforms
+  spikes:  { has: ['spikes', 'move'],        bg: ['#ffe3ee', '#ffc9dd'], plat: ['#ff6fa3', '#c92f6a'], deco: 'crystal', scenery: 'crystal' }, // spikes on moving and still platforms
+  seesaw:  { has: ['tilt', 'spring'],        bg: ['#fff4cf', '#ffe2a8'], plat: ['#e9a94a', '#a8691a'], deco: 'planks',  scenery: 'hill' },    // seesaws that tip under your weight
+  blades:  { has: ['shuriken', 'move'],      bg: ['#e2e8ff', '#c9d5ff'], plat: ['#6f88e0', '#3a52a8'], deco: 'rivets',  scenery: 'gear' },    // spinning shurikens
+  fire:    { has: ['wallflame', 'fireball'], bg: ['#ffe6d6', '#ffcbb0'], plat: ['#df6f4c', '#9e3a1f'], deco: 'embers',  scenery: 'flame' },   // flamethrowers on the walls, falling fireballs
+  storm:   { has: ['zapper', 'move'],        bg: ['#ece4ff', '#d7c8ff'], plat: ['#8a63f0', '#552bc2'], deco: 'stripe',  scenery: 'storm' },   // lightning beams between two posts, on and off
+  water:   { has: ['bubbles'],               bg: ['#d6f8f6', '#b0eeea'], plat: ['#22bdb8', '#0f8681'], deco: 'drips',   scenery: 'weed' },    // helper: bubble columns push you up
+  split:   { has: ['divider', 'move', 'spikes'], bg: ['#f3f7d2', '#e3eca8'], plat: ['#adbd3a', '#71801a'], deco: 'bricks', scenery: 'column' }, // two paths with a wall between them
 };
 const REGION_POOL = Object.keys(REGIONS).filter(k => k !== 'start');
 

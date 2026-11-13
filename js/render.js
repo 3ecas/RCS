@@ -129,14 +129,14 @@ function drawWalls() {
 }
 
 // The look shared by buttons and platforms: a face, a crisp outline, and a solid shadow under it
-function slab(x, y, w, h, face, edge, lw = 2, drop = 4) {
-  ctx.fillStyle = edge; ctx.fillRect(x, y + drop, w, h);
+function slab(x, y, w, h, face, edge, lw = 2, drop = 0) {
+  if (drop) { ctx.fillStyle = edge; ctx.fillRect(x, y + drop, w, h); }
   ctx.fillStyle = face; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = edge; ctx.lineWidth = lw; ctx.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw);
 }
 // A white button-platform (lobby, wardrobe, room). on: someone stands on it — it lights up in `color`.
-function buttonSlab(p, on, color = PAL.ink, drop = 5) {
-  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.wallLine, on ? 3 : 2, drop);
+function buttonSlab(p, on, color = PAL.ink, drop = 0) {
+  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.normalD, on ? 3 : 2, drop);
 }
 
 function drawPlatform(p) {
@@ -197,7 +197,7 @@ function drawPlainPlatform(p) {
   slab(x, y, w, h, c, cd);
   switch (R0.deco) {
     case 'grass':
-      ctx.fillStyle = '#6fb35a';
+      ctx.fillStyle = '#2c8f22';
       for (let i = 6; i < w - 4; i += 11) { ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + 3, y - 5 - hash(p.id, i) * 3); ctx.lineTo(x + i + 6, y); ctx.fill(); }
       break;
     case 'crystal':
@@ -258,7 +258,7 @@ function drawSpringI(x, y, w, sq) {
   ctx.fillStyle = PAL.springD;
   ctx.fillRect(x + 4, y + 16, w - 8, 6);                 // bottom bar
   ctx.fillRect(x + w / 2 - 5, y + 6 + sq, 10, 10 - sq);  // post
-  slab(x, y + sq, w, 8, PAL.spring, PAL.springD, 2, 3);   // top bar
+  slab(x, y + sq, w, 8, PAL.spring, PAL.springD);         // top bar
 }
 
 function drawBlade(b) {
