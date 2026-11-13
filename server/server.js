@@ -166,7 +166,7 @@ setInterval(() => {
 // a race starts with all of them. After the race they come back to the room. Anyone joining while a race
 // is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 20;              // game and server must speak the same version
+const PROTOCOL = 21;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -255,6 +255,14 @@ function onMessage(c, text) {
     if (!maybeStart(r)) roomStatus(r);
   } else if (m.t === 'cancel' || m.t === 'leave') {
     leaveRoom(c);
+  } else if (m.t === 'look') {
+    // New colours / looks from the wardrobe (same number of cubes as when joining)
+    const r = c.room;
+    if (!r || !Array.isArray(m.colors) || m.colors.length !== c.colors.length) return;
+    c.colors = m.colors.map(v => Math.max(0, Math.min(9, v | 0)));
+    const looks = Array.isArray(m.looks) ? m.looks : [];
+    c.looks = c.colors.map((_, k) => { const l = looks[k] || {}; return { f: Math.max(0, Math.min(15, l.f | 0)), h: Math.max(0, Math.min(15, l.h | 0)), p: Math.max(0, Math.min(15, l.p | 0)) }; });
+    roomStatus(r);
   } else if (m.t === 'toRoom') {
     // Back to the room scene (e.g. knocked out and done watching): out of the race, still in the room.
     // The racers carry on (to them it's as if this computer left the race); the next race includes it.

@@ -7,8 +7,11 @@
 const DOOR_W = 46, DOOR_H = 66;
 const wardrobe = { saved: null, exitX: 0 };
 
-// The wardrobe door in the start scene stands on the floor, near the left wall
+// The wardrobe door stands on the floor: in the start scene near the left wall, in the online room right of
+// the START platform. wardrobe.from = the scene you went in from (you come back out there).
 const LOBBY_DOOR_X = () => WALL + 52;
+const doorXOf = scene => scene === 'room' ? W / 2 + 200 : LOBBY_DOOR_X();
+const sceneDoorX = () => doorXOf(state === 'wardrobe' ? wardrobe.from : state);
 
 // Is this cube standing in front of a door (on that platform / floor, within the doorway)?
 const atDoor = (p, cx, floorY) => p.onGround && Math.abs(p.y + p.h - floorY) < 3 && Math.abs(p.x + p.w / 2 - cx) < DOOR_W / 2 + 6;
@@ -17,7 +20,7 @@ const downKey = p => pressed[CONTROLS[p.i].down];
 
 // Start scene: anyone pressing down at the door takes everyone inside
 function checkWardrobeDoor() {
-  if (players.some(p => atDoor(p, LOBBY_DOOR_X(), GROUND_Y) && downKey(p))) startDoor(true);
+  if (players.some(p => !p.remote && atDoor(p, sceneDoorX(), GROUND_Y) && downKey(p))) startDoor(true);
 }
 
 // Going through a door: it swings open, a soft circle closes in on the doorway, the scene changes at
@@ -53,7 +56,7 @@ function drawDoorIris() {
   else { const u = clamp((t - DOOR_SWAP) / (DOOR_END - DOOR_SWAP), 0, 1); r = Rmax * Math.pow(u, 2.2); }
   // centred on the doorway being used: before the swap the one gone into, after it the one come out of
   const inLobby = doorT.enter !== doorT.swapped;
-  const cx = inLobby ? LOBBY_DOOR_X() : wardrobe.exitX, cy = GROUND_Y - DOOR_H / 2 - camY;
+  const cx = inLobby ? doorXOf(wardrobe.from) : wardrobe.exitX, cy = GROUND_Y - DOOR_H / 2 - camY;
   ctx.fillStyle = SOFT.lilac[0];
   ctx.beginPath(); ctx.rect(-OX, -OY, VW, VH); ctx.arc(cx, cy, Math.max(0.1, r), 0, Math.PI * 2, true); ctx.fill('evenodd');
   ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 6;
@@ -61,7 +64,9 @@ function drawDoorIris() {
 }
 
 function enterWardrobe() {
-  wardrobe.saved = platforms; wardrobe.savedGems = gems;   // the start scene, as it is, for when you come back out
+  wardrobe.from = state;                                    // 'lobby' or 'room'
+  wardrobe.saved = platforms; wardrobe.savedGems = gems;   // the scene, as it is, for when you come back out
+  wardrobe.savedPlayers = players; players = players.filter(p => !p.remote);   // only your own cubes come in
   gems = [];
   state = 'wardrobe';
   sfx.beep(520);
@@ -82,14 +87,20 @@ function enterWardrobe() {
 
 function leaveWardrobe() {
   platforms = wardrobe.saved; gems = wardrobe.savedGems || [];
-  state = 'lobby';
+  const mine = players;
+  players = wardrobe.savedPlayers || players;
+  state = wardrobe.from || 'lobby';
   sfx.beep(420);
   const floor = platforms.find(q => q.type === 'ground');
-  players.forEach((p, k) => {
-    p.x = p.prevX = LOBBY_DOOR_X() + 34 + k * 44; p.y = p.prevY = GROUND_Y - p.h;
+  mine.forEach((p, k) => {
+    p.x = p.prevX = doorXOf(state) + 34 + k * 44; p.y = p.prevY = GROUND_Y - p.h;
     p.vx = p.vy = 0; p.onGround = true; p.ground = floor; p.face = 1;
   });
   particles = [];
+  if (state === 'room') {   // online: tell everyone your new look, and catch up on who's in the room
+    netSend({ t: 'look', colors: mine.map(p => localColor(p.slot || 0)), looks: mine.map(p => localLook(p.slot || 0)) });
+    syncRoomCubes();
+  }
 }
 
 function updateWardrobe(dt) {
@@ -133,10 +144,10 @@ function drawDoor(cx, floorY, label, near, open = 0) {
   }
 }
 
-// The wardrobe door in the start scene (drawn behind the cubes)
+// The wardrobe door in the start scene / the online room (drawn behind the cubes)
 function drawLobbyDoor() {
-  const near = players.some(q => atDoor(q, LOBBY_DOOR_X(), GROUND_Y));
-  drawDoor(LOBBY_DOOR_X(), GROUND_Y, '', near && !doorT, doorOpen(true));
+  const x = sceneDoorX(), near = players.some(q => !q.remote && atDoor(q, x, GROUND_Y));
+  drawDoor(x, GROUND_Y, '', near && !doorT, doorOpen(true));
 }
 
 // Inside: striped wallpaper, the exit door and the mirror with a big view of each cube

@@ -55,6 +55,7 @@ function syncRoomCubes() {
       p.remote = true; p.uid = w.uid; p.dead = true;     // hidden until we hear where it is
     }
     p.name = w.name;
+    const C = COLORS[w.ci]; p.color = C.c; p.dark = C.d; p.look = w.look;   // (a new look from their wardrobe)
     return p;
   });
   players = [...mine, ...others];
@@ -91,6 +92,8 @@ function updateRoom(dt) {
   updateWorld(dt);
   for (const p of players) p.remote ? updateRemote(p, dt) : updatePlayer(p, dt);
   updateParticles(dt);
+  checkWardrobeDoor();   // the wardrobe door, right of START (js/wardrobe.js)
+  if (doorT) return;
 
   // Ready = all of this computer's cubes are on START. Tell the server when that changes.
   const ready = players.filter(p => !p.remote).every(onStart);
