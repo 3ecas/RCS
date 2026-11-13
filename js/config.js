@@ -7,6 +7,8 @@ const ARENA_W = 880;
 let W = ARENA_W;
 const H = 900, WALL = 40;
 const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;
+// Springs: how far the pad sinks under you (px), how long that takes (s), and its wobble (stiffness, damping)
+const SPRING_DEPTH = 11, SPRING_DOWN = 0.09, SPRING_K = 330, SPRING_DAMP = 9;
 const PX_PER_M = 40;
 const GROUND_Y = H - 70;
 const ROW_GAP = 120;        // every row of platforms sits this far above the last (3 m)

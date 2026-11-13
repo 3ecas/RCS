@@ -124,7 +124,11 @@ function updateWorld(dt) {
     if (p.type === 'move') p.x = p.baseX + Math.sin(p.t * p.spd) * p.amp;
     if (p.type === 'tilt') updateTilt(p, dt);
     if (p.falling) { p.vy += GRAV * 0.6 * dt; p.y += p.vy * dt; }
-    if (p.bounceT > 0) p.bounceT -= dt;
+    if (p.type === 'spring' && !p.held) {
+      // The pad wobbles back to rest: comp 0 = rest, 1 = pressed all the way down, below 0 = stretched up
+      p.cv = (p.cv || 0) + (-SPRING_K * (p.comp || 0) - SPRING_DAMP * (p.cv || 0)) * dt;
+      p.comp = (p.comp || 0) + p.cv * dt;
+    }
     p.dx = p.x - ox;
     p.dy = p.falling ? 0 : p.y - oy;
   }
@@ -207,6 +211,7 @@ function wallNear(p, reach) {
 function updatePlayer(p, dt) {
   const inp = humanInput(p);
   p.prevX = p.x; p.prevY = p.y;
+  if (p.press) { springPress(p, inp, dt); return; }   // riding a spring pad down
 
   // Ride whatever we're standing on
   if (p.onGround && p.ground) {
@@ -224,10 +229,11 @@ function updatePlayer(p, dt) {
   }
 
   let dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
-  // Hanging on a wall: push into a wall in mid-air to grab it; you then slide down it slowly (even after
-  // letting go of the key) until you land, slip off its end, or press the other way — which wall-jumps
+  // Hanging on a wall: touch a wall in mid-air to grab it; you then slide down it slowly until you land,
+  // slip off its end, or press the other way — which wall-jumps
   if (p.cling && (p.onGround || p.wall !== p.cling)) p.cling = 0;
-  if (!p.onGround && p.wall && dir === p.wall) p.cling = p.wall;
+  // Touching a wall in mid-air grabs it — no key needed (unless you're pressing away from it)
+  if (!p.onGround && p.wall && dir !== -p.wall) p.cling = p.wall;
   // Wall jump: press the other way while on (or close to) a wall. Forgiving on timing: being near the wall
   // counts, so does having just left it, and a press made just before reaching it is remembered.
   if (p.onGround) { p.wallT = 0; p.lastJumpSide = 0; }
@@ -337,18 +343,37 @@ function superBounce(p, pl) {
   floatText('BOING!', p.x + p.w / 2, p.y - 20, '#d9b42e', 28);
 }
 
+// On a spring: the pad (and the cube on it) sinks to its lowest point, the cube squashing, then the pad
+// snaps back up and launches it. Jump pressed just before landing or during the press = the big boost;
+// right after the launch there's still a short window for it (see springT).
+function springPress(p, inp, dt) {
+  const s = p.press, pl = s.pl;
+  if (inp.jumpPressed) p.buf = 0.13;
+  p.buf -= dt;
+  s.t += dt;
+  const k = Math.min(1, s.t / SPRING_DOWN), e = 1 - (1 - k) * (1 - k);   // eases into the bottom
+  pl.comp = e;
+  p.y = pl.y + e * SPRING_DEPTH - p.h;
+  p.sq = 1 - 0.32 * e;
+  p.blink -= dt;
+  if (k < 1) return;
+  // Launch: the pad springs up past its resting height and wobbles back
+  p.press = null; pl.held = false; pl.cv = -26;
+  p.onGround = false; p.ground = null; p.coyote = 0;
+  if (p.buf > 0) superBounce(p, pl);
+  else {
+    p.vy = -JUMP_V; p.sq = 1.25;                   // a plain bounce, like a normal jump
+    p.springT = 0.15; p.springPad = pl;            // short window to press jump for the boost
+    tone(220, 500, 0.15, 'sine', 0.06);
+  }
+}
+
 function land(p, pl, wasGround) {
   p.y = pl.y - p.h; p.onGround = true; p.ground = pl;
   if (pl.menu && !wasGround) touchLobby(p, pl);   // sound platform / colour pads
   if (pl.type === 'spring') {
-    p.onGround = false; p.ground = null; pl.bounceT = 0.25;
-    if (p.buf > 0) {
-      superBounce(p, pl);                     // jump pressed just before landing
-    } else {
-      p.vy = -JUMP_V; p.sq = 1.2;             // plain bounce, like a normal jump
-      p.springT = 0.15; p.springPad = pl;     // short window to press jump for the boost
-      tone(220, 500, 0.15, 'sine', 0.06);
-    }
+    // The pad sinks under the cube first (springPress), then throws it up
+    p.vy = 0; p.vx *= 0.5; p.press = { pl, t: 0 }; pl.held = true; pl.cv = 0;
     return;
   }
   if (!wasGround) { p.sq = 0.75; sfx.land(); dust(p.x + p.w / 2, pl.y); }

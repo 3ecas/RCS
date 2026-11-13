@@ -21,22 +21,40 @@ function drawBackground() {
 
 // Background: big soft geometric shapes drifting slower than the tower (each region has its own family of
 // shapes, in its colours), and a sparse layer of small shapes rising through the air
+// Where the big background shapes sit: a random-looking spread laid out once (per tower width and window
+// height) so that no two of them ever overlap, not even across the point where the pattern repeats
+let sceneryLayout = null, sceneryKey = '';
+function sceneryItems(span) {
+  const key = W + 'x' + Math.round(span);
+  if (key === sceneryKey) return sceneryLayout;
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const items = [], want = Math.round(span / 190);
+  for (let tries = 0; items.length < want && tries < 2000; tries++) {
+    const sz = 26 + rnd() * 54, x = WALL + sz * 0.8 + rnd() * (W - 2 * WALL - sz * 1.6), y = rnd() * span;
+    const clash = items.some(o => {
+      let dy = Math.abs(o.y - y); dy = Math.min(dy, span - dy);
+      return Math.hypot(o.x - x, dy) < (o.sz + sz) * 0.75 + 60;     // (bars reach 1.4 × their size: leave room)
+    });
+    if (!clash) items.push({ x, y, sz, k: items.length });
+  }
+  sceneryKey = key; sceneryLayout = items;
+  return items;
+}
 function drawScenery() {
   const span = VH * 2.4;
-  for (let k = 0; k < 16; k++) {
-    const s = 26 + hash(k, 3) * 60;
-    const x = WALL + hash(k, 1) * (W - 2 * WALL);
-    let y = (hash(k, 2) * span - camY * 0.3) % span;
+  for (const it of sceneryItems(span)) {
+    let y = (it.y - camY * 0.3) % span;
     if (y < 0) y += span;
-    y -= s + OY;
-    if (y > H + OY + s) continue;
+    y -= it.sz + OY;
+    if (y > H + OY + it.sz) continue;
     const R0 = REGIONS[regionAt(heightM(camY + y))];
-    ctx.globalAlpha = 0.5;
-    drawShape(ctx, R0.shapes[k % R0.shapes.length], x, y, s / 2, R0.plat[0], time * 0.08 * (k % 2 ? 1 : -1) + k);
+    ctx.globalAlpha = 0.3;
+    drawShape(ctx, R0.shapes[it.k % R0.shapes.length], it.x, y, it.sz / 2, R0.plat[0], time * 0.08 * (it.k % 2 ? 1 : -1) + it.k);
   }
   // The rising air: little shapes drifting up the screen, swaying, fading in and out
   const AIR = ['dot', 'tri', 'ring', 'plus', 'sq'];
-  for (let k = 0; k < 26; k++) {
+  for (let k = 0; k < 18; k++) {
     const sp = 18 + hash(k, 11) * 26, f = ((hash(k, 12) * VH + time * sp) % VH) / VH;
     const y = H + OY - f * VH, x = WALL + 10 + hash(k, 13) * (W - 2 * WALL - 20) + Math.sin(time * 0.7 + k) * 10;
     const R0 = REGIONS[regionAt(heightM(camY + y))];
@@ -137,7 +155,7 @@ function drawPlatform(p) {
     ctx.fillStyle = cd; ctx.beginPath(); ctx.arc(0, 8, 2, 0, 7); ctx.fill();
     ctx.restore();
   } else if (p.type === 'spring') {
-    drawSpringI(x, y, p.w, p.bounceT > 0 ? 5 : 0);
+    drawSpringI(x, y, p.w, p.comp || 0);
   } else if (p.type === 'normal') {
     drawPlainPlatform(p);
   } else {
@@ -178,13 +196,19 @@ function drawGem(g) {
   if (Math.floor(time * 2 + g.t) % 5 === 0) { ctx.fillStyle = '#ffffff'; ctx.fillRect(g.x - 1, y - GEM_R - 5, 2, 6); ctx.fillRect(g.x - 3, y - GEM_R - 3, 6, 2); }
 }
 
-// Spring shaped like an "I": top bar you land on, a short post, and a bottom bar.
-// `sq` pushes the top bar down while it's bouncing.
-function drawSpringI(x, y, w, sq) {
-  ctx.fillStyle = PAL.springD;
-  ctx.fillRect(x + 4, y + 16, w - 8, 6);                 // bottom bar
-  ctx.fillRect(x + w / 2 - 5, y + 6 + sq, 10, 10 - sq);  // post
-  slab(x, y + sq, w, 8, PAL.spring, PAL.springD);         // top bar
+// Spring: a pad you land on, a coil, and a base. comp = how far the pad is pushed down (0 rest,
+// 1 all the way down, below 0 stretched up while it wobbles after a launch).
+function drawSpringI(x, y, w, comp) {
+  const ty = y + clamp(comp, -0.9, 1.05) * SPRING_DEPTH;   // the pad's top
+  const by = y + 22;                                      // the base's top
+  // the coil: a zigzag squeezed between the pad and the base
+  const c0 = ty + 7, h = by - c0, cx = x + w / 2, cw = Math.min(14, w * 0.22), turns = 3;
+  ctx.strokeStyle = PAL.springD; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, c0);
+  for (let i = 1; i <= turns * 2; i++) ctx.lineTo(i === turns * 2 ? cx : cx + (i % 2 ? cw : -cw), c0 + h * i / (turns * 2));
+  ctx.stroke();
+  slab(x + 6, by, w - 12, 6, PAL.springD, PAL.springD);   // base
+  slab(x, ty, w, 8, PAL.spring, PAL.springD);             // pad
 }
 
 function drawBlade(b) {
