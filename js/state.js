@@ -67,6 +67,7 @@ function mkPlayer(i, x, colorIdx = localColor(i), look = localLook(i)) {
 // withLobby: build the start scene at the bottom (offline only); PLAY AGAIN / START OVER get a clean tower
 function reset(seed, withLobby = true) {
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
+  towerSeed = wseed;                // (kept: the winner animation is picked from it, the same on every computer)
   makeRegionOrder(wseed);   // which regions come in which order (js/level.js)
   // Arena width: online everyone shares one width; offline it fills this window
   W = arenaW();
@@ -114,7 +115,7 @@ let nextPid = 1;
 const alive = () => players.filter(p => !p.dead);
 
 // Seeded random numbers for building the tower, so an online match gets the same tower on both computers
-let wseed = 1;
+let wseed = 1, towerSeed = 1;
 function R() {
   wseed = (wseed + 0x6D2B79F5) | 0;
   let t = Math.imul(wseed ^ (wseed >>> 15), 1 | wseed);

@@ -137,13 +137,10 @@ function retroText(str, x, y, size, faces, edge = PAL.ink) {
 function drawResults() {
   const wp = players.find(p => p.i === winner), t = Math.max(0, overT - 0.4);
   const cx = W / 2, cy = 300;
-  // retro sunset stripes across the whole window (thin gaps that widen toward the bottom)...
+  // retro sunset stripes filling the whole window, all the same height, no gaps...
   const bands = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e8a3c8', '#d4b2ee', '#c8b6f2'];
   const bh = VH / bands.length;
-  bands.forEach((c, k) => {
-    const gap = k < 2 ? 0 : (k - 1) * 4;
-    ctx.fillStyle = c; ctx.fillRect(-OX, -OY + k * bh + gap, VW, bh - gap);
-  });
+  bands.forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(-OX, -OY + k * bh, VW, bh + 1); });
   // ...and soft light rays turning slowly from behind the winner
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.15);
   const rays = 18;
@@ -154,27 +151,98 @@ function drawResults() {
   ctx.restore(); ctx.globalAlpha = 1;
   const R = 150;   // (where the text sits below the winner)
   if (wp) {
-    // the cube springs up out of the sun (an overshooting pop), then bobs
-    const pop = t < 0.6 ? 1 + 2.70158 * Math.pow(t / 0.6 - 1, 3) + 1.70158 * Math.pow(t / 0.6 - 1, 2) : 1;
-    const s = 130 * Math.max(0, pop);
-    // ...then dances: hops to a beat (squashing as it lands, stretching as it rises), leaning to
-    // alternate sides, with a full spin every fourth beat
-    const beat = Math.max(0, t - 0.6) * 2.2, b = beat % 1, up = Math.sin(Math.PI * b);
-    const dancing = t > 0.6, hop = dancing ? up * 30 : 0;
-    const sq = dancing ? (up < 0.25 ? 1 - (0.25 - up) * 0.7 : 1 + (up - 0.25) * 0.12) : 1;   // squash low, stretch high
-    const lean = dancing ? (Math.floor(beat) % 2 ? 1 : -1) * up * 0.2 : 0;
-    const spin = dancing && Math.floor(beat) % 4 === 3 ? (1 - Math.cos(Math.PI * b)) * Math.PI : 0;
-    const w = s / Math.sqrt(sq), h = s * sq;
-    ctx.save();
-    ctx.translate(cx, cy + s / 2 - hop);                 // pivot at the cube's feet
-    ctx.rotate(lean + spin);
-    drawCubeArt(-w / 2, -h, w, h, { c: wp.color, d: wp.dark }, wp.look, 0, Math.sin(time * 1.3) > 0.97 ? -1 : 1);
-    ctx.restore();
+    drawWinnerCube(wp, cx, cy, t, (towerSeed >>> 0) % WIN_STYLES);
     const mine = net.status === 'playing' && !wp.remote;
     retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
     retroText(wp.name.toUpperCase(), cx, cy + R + 160, 44, [wp.color, wp.color, wp.dark], PAL.ink);
   } else retroText('DRAW!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
+  drawPlaces();
   drawConfetti(t);
+}
+
+// The winner's entrance, one of four (picked from the tower's seed, so every computer shows the same one):
+//   0 dance    — pops up, then hops to a beat, leaning side to side, spinning every fourth beat
+//   1 spin-up  — rises from below spinning like a coin, settles facing you with a burst of sparkles, floats
+//   2 bounce   — drops in and keeps bouncing, squashing as it lands, a ring rippling out from its feet
+//   3 crowning — pops up, a golden crown floats down onto its head with sparkles, then a happy wiggle
+const WIN_STYLES = 4;
+function drawWinnerCube(wp, cx, cy, t, style) {
+  const P = { c: wp.color, d: wp.dark }, S = 130, blink = Math.sin(time * 1.3) > 0.97 ? -1 : 1;
+  const easeBack = u => u >= 1 ? 1 : 1 + 2.70158 * Math.pow(u - 1, 3) + 1.70158 * Math.pow(u - 1, 2);
+  const sparkles = (x, y, r, age, n = 10) => {        // a ring of twinkling plus-shapes flying outward
+    if (age < 0 || age > 0.9) return;
+    for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2 + 0.3, d = r + age * 120;
+      ctx.globalAlpha = 1 - age / 0.9;
+      drawShape(ctx, k % 2 ? 'plus' : 'dot', x + Math.cos(a) * d, y + Math.sin(a) * d, k % 2 ? 9 : 5, Object.values(SOFT)[k % 6][1], age * 4);
+    }
+    ctx.globalAlpha = 1;
+  };
+  let s = S, hop = 0, sq = 1, rot = 0, flip = 1, dy = 0, crownY = null;
+  if (style === 0) {                    // dance
+    s = S * Math.max(0, easeBack(t / 0.6));
+    const beat = Math.max(0, t - 0.6) * 2.2, b = beat % 1, up = Math.sin(Math.PI * b), on = t > 0.6;
+    hop = on ? up * 30 : 0;
+    sq = on ? (up < 0.25 ? 1 - (0.25 - up) * 0.7 : 1 + (up - 0.25) * 0.12) : 1;
+    rot = on ? (Math.floor(beat) % 2 ? 1 : -1) * up * 0.2 + (Math.floor(beat) % 4 === 3 ? (1 - Math.cos(Math.PI * b)) * Math.PI : 0) : 0;
+  } else if (style === 1) {             // spin-up
+    const u = Math.min(1, t / 1.4), e = 1 - Math.pow(1 - u, 3);
+    dy = (1 - e) * 360;                                         // rises from below
+    flip = Math.cos(e * Math.PI * 8);                           // spins like a coin, slowing to a stop facing you
+    if (Math.abs(flip) < 0.08) flip = 0.08 * Math.sign(flip || 1);
+    hop = u >= 1 ? Math.sin((t - 1.4) * 2) * 10 : 0;            // then floats
+    sparkles(cx, cy, S * 0.6, t - 1.4, 12);
+  } else if (style === 2) {             // bounce
+    const drop = Math.min(1, t / 0.5);
+    if (t < 0.5) hop = (1 - drop * drop) * 520;                 // falls in from above
+    else {
+      const ph = ((t - 0.5) * 1.25) % 1, up = Math.sin(Math.PI * ph);
+      hop = up * 140;
+      sq = ph < 0.08 || ph > 0.92 ? 0.72 : 1 + up * 0.08;      // squash on landing, stretch in the air
+      const ring = ((t - 0.5) * 1.25) % 1;                      // a ring rippling out from each landing
+      ctx.strokeStyle = wp.dark; ctx.lineWidth = 4 * (1 - ring); ctx.globalAlpha = 0.6 * (1 - ring);
+      ctx.beginPath(); ctx.ellipse(cx, cy + S / 2 + 6, 40 + ring * 160, 10 + ring * 30, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  } else {                              // crowning
+    s = S * Math.max(0, easeBack(t / 0.6));
+    const u = clamp((t - 0.7) / 0.9, 0, 1);
+    const bounceEase = x => { const n = 7.5625, d = 2.75; if (x < 1 / d) return n * x * x; if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75; if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375; return n * (x -= 2.625 / d) * x + 0.984375; };
+    crownY = -420 * (1 - bounceEase(u));                        // floats down, bounces onto the head
+    if (t > 1.6) rot = Math.sin((t - 1.6) * 9) * 0.1 * Math.max(0.3, Math.cos((t - 1.6) * 0.8) ** 2);   // happy wiggle
+    sparkles(cx, cy - S / 2 - 20, 30, t - 1.15, 10);
+  }
+  const w = s / Math.sqrt(sq) * Math.abs(flip), h = s * sq;
+  ctx.save();
+  ctx.translate(cx, cy + s / 2 - hop + dy);                     // pivot at the cube's feet
+  ctx.rotate(rot);
+  if (w > 1 && h > 1) drawCubeArt(-w / 2, -h, w, h, P, flip < 0 ? { ...wp.look, f: 2 } : wp.look, 0, blink);
+  if (crownY !== null) {             // the crown (above any hat it already wears)
+    const k = s / PS, top = -h - (wp.look.h ? 16 * k : 0) + crownY;
+    drawHat(-s / 2, top, s, 2, k, 0, P);
+  }
+  ctx.restore();
+}
+
+// The other places along the bottom, right to left: 2nd, 3rd, 4th... each cube on a pedestal (lower for
+// lower places) with its place on the front and its name below. Ranked by how long each one lasted.
+function drawPlaces() {
+  const rest = players.filter(p => p.i !== winner).sort((a, b) => (b.outAt || 1e9) - (a.outAt || 1e9) || b.best - a.best);
+  if (!rest.length) return;
+  const base = H + Math.min(OY, 40) - 8, gap = Math.min(96, (W - 2 * WALL - 80) / rest.length);
+  const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'TH' : ['TH', 'ST', 'ND', 'RD'][n % 10] || 'TH');
+  rest.forEach((p, k) => {
+    const place = k + 2, x = W - WALL - 50 - k * gap, ph = Math.max(26, 60 - k * 8), cs = 36;
+    const tIn = Math.max(0, overT - 0.9 - k * 0.12), pop = tIn >= 0.35 ? 1 : 1 + 2.70158 * Math.pow(tIn / 0.35 - 1, 3) + 1.70158 * Math.pow(tIn / 0.35 - 1, 2);
+    if (tIn <= 0) return;
+    ctx.save(); ctx.translate(x, base); ctx.scale(pop, pop);
+    slab(-cs * 0.8, -ph, cs * 1.6, ph, '#ffffff', PAL.normalD, 2.5);                 // pedestal
+    OUTLINE = false; text(ord(place), 0, -ph + 20, 15, PAL.ink, 'center', 900);
+    const P = { c: p.color, d: p.dark };
+    drawCubeArt(-cs / 2, -ph - cs, cs, cs, P, p.look, 0, 1);
+    ctx.restore();
+    if (pop >= 1) { OUTLINE = true; text(p.name, x, base - ph - cs - 10, 12, p.dark, 'center', 900); OUTLINE = false; }
+  });
 }
 
 // Confetti over the reveal: pastel strips, dots and triangles fluttering down the whole window, flipping
