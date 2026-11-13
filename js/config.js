@@ -22,6 +22,7 @@ const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 90;
 // How forgiving the wall jump is: how close to a wall counts (px), how long after leaving it, and how long a
 // press made just before reaching it is remembered (seconds)
 const WALL_REACH = 26, WALL_COYOTE = 0.14, WALL_BUFFER = 0.16;
+const GEMS_ON = false;       // gems are switched off for now (true brings them back, with wardrobe unlocks)
 const GEM_R = 12;            // gems: pick-up radius
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';

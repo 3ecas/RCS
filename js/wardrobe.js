@@ -111,6 +111,7 @@ function drawWardrobeRoom() {
     text(p.name.toUpperCase(), cx, my + 236, 20, p.dark, 'center', 900);
   });
   // Gems: how many you have, and a bar filling up toward the next unlock
+  if (!GEMS_ON) return;
   const nx = nextUnlock(), gy = my + mh - 34, gx = W / 2;
   drawGemIcon(gx - 92, gy - 5, 9);
   text(String(totalGems), gx - 78, gy + 1, 16, '#1f97ab', 'left', 900);

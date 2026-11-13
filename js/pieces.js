@@ -140,6 +140,7 @@ const PIECE_ROW = {
 // A gem to pick up (in the world, between rows)
 function addGem(x, y) {
   const t = R() * 6;   // drawn first, so the tower is the same on every computer whether or not the gem is kept
+  if (!GEMS_ON) return;
   if (dividers.some(dv => y > dv.top - GEM_R && y < dv.bot + GEM_R && x > dv.x - GEM_R - 6 && x < dv.x + dv.w + GEM_R + 6)) return;
   gems.push({ x, y, t });
 }

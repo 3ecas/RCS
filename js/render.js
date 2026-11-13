@@ -135,8 +135,8 @@ function slab(x, y, w, h, face, edge, lw = 2, drop = 4) {
   ctx.strokeStyle = edge; ctx.lineWidth = lw; ctx.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw);
 }
 // A white button-platform (lobby, wardrobe, room). on: someone stands on it — it lights up in `color`.
-function buttonSlab(p, on, color = PAL.ink) {
-  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.wallLine, on ? 4 : 2, 5);
+function buttonSlab(p, on, color = PAL.ink, drop = 5) {
+  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.wallLine, on ? 3 : 2, drop);
 }
 
 function drawPlatform(p) {

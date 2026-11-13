@@ -24,21 +24,21 @@ const WEAR_LABEL = { colour: 'COLOUR', face: 'FACE', hat: 'HAT', pattern: 'PATTE
 // Build the lobby: the mode platforms one jump above the floor, and a small sound pad one jump higher on the
 // left (the wardrobe door stands on the floor, see LOBBY_DOOR_X). Returns where the tower's own platforms
 // may start on the sound pad's row.
-const SOUND_W = 64;
+const SOUND_W = 56;
 function buildLobby() {
   buildLobbyRow1();
   const x = WALL + 24;
-  platforms.push({ id: nextPid++, x, y: GROUND_Y - 2 * ROW_GAP, w: SOUND_W, h: 24, type: 'normal', menu: 'sound', noDrop: true, dx: 0, dy: 0, t: 0, falling: false });
+  platforms.push({ id: nextPid++, x, y: GROUND_Y - 2 * ROW_GAP, w: SOUND_W, h: 16, type: 'normal', menu: 'sound', noDrop: true, dx: 0, dy: 0, t: 0, falling: false });
   return x + SOUND_W;
 }
 // Row 1 changes when player 2 joins or leaves, so it can be rebuilt on its own
 function buildLobbyRow1() {
   platforms = platforms.filter(p => !isMode(p));
   const items = lobbyModes();
-  const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(190, slot - 60);
+  const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(150, slot - 60);
   items.forEach((menu, k) => {
     const cx = LOBBY_LEFT + slot * (k + 0.5);
-    platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 30, type: 'normal', menu, dx: 0, dy: 0, t: 0, falling: false,
+    platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', menu, dx: 0, dy: 0, t: 0, falling: false,
  });
   });
   lobby.on = null; lobby.holdT = 0;
@@ -163,11 +163,11 @@ function drawMenuPlatform(p) {
   // A white button; it lights up (green for a mode) while someone stands on it
   const on = players.some(q => standingOn(q) === p);
   const col = isMode(p) ? PAL.good : PAL.ink;
-  buttonSlab(p, on, col);
+  buttonSlab(p, on, col, p.h < 20 ? 4 : 5);
   // Filling up while everyone stands on it, with the seconds left above
   if (lobby.on === p) {
     ctx.fillStyle = PAL.good; ctx.globalAlpha = 0.25;
-    ctx.fillRect(x + 4, y + 4, (p.w - 8) * Math.min(1, lobby.holdT / HOLD_TIME), p.h - 8);
+    ctx.fillRect(x + 3, y + 3, (p.w - 6) * Math.min(1, lobby.holdT / HOLD_TIME), p.h - 6);
     ctx.globalAlpha = 1;
     text(String(Math.max(1, Math.ceil(HOLD_TIME - lobby.holdT))), cx, y - 26, 40, PAL.good, 'center', 900);
   } else if (state === 'lobby' && isMode(p)) {
@@ -184,13 +184,13 @@ function drawMenuPlatform(p) {
       ctx.beginPath(); ctx.moveTo(cx - 9, y - 30 - b); ctx.lineTo(cx + 9, y - 30 - b); ctx.lineTo(cx, y - 18 - b); ctx.closePath(); ctx.fill();
     }
   }
-  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + p.h / 2, 0.7); return; }
+  if (p.menu === 'sound') { drawSpeaker(cx + 2, y + p.h / 2, 0.5); return; }
   if (p.menu === 'wear' && p.wear === 'colour') {   // a thin rainbow along the colour platform
     const sw = (p.w - 8) / COLORS.length;
     COLORS.forEach((C, k) => { ctx.fillStyle = C.c; ctx.fillRect(x + 4 + k * sw, y + p.h - 8, sw, 4); });
   }
   const label = p.menu === 'wear' ? WEAR_LABEL[p.wear] : MENU_LABEL[p.menu];
-  let size = 13;
+  let size = p.h < 20 ? 10 : 13;
   ctx.font = `900 ${size}px ${FONT}`;
   while (size > 9 && ctx.measureText(label).width > p.w - 14) { size--; ctx.font = `900 ${size}px ${FONT}`; }
   text(label, cx, y + p.h / 2 + size * 0.36, size, on && isMode(p) ? PAL.good : PAL.ink, 'center', 900);

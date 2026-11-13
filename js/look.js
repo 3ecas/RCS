@@ -11,7 +11,7 @@ const NEED = {
   h: [0, 0, 8, 15, 25, 40, 60, 80],     // hats
   p: [0, 0, 12, 30],                    // patterns
 };
-const unlocked = (key, i) => totalGems >= NEED[key][i];
+const unlocked = (key, i) => !GEMS_ON || totalGems >= NEED[key][i];   // without gems, everything is open
 // The next thing gems will unlock, or null
 function nextUnlock() {
   const names = { f: FACES, h: HATS, p: PATTERNS };
