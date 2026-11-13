@@ -41,26 +41,44 @@ function drawScenery() {
   ctx.globalAlpha = 1;
 }
 function drawSceneryShape(kind, s, k) {
-  const circle = (x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); };
+  // Shapes made of several parts are built as one path and filled once, so the see-through
+  // parts don't overlap into darker patches
+  const blob = (circles, rect) => {
+    ctx.beginPath();
+    for (const [x, y, r] of circles) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); }
+    if (rect) ctx.rect(...rect);
+    ctx.fill('nonzero');
+  };
   if (kind === 'cloud' || kind === 'storm') {
-    circle(-s * 0.3, 0, s * 0.3); circle(0, -s * 0.12, s * 0.38); circle(s * 0.32, 0, s * 0.28); ctx.fillRect(-s * 0.3, 0, s * 0.62, s * 0.28);
+    blob([[-s * 0.3, s * 0.02, s * 0.28], [0, -s * 0.12, s * 0.38], [s * 0.32, s * 0.02, s * 0.26]], [-s * 0.3, 0, s * 0.62, s * 0.28]);
     if (kind === 'storm' && Math.floor(time * 2 + k) % 7 === 0) {
       ctx.globalAlpha = 0.5; ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(0, s * 0.3); ctx.lineTo(-s * 0.1, s * 0.6); ctx.lineTo(s * 0.06, s * 0.6); ctx.lineTo(-s * 0.06, s * 0.95); ctx.stroke();
     }
   } else if (kind === 'tree') {
-    ctx.fillRect(-s * 0.06, 0, s * 0.12, s * 0.7); circle(0, -s * 0.05, s * 0.36); circle(-s * 0.22, s * 0.1, s * 0.24); circle(s * 0.22, s * 0.1, s * 0.24);
+    blob([[0, -s * 0.05, s * 0.36], [-s * 0.22, s * 0.1, s * 0.24], [s * 0.22, s * 0.1, s * 0.24]], [-s * 0.06, 0, s * 0.12, s * 0.7]);
   } else if (kind === 'crystal') {
+    ctx.beginPath();
     for (const [dx, h, w] of [[-s * 0.2, 0.7, 0.18], [0, 1, 0.24], [s * 0.22, 0.55, 0.16]]) {
-      ctx.beginPath(); ctx.moveTo(dx, -s * h * 0.6); ctx.lineTo(dx + s * w, 0); ctx.lineTo(dx, s * 0.4); ctx.lineTo(dx - s * w, 0); ctx.closePath(); ctx.fill();
+      ctx.moveTo(dx, -s * h * 0.6); ctx.lineTo(dx + s * w, 0); ctx.lineTo(dx, s * 0.4); ctx.lineTo(dx - s * w, 0); ctx.closePath();
     }
+    ctx.fill('nonzero');
   } else if (kind === 'hill') {
     ctx.beginPath(); ctx.moveTo(-s, s * 0.4); ctx.quadraticCurveTo(0, -s * 0.6, s, s * 0.4); ctx.closePath(); ctx.fill();
   } else if (kind === 'gear') {
     ctx.rotate(time * 0.3 * (k % 2 ? 1 : -1));
-    for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-s * 0.08, -s * 0.5, s * 0.16, s * 0.2); }
-    circle(0, 0, s * 0.36);
-    ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; circle(0, 0, s * 0.13); ctx.globalCompositeOperation = 'source-over';
+    // Teeth, the wheel and its hole in one path: the hole (drawn the other way round) stays empty,
+    // so the background shows through it
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4, c = Math.cos(a), n = Math.sin(a), tw = s * 0.08;
+      const pt = (u, v) => [u * c - v * n, u * n + v * c];
+      [[-tw, -s * 0.5], [tw, -s * 0.5], [tw, -s * 0.3], [-tw, -s * 0.3]].forEach(([u, v], j) => { const [x, y] = pt(u, v); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.closePath();
+    }
+    ctx.moveTo(s * 0.36, 0); ctx.arc(0, 0, s * 0.36, 0, Math.PI * 2);
+    ctx.moveTo(s * 0.13, 0); ctx.arc(0, 0, s * 0.13, 0, Math.PI * 2, true);
+    ctx.fill('evenodd');
   } else if (kind === 'flame') {
     const f = 1 + Math.sin(time * 4 + k) * 0.06;
     ctx.beginPath(); ctx.moveTo(0, -s * 0.6 * f); ctx.quadraticCurveTo(s * 0.4, 0, s * 0.2, s * 0.35); ctx.quadraticCurveTo(0, s * 0.5, -s * 0.2, s * 0.35); ctx.quadraticCurveTo(-s * 0.4, 0, 0, -s * 0.6 * f); ctx.fill();

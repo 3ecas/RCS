@@ -2,7 +2,7 @@
 // (from the tower's seed, so online everyone gets the same):
 //   scatter  — loose platforms, each within jumping reach of the last (the old way)
 //   stairs   — a zigzag staircase of short steps
-//   chimney  — a narrow shaft between two pillars, with small ledges inside: hop up, or wall-jump
+//   chimney  — a narrow shaft between two pillars with nothing inside: wall-jump up it
 //   wall     — ledges hugging a side wall, alternating with platforms further out: wall-jump up the side
 //   plaza    — a wide platform, then two routes (one with a gem), then they meet again
 // Each piece places the path's platform(s) for one row; js/level.js adds the extras, hazards and gems.
@@ -30,6 +30,8 @@ function startPiece(m, L) {
   for (const [k, p] of opts) { r -= p.weight; if (r <= 0) { kind = k; break; } }
   const [a, b] = PIECES[kind].rows;
   const rows = a + Math.floor(R() * (b - a + 1));
+  // A chimney's pillars must not reach into a Two Paths region (its entrance spans the whole width)
+  if (kind === 'chimney' && has(m + (rows + 1) * ROW_GAP / PX_PER_M, 'divider')) kind = 'scatter';
   gen.piece = { kind, rows, left: rows, k: 0 };
 }
 
@@ -70,19 +72,29 @@ const PIECE_ROW = {
   },
 
   chimney(pc, y, m, d, L, G, allowHaz) {
-    if (pc.k === 0) {
-      const half = SHAFT_W / 2 + PILLAR_W + 80;   // keep it away from the side walls
-      pc.cx = clamp(center(gen.prev || { x: W / 2, w: 0 }), L + half, W - WALL - half);
-      const top = y - (pc.rows - 1) * ROW_GAP - 80, bot = y + 14;
-      dividers.push({ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true });
-      dividers.push({ x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true });
-    }
-    // Small ledges, alternately on the shaft's left and right walls
-    const lw = 66, left = pc.k % 2 === 0;
-    const main = plain(left ? pc.cx - SHAFT_W / 2 : pc.cx + SHAFT_W / 2 - lw, y, lw);
-    if (pc.left === 1) addGem(pc.cx, y - 70);    // a gem at the top of the shaft
     const half = SHAFT_W / 2 + PILLAR_W + 30;
-    return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+    const capW = SHAFT_W + 2 * PILLAR_W + 80;
+    if (pc.k === 0) {
+      // A floor under the shaft. The pillars start a cube's height above it, so you can walk in underneath.
+      const keep = capW / 2 + 40;   // keep it away from the side walls
+      pc.cx = clamp(center(gen.prev || { x: W / 2, w: 0 }), L + keep, W - WALL - keep);
+      const top = y - (pc.rows - 1) * ROW_GAP, bot = y - PS - 34;
+      pc.pillars = [{ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true },
+                    { x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true }];
+      dividers.push(...pc.pillars);
+      const main = plain(pc.cx - capW / 2, y, capW);
+      return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+    }
+    if (pc.left === 1) {
+      // The cap on top of the shaft: you jump up through it (it's one-way) and climb out onto it
+      const main = plain(pc.cx - capW / 2, y, capW);
+      for (const dv of pc.pillars) dv.top = y + main.h;   // the pillars hold the cap up
+      addGem(pc.cx, y - 50);
+      return { main, row: [main], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
+    }
+    // Inside the shaft there's nothing to stand on: wall-jump between the pillars
+    const main = { type: 'shaft', x: pc.cx - SHAFT_W / 2, w: SHAFT_W };
+    return { main, row: [], rowHaz: false, block: [pc.cx - half, pc.cx + half], noFly: true };
   },
 
   wall(pc, y, m, d, L, G, allowHaz) {
@@ -126,7 +138,20 @@ const PIECE_ROW = {
 };
 
 // A gem to pick up (in the world, between rows)
-function addGem(x, y) { gems.push({ x, y, t: R() * 6 }); }
+function addGem(x, y) {
+  const t = R() * 6;   // drawn first, so the tower is the same on every computer whether or not the gem is kept
+  if (dividers.some(dv => y > dv.top - GEM_R && y < dv.bot + GEM_R && x > dv.x - GEM_R - 6 && x < dv.x + dv.w + GEM_R + 6)) return;
+  gems.push({ x, y, t });
+}
+// Gems that ended up tucked under (or inside) a platform of a newer row are taken away (they're still
+// above the screen, so nobody sees it happen)
+function clearGems(row) {
+  for (const p of row) {
+    const [a, b] = extent(p), y0 = p.type === 'tilt' ? p.py - p.w / 2 * Math.sin(TILT.max) : p.y;
+    const y1 = p.type === 'tilt' ? p.py + 40 : p.y + p.h + 14;
+    gems = gems.filter(g => !(g.x > a - GEM_R - 6 && g.x < b + GEM_R + 6 && g.y > y0 - GEM_R - 6 && g.y < y1 + GEM_R));
+  }
+}
 
 // Gems away from the path: above the far end of an extra platform, out in the gap beside the path,
 // or on a shuriken's track (risky)

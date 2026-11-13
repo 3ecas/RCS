@@ -47,8 +47,10 @@ function spawnPos(i, n) {
 
 function generate() {
   while (GROUND_Y - rowK * ROW_GAP > camY - OY - 300) {   // build a little past the top of the window
-    const nudge = R() < ROW_WOBBLE ? wrand(-14, 14) : 0;
-    genRow(GROUND_Y - rowK * ROW_GAP + nudge);
+    // Rows next to a Two Paths region stay on the grid, so its entrance and exit rows land where they should
+    const y0 = GROUND_Y - rowK * ROW_GAP, nearSplit = [-1, 0, 1].some(k => has(heightM(y0 + k * ROW_GAP), 'divider'));
+    const nudge = R() < ROW_WOBBLE && !nearSplit ? wrand(-14, 14) : 0;
+    genRow(y0 + nudge);
     rowK++;
   }
 }
@@ -81,7 +83,12 @@ const extent = p => p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w]
 function genRow(y) {
   const m = heightM(y), d = diff(y);
   const L = gen.lo && y > gen.loUntil ? gen.lo : WALL;   // left edge (the lobby's colour column takes the left)
-  if (has(m, 'divider')) return genSplitRow(y, m, d, L);
+  const first = platforms.length;
+  if (has(m, 'divider')) genSplitRow(y, m, d, L);
+  else genPathRow(y, m, d, L);
+  clearGems(platforms.slice(first));   // no gem tucked under this row's platforms (js/pieces.js)
+}
+function genPathRow(y, m, d, L) {
   const G = lerp(110, 160, d);   // max horizontal gap from the previous step on the path
   // A row right after a row with any hazard is always hazard-free,
   // so you never have to dodge hazards on two steps back to back.
@@ -102,7 +109,7 @@ function genRow(y) {
     const taken = [...row.map(extent), ...(pc.block ? [pc.block] : [])].sort((a, b) => a[0] - b[0]);
     const spaces = [];
     let from = L;
-    for (const [a, b] of taken) { spaces.push([from, a - GAP]); from = b + GAP; }
+    for (const [a, b] of taken) { spaces.push([from, a - GAP]); from = Math.max(from, b + GAP); }
     spaces.push([from, W - WALL]);
     const free = spaces.filter(([a, b]) => b - a >= minW);
     if (!free.length) break;

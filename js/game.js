@@ -62,9 +62,10 @@ function update(dt) {
   if (h > height) {
     height = h;
     if (height >= nextMilestone) {
-      floatText(nextMilestone + ' m!', W / 2, camY + H * 0.3);
+      const ms = Math.floor(height / 50) * 50;   // the highest one passed (a spring can skip one)
+      floatText(ms + ' m!', W / 2, camY + H * 0.3);
       sfx.milestone();
-      nextMilestone += 50;
+      nextMilestone = ms + 50;
     }
   }
 
@@ -207,8 +208,19 @@ function updatePlayer(p, dt) {
   }
 
   let dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
-  // Just after a wall jump, pushing back toward that wall is ignored for a moment (so you can't climb one wall)
-  if (p.wallLock > 0) { p.wallLock -= dt; if (dir === p.lockDir) dir = 0; }
+  // After a wall jump the cube flies on to the opposite side by itself, until it lands, reaches a wall (and
+  // hangs on it), or the player steers back. A key still held toward the old wall from before the jump
+  // doesn't count as steering back; once it's let go, pressing that way again does.
+  if (p.fly) {
+    if (dir !== -p.fly) p.flyHeld = false;
+    if (p.onGround || (dir === -p.fly && !p.flyHeld)) p.fly = 0;
+    else dir = p.fly;
+  }
+  // Hanging on a wall: stays on it (sliding down slowly) until you jump, land, or press away from it
+  // (again, a key held since before the wall jump doesn't count)
+  if (p.cling && dir !== -p.cling) p.flyHeld = false;
+  if (p.cling && (p.onGround || p.wall !== p.cling || (dir === -p.cling && !p.flyHeld))) p.cling = 0;
+  if (p.cling && dir === -p.cling) dir = 0;
   if (dir) p.face = dir;
   const accel = p.onGround ? 3200 : 2200;
   const tvx = dir * MAX_VX * p.speedMul;
@@ -229,7 +241,7 @@ function updatePlayer(p, dt) {
   } else if (p.buf > 0 && !p.onGround && p.wall) {
     // Wall jump: up and away from the wall you're touching
     p.vy = -WALLJUMP_V; p.vx = -p.wall * WALLJUMP_PUSH; p.buf = 0; p.face = -p.wall; p.sq = 1.2;
-    p.wallLock = WALLJUMP_LOCK; p.lockDir = p.wall;
+    p.fly = -p.wall; p.flyHeld = dir === p.wall; p.cling = 0;
     sfx.jump(p.i); dust(p.wall < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
@@ -241,8 +253,8 @@ function updatePlayer(p, dt) {
   p.vy += GRAV * dt;
   if (!inp.jump && p.vy < 0 && !p.inBubbles) p.vy += GRAV * 1.4 * dt;
   p.vy = Math.min(p.vy, MAX_FALL);
-  // Sliding down a wall you push against is slower
-  if (!p.onGround && p.wall && dir === p.wall && p.vy > WALL_SLIDE) {
+  // Sliding down a wall you push against (or hang on) is slower
+  if (!p.onGround && p.wall && (dir === p.wall || p.cling === p.wall) && p.vy > WALL_SLIDE) {
     p.vy = WALL_SLIDE;
     if (Math.random() < dt * 25) particles.push({ x: p.wall < 0 ? p.x : p.x + p.w, y: p.y + p.h - 4, vx: -p.wall * 30, vy: -20, life: 0.3, max: 0.3, color: 'rgba(255,255,255,0.9)', size: 3, grav: 0 });
   }
@@ -265,6 +277,8 @@ function updatePlayer(p, dt) {
     if (Math.abs(p.x - (dv.x + dv.w)) < 0.6) p.wall = -1;
     else if (Math.abs(p.x + p.w - dv.x) < 0.6) p.wall = 1;
   }
+  // A wall-jump flight that reaches the other wall grabs on to it
+  if (p.fly && p.wall === p.fly) { p.cling = p.wall; p.fly = 0; }
 
   const prevBottom = p.y + p.h;
   p.y += p.vy * dt;

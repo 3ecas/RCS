@@ -16,8 +16,9 @@ const STEP = 1 / 120;
 const JET_LEN = 230, JET_THICK = 38;   // wall flamethrowers: reach and flame thickness
 const PJET_LEN = 180, PJET_THICK = 32; // flamethrowers on platforms
 const DIVIDER_W = 26;        // Two Paths region: the dividing wall's width
-// Wall jumping: jump off a wall you're touching in mid-air; sliding down a wall you push against is slower
-const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 170, WALLJUMP_LOCK = 0.17;
+// Wall jumping: jump off a wall you're touching in mid-air and you fly across to the opposite side, where you
+// hang on the wall (sliding down slowly) ready to jump again
+const WALLJUMP_V = 820, WALLJUMP_PUSH = 400, WALL_SLIDE = 170;
 const GEM_R = 12;            // gems: pick-up radius
 const BUBBLE_W = 64, BUBBLE_PUSH = 4600, BUBBLE_MAX = 900;   // water region: column width, upward push, top speed
 const FONT = 'ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif';
