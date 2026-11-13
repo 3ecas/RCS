@@ -145,8 +145,20 @@ function drawResults() {
   if (wp) {
     // the cube springs up out of the sun (an overshooting pop), then bobs
     const pop = t < 0.6 ? 1 + 2.70158 * Math.pow(t / 0.6 - 1, 3) + 1.70158 * Math.pow(t / 0.6 - 1, 2) : 1;
-    const s = 130 * Math.max(0, pop), bob = Math.sin(time * 2.5) * 6;
-    cube(cx - s / 2, cy - s / 2 + bob, s, { c: wp.color, d: wp.dark }, wp.look);
+    const s = 130 * Math.max(0, pop);
+    // ...then dances: hops to a beat (squashing as it lands, stretching as it rises), leaning to
+    // alternate sides, with a full spin every fourth beat
+    const beat = Math.max(0, t - 0.6) * 2.2, b = beat % 1, up = Math.sin(Math.PI * b);
+    const dancing = t > 0.6, hop = dancing ? up * 30 : 0;
+    const sq = dancing ? (up < 0.25 ? 1 - (0.25 - up) * 0.7 : 1 + (up - 0.25) * 0.12) : 1;   // squash low, stretch high
+    const lean = dancing ? (Math.floor(beat) % 2 ? 1 : -1) * up * 0.2 : 0;
+    const spin = dancing && Math.floor(beat) % 4 === 3 ? (1 - Math.cos(Math.PI * b)) * Math.PI : 0;
+    const w = s / Math.sqrt(sq), h = s * sq;
+    ctx.save();
+    ctx.translate(cx, cy + s / 2 - hop);                 // pivot at the cube's feet
+    ctx.rotate(lean + spin);
+    drawCubeArt(-w / 2, -h, w, h, { c: wp.color, d: wp.dark }, wp.look, 0, Math.sin(time * 1.3) > 0.97 ? -1 : 1);
+    ctx.restore();
     const mine = net.status === 'playing' && !wp.remote;
     retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, cy + R + 96, 84, ['#a8d4f5', '#c8b6f2', '#f7a8c4', '#ffc7a1']);
     retroText(wp.name.toUpperCase(), cx, cy + R + 160, 44, [wp.color, wp.color, wp.dark], PAL.ink);
