@@ -275,7 +275,7 @@ function drawHUD() {
       text(height + ' m', W / 2, y0 + 90, 96, PAL.ink, 'center', 900);
       if (newBest) text('NEW BEST!', W / 2, y0 + 140, 24, PAL.good, 'center', 900);
       else text('BEST ' + best + ' m', W / 2, y0 + 140, 18, PAL.good, 'center', 900);
-      if (runGems) {
+      if (GEMS_ON && runGems) {
         ctx.font = `900 18px ${FONT}`; const tw = ctx.measureText('+' + runGems).width;
         drawGemIcon(W / 2 - tw / 2 - 12, y0 + 172, 9);
         text('+' + runGems, W / 2 + 6, y0 + 178, 18, '#1f97ab', 'center', 900);

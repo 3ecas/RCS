@@ -278,7 +278,7 @@ function updatePlayer(p, dt) {
   // Sliding down a wall you push against (or hang on) is slower
   if (!p.onGround && p.wall && (dir === p.wall || p.cling === p.wall) && p.vy > WALL_SLIDE) {
     p.vy = WALL_SLIDE;
-    if (Math.random() < dt * 25) particles.push({ x: p.wall < 0 ? p.x : p.x + p.w, y: p.y + p.h - 4, vx: -p.wall * 30, vy: -20, life: 0.3, max: 0.3, color: 'rgba(255,255,255,0.9)', size: 3, grav: 0 });
+    if (Math.random() < dt * 25) particles.push({ x: p.wall < 0 ? p.x : p.x + p.w, y: p.y + p.h - 4, vx: -p.wall * 30, vy: -20, life: 0.3, max: 0.3, color: airColor(p.y), size: 3.5, grav: 0, kind: 'dot' });
   }
   // Water region: inside a bubble column you're pushed up, no jump needed
   const cx = p.x + p.w / 2;
@@ -286,7 +286,7 @@ function updatePlayer(p, dt) {
   if (p.inBubbles) {
     p.vy = Math.max(p.vy - BUBBLE_PUSH * dt, -BUBBLE_MAX);
     if (p.onGround) { p.onGround = false; p.ground = null; }
-    if (Math.random() < dt * 20) particles.push({ x: cx + rand(-10, 10), y: p.y + p.h, vx: rand(-20, 20), vy: rand(-120, -60), life: 0.5, max: 0.5, color: 'rgba(255,255,255,0.9)', size: rand(3, 6), grav: -100 });
+    if (Math.random() < dt * 20) particles.push({ x: cx + rand(-10, 10), y: p.y + p.h, vx: rand(-20, 20), vy: rand(-120, -60), life: 0.5, max: 0.5, color: '#ffffff', size: rand(4, 7), grav: -100, kind: 'ring' });
   }
 
   p.x += p.vx * dt;
@@ -425,7 +425,7 @@ function updateHazards(dt) {
 
 function updateParticles(dt) {
   if (!particles) return;
-  for (const q of particles) { q.vy += q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; }
+  for (const q of particles) { q.vy += q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; if (q.vr) q.rot += q.vr * dt; }
   particles = particles.filter(q => q.life > 0);
   if (texts) { for (const t of texts) { t.t -= dt; t.y -= 40 * dt; } texts = texts.filter(t => t.t > 0); }
 }

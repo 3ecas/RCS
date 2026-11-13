@@ -199,15 +199,13 @@ function drawMenuPlatform(p) {
 // The logo, and on the floor who plays with which keys — drawn as keys, not words
 function drawLobbyHUD() {
   ctx.save(); ctx.translate(0, -OY);
-  const bob = Math.sin(time * 3) * 3;
-  // Soft glow behind the logo so the tower's platforms don't clash with it
-  const g = ctx.createRadialGradient(W / 2, 110, 20, W / 2, 110, 260);
-  g.addColorStop(0, 'rgba(255,250,248,0.95)'); g.addColorStop(0.55, 'rgba(255,250,248,0.75)'); g.addColorStop(1, 'rgba(255,250,248,0)');
-  ctx.fillStyle = g; ctx.fillRect(W / 2 - 260, -OY, 520, 260 + OY);
-  ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.95)'; ctx.shadowBlur = 16;
-  text('RCS', W / 2, 118 + bob, 92, PAL.ink, 'center', 900);
-  if (best > 0) text('BEST ' + best + ' m', W / 2, 152, 15, PAL.good, 'center', 900);
-  ctx.restore();
+  // Soft light behind the logo so the tower's platforms don't clash with it (the gradient fades out
+  // before the edges of the area it fills, so it has no visible edge)
+  const g = ctx.createRadialGradient(W / 2, 130, 30, W / 2, 130, 300);
+  g.addColorStop(0, 'rgba(255,251,247,0.98)'); g.addColorStop(0.6, 'rgba(255,251,247,0.9)'); g.addColorStop(1, 'rgba(255,251,247,0)');
+  ctx.fillStyle = g; ctx.fillRect(W / 2 - 310, 130 - 310, 620, 620);
+  drawLogoArt(ctx, W / 2, 182, 25, time);                        // the mark (js/logo.js)
+  if (best > 0) text('BEST ' + best + ' m', W / 2, 228, 14, PAL.inkSoft, 'center', 800);
   ctx.restore();
 
   // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
@@ -230,5 +228,5 @@ function drawLobbyHUD() {
     keycap('Esc', rx - 96, y + 27, s, PAL.inkSoft, 0.8);    // removes player 2
     text('✕', rx - 128, y + 45, 16, PAL.inkSoft, 'center', 900);
   }
-  drawBanner(190);
+  drawBanner(250);
 }

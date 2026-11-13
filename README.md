@@ -7,7 +7,7 @@ A pastel tower-climbing browser game. Jump up the platforms, stay ahead of the s
 - **On your computer:** double-click `index.html`. Local play works; Multiplayer needs the Render server to be running.
 
 ## Starting a game (the lobby)
-Platforms share one look — a strong coloured face with a crisp darker outline, on light backgrounds for contrast; the lobby's platforms are white with a purple outline and light up while you stand on them. There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
+The art style is **Soft Ascent** (`design/soft-ascent.md`, style sheet `design/soft-ascent.png`): six pastel pairs (rose, apricot, butter, mint, sky, lilac — a soft face and a deeper edge), everything built from circles, squares, triangles and rounded bars, and small shapes rising through the air. The logo (`js/logo.js`) is drawn in code: R, C and S as thick rounded strokes over a deeper offset layer, standing on a little platform with a cube perched on the C. Platforms are softly rounded with a deeper edge; each region has its own colours and its own family of big background shapes; particles (landing puffs, bursts) are little spinning shapes. The lobby's platforms are white with a purple outline and light up while you stand on them. There are no menu screens: the game opens in a **playable scene** at the bottom of the tower, with player 1 (W A S D) already standing on the floor.
 The scene is kept nearly word-free: keys are drawn as keycaps, sound and the wardrobe are icons, and hints only appear when they're needed (little arrows over the mode platforms until you've started a game once, the down key beside a door when you stand at it, the missing cube blinking over a mode platform when only one of two players is on it).
 - **Mode platforms** (plain platforms with their name on them): everyone stands on the same one for **2 seconds** to start. One player: **SOLO** or **ONLINE**. Two players: **CO-OP** (if one falls, both lose), **RACE** (last one standing wins, with a leaderboard and win count) or ONLINE (both of you join the online race from this computer). The screen then starts scrolling up this same tower; the mode platforms stay as plain platforms (their names disappear).
 - **Sound** pad (a small speaker button one jump above the modes, on the left): land on it to switch sound on or off.
@@ -67,6 +67,7 @@ js/net.js         online play (talks to the server)
 js/level.js       building the tower and its hazards
 js/pieces.js      set pieces (stairs, chimney, wall climb, plaza) and gems
 js/effects.js     particles and floating text
+js/logo.js        the logo and the style's shapes (Soft Ascent)
 js/menu.js        buttons: pause menu, online room, end screens
 js/lobby.js       the start scene: mode platforms, sound, joining player 2
 js/wardrobe.js    the wardrobe door and room: change your cube's colour, face, hat, pattern

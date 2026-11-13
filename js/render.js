@@ -19,79 +19,31 @@ function drawBackground() {
 
 }
 
-// Background shapes drifting slower than the tower, matching the region at their height: clouds,
-// trees, crystals, hills, gears, flames, storm clouds, seaweed, columns
+// Background: big soft geometric shapes drifting slower than the tower (each region has its own family of
+// shapes, in its colours), and a sparse layer of small shapes rising through the air
 function drawScenery() {
   const span = VH * 2.4;
-  for (let k = 0; k < 18; k++) {
-    const s = 50 + hash(k, 3) * 110;
+  for (let k = 0; k < 16; k++) {
+    const s = 26 + hash(k, 3) * 60;
     const x = WALL + hash(k, 1) * (W - 2 * WALL);
     let y = (hash(k, 2) * span - camY * 0.3) % span;
     if (y < 0) y += span;
     y -= s + OY;
     if (y > H + OY + s) continue;
     const R0 = REGIONS[regionAt(heightM(camY + y))];
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = R0.plat[1]; ctx.strokeStyle = R0.plat[1];
-    drawSceneryShape(R0.scenery, s, k);
-    ctx.restore();
+    ctx.globalAlpha = 0.5;
+    drawShape(ctx, R0.shapes[k % R0.shapes.length], x, y, s / 2, R0.plat[0], time * 0.08 * (k % 2 ? 1 : -1) + k);
+  }
+  // The rising air: little shapes drifting up the screen, swaying, fading in and out
+  const AIR = ['dot', 'tri', 'ring', 'plus', 'sq'];
+  for (let k = 0; k < 26; k++) {
+    const sp = 18 + hash(k, 11) * 26, f = ((hash(k, 12) * VH + time * sp) % VH) / VH;
+    const y = H + OY - f * VH, x = WALL + 10 + hash(k, 13) * (W - 2 * WALL - 20) + Math.sin(time * 0.7 + k) * 10;
+    const R0 = REGIONS[regionAt(heightM(camY + y))];
+    ctx.globalAlpha = 0.55 * Math.sin(f * Math.PI);
+    drawShape(ctx, AIR[k % AIR.length], x, y, 2.2 + hash(k, 14) * 2.6, R0.plat[1], time * 0.5 + k);
   }
   ctx.globalAlpha = 1;
-}
-function drawSceneryShape(kind, s, k) {
-  // Shapes made of several parts are built as one path and filled once, so the see-through
-  // parts don't overlap into darker patches
-  const blob = (circles, rect) => {
-    ctx.beginPath();
-    for (const [x, y, r] of circles) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); }
-    if (rect) ctx.rect(...rect);
-    ctx.fill('nonzero');
-  };
-  if (kind === 'cloud' || kind === 'storm') {
-    blob([[-s * 0.3, s * 0.02, s * 0.28], [0, -s * 0.12, s * 0.38], [s * 0.32, s * 0.02, s * 0.26]], [-s * 0.3, 0, s * 0.62, s * 0.28]);
-    if (kind === 'storm' && Math.floor(time * 2 + k) % 7 === 0) {
-      ctx.globalAlpha = 0.5; ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(0, s * 0.3); ctx.lineTo(-s * 0.1, s * 0.6); ctx.lineTo(s * 0.06, s * 0.6); ctx.lineTo(-s * 0.06, s * 0.95); ctx.stroke();
-    }
-  } else if (kind === 'tree') {
-    blob([[0, -s * 0.05, s * 0.36], [-s * 0.22, s * 0.1, s * 0.24], [s * 0.22, s * 0.1, s * 0.24]], [-s * 0.06, 0, s * 0.12, s * 0.7]);
-  } else if (kind === 'crystal') {
-    ctx.beginPath();
-    for (const [dx, h, w] of [[-s * 0.2, 0.7, 0.18], [0, 1, 0.24], [s * 0.22, 0.55, 0.16]]) {
-      ctx.moveTo(dx, -s * h * 0.6); ctx.lineTo(dx + s * w, 0); ctx.lineTo(dx, s * 0.4); ctx.lineTo(dx - s * w, 0); ctx.closePath();
-    }
-    ctx.fill('nonzero');
-  } else if (kind === 'hill') {
-    ctx.beginPath(); ctx.moveTo(-s, s * 0.4); ctx.quadraticCurveTo(0, -s * 0.6, s, s * 0.4); ctx.closePath(); ctx.fill();
-  } else if (kind === 'gear') {
-    ctx.rotate(time * 0.3 * (k % 2 ? 1 : -1));
-    // Teeth, the wheel and its hole in one path: the hole (drawn the other way round) stays empty,
-    // so the background shows through it
-    ctx.beginPath();
-    for (let i = 0; i < 8; i++) {
-      const a = i * Math.PI / 4, c = Math.cos(a), n = Math.sin(a), tw = s * 0.08;
-      const pt = (u, v) => [u * c - v * n, u * n + v * c];
-      [[-tw, -s * 0.5], [tw, -s * 0.5], [tw, -s * 0.3], [-tw, -s * 0.3]].forEach(([u, v], j) => { const [x, y] = pt(u, v); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-      ctx.closePath();
-    }
-    ctx.moveTo(s * 0.36, 0); ctx.arc(0, 0, s * 0.36, 0, Math.PI * 2);
-    ctx.moveTo(s * 0.13, 0); ctx.arc(0, 0, s * 0.13, 0, Math.PI * 2, true);
-    ctx.fill('evenodd');
-  } else if (kind === 'flame') {
-    const f = 1 + Math.sin(time * 4 + k) * 0.06;
-    ctx.beginPath(); ctx.moveTo(0, -s * 0.6 * f); ctx.quadraticCurveTo(s * 0.4, 0, s * 0.2, s * 0.35); ctx.quadraticCurveTo(0, s * 0.5, -s * 0.2, s * 0.35); ctx.quadraticCurveTo(-s * 0.4, 0, 0, -s * 0.6 * f); ctx.fill();
-  } else if (kind === 'weed') {
-    ctx.lineWidth = s * 0.08; ctx.lineCap = 'round';
-    for (const dx of [-s * 0.15, s * 0.12]) {
-      ctx.beginPath(); ctx.moveTo(dx, s * 0.6);
-      for (let i = 1; i <= 6; i++) ctx.lineTo(dx + Math.sin(time * 1.5 + i + k) * s * 0.08, s * 0.6 - i * s * 0.2);
-      ctx.stroke();
-    }
-  } else if (kind === 'column') {
-    ctx.fillRect(-s * 0.14, -s * 0.5, s * 0.28, s); ctx.fillRect(-s * 0.22, -s * 0.58, s * 0.44, s * 0.1); ctx.fillRect(-s * 0.22, s * 0.48, s * 0.44, s * 0.1);
-  }
 }
 
 function drawWalls() {
@@ -130,9 +82,10 @@ function drawWalls() {
 
 // The look shared by buttons and platforms: a face, a crisp outline, and a solid shadow under it
 function slab(x, y, w, h, face, edge, lw = 2, drop = 0) {
-  if (drop) { ctx.fillStyle = edge; ctx.fillRect(x, y + drop, w, h); }
-  ctx.fillStyle = face; ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = edge; ctx.lineWidth = lw; ctx.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw);
+  const r = Math.min(5, h / 2, w / 2);   // softly rounded corners
+  if (drop) { ctx.fillStyle = edge; ctx.beginPath(); ctx.roundRect(x, y + drop, w, h, r); ctx.fill(); }
+  ctx.fillStyle = face; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = lw; ctx.beginPath(); ctx.roundRect(x + lw / 2, y + lw / 2, w - lw, h - lw, Math.max(0, r - lw / 2)); ctx.stroke();
 }
 // A white button-platform (lobby, wardrobe, room). on: someone stands on it — it lights up in `color`.
 function buttonSlab(p, on, color = PAL.ink, drop = 0) {
@@ -195,48 +148,6 @@ function drawPlainPlatform(p) {
   if (x - WALL < 0.5) { ctx.beginPath(); ctx.moveTo(WALL, y + h); ctx.lineTo(WALL + Math.min(40, w * 0.5), y + h); ctx.lineTo(WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
   else if (W - WALL - (x + w) < 0.5) { ctx.beginPath(); ctx.moveTo(W - WALL, y + h); ctx.lineTo(W - WALL - Math.min(40, w * 0.5), y + h); ctx.lineTo(W - WALL, y + h + 26); ctx.closePath(); ctx.fill(); }
   slab(x, y, w, h, c, cd);
-  switch (R0.deco) {
-    case 'grass':
-      // a soft green top with little rounded tufts (round, so they don't read as spikes)
-      ctx.fillStyle = '#5bb84c';
-      ctx.fillRect(x, y, w, 4);
-      for (let i = 8; i < w - 6; i += 14) { ctx.beginPath(); ctx.arc(x + i + 3, y, 2.5 + hash(p.id, i) * 1.5, Math.PI, 0); ctx.fill(); }
-      break;
-    case 'crystal':
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      for (let i = 10; i < w - 10; i += 34) { ctx.beginPath(); ctx.moveTo(x + i, y + 3); ctx.lineTo(x + i + 4, y + 8); ctx.lineTo(x + i, y + 12); ctx.lineTo(x + i - 4, y + 8); ctx.fill(); }
-      break;
-    case 'planks':
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
-      for (let i = 22; i < w; i += 24) ctx.fillRect(x + i, y + 1, 2, h - 5);
-      break;
-    case 'rivets':
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      for (let i = 7; i < w; i += 18) { ctx.beginPath(); ctx.arc(x + i, y + 6, 1.8, 0, 7); ctx.fill(); }
-      break;
-    case 'embers':
-      for (let i = 8; i < w - 4; i += 16) {
-        ctx.fillStyle = `rgba(255,140,80,${0.35 + 0.35 * Math.sin(time * 4 + i + p.id)})`;
-        ctx.fillRect(x + i, y + h - 3, 4, 3);
-      }
-      break;
-    case 'stripe':
-      ctx.save(); ctx.beginPath(); ctx.rect(x, y + h - 4, w, 4); ctx.clip();
-      ctx.fillStyle = PAL.zap;
-      for (let i = -4; i < w; i += 12) { ctx.beginPath(); ctx.moveTo(x + i, y + h); ctx.lineTo(x + i + 6, y + h); ctx.lineTo(x + i + 10, y + h - 4); ctx.lineTo(x + i + 4, y + h - 4); ctx.fill(); }
-      ctx.restore();
-      break;
-    case 'drips':
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5;
-      for (let i = 12; i < w; i += 30) { ctx.beginPath(); ctx.arc(x + i, y + h + 5 + ((time * 14 + i) % 14), 2.4, 0, 7); ctx.stroke(); }
-      break;
-    case 'bricks':
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
-      for (let i = 16; i < w; i += 32) ctx.fillRect(x + i, y + 1, 2, 6);
-      for (let i = 0; i < w; i += 32) ctx.fillRect(x + i, y + 7, 2, 5);
-      ctx.fillRect(x, y + 6, w, 1.5);
-      break;
-  }
 }
 
 // A gem: a turquoise diamond that bobs and glints
@@ -398,7 +309,8 @@ function render() {
   }
   for (const q of particles) {
     ctx.globalAlpha = clamp(q.life / q.max, 0, 1);
-    ctx.fillStyle = q.color; ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
+    if (q.kind) drawShape(ctx, q.kind, q.x, q.y, q.size * 0.6, q.color, q.rot || 0);
+    else { ctx.fillStyle = q.color; ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size); }
   }
   ctx.globalAlpha = 1;
   drawWalls();
