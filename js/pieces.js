@@ -72,11 +72,11 @@ const PIECE_ROW = {
   chimney(pc, y, m, d, L, G, allowHaz) {
     const capW = SHAFT_W + 2 * PILLAR_W + 80, whole = [L, W - WALL];   // (block: no stray extras beside it)
     if (pc.k === 0) {
-      // A floor under the shaft. The pillars start a cube's height above it, so you can walk in underneath.
+      // A floor under the shaft. The pillars start about three cubes above it, so there's room to walk in underneath.
       // Anywhere across the tower (away from the side walls) that its wide floor is still in jumping reach
       // of the last step — so chimneys turn up all over, not just straight above the path
       pc.cx = pickCx(capW, L + 40, W - WALL - 40, gen.prev ? [gen.prev] : [], G);
-      const top = y - (pc.rows - 1) * ROW_GAP, bot = y - PS - 34;
+      const top = y - (pc.rows - 1) * ROW_GAP, bot = y - PS - 66;
       pc.pillars = [{ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true },
                     { x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true }];
       dividers.push(...pc.pillars);

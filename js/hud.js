@@ -439,13 +439,7 @@ function drawHUD() {
     ctx.save(); OUTLINE = true;     // a soft white edge keeps the text readable over the tower
     text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
     if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
-    if (VS) {
-      text('WINS', WALL + 14, 32, 13, PAL.inkSoft, 'left', 800);
-      players.forEach((p, k) => text(String(winsOf(p)), WALL + 62 + k * 20, 32, 16, p.dark, 'left', 900));
-    } else {
-      text('BEST ' + best + ' m', WALL + 14, 32, 15, PAL.good, 'left');
-      if (GEMS_ON) { drawGemIcon(WALL + 21, 54, 8); text(String(runGems), WALL + 34, 60, 16, '#1f97ab', 'left', 900); }
-    }
+    if (!VS && GEMS_ON) { drawGemIcon(WALL + 21, 54, 8); text(String(runGems), WALL + 34, 60, 16, '#1f97ab', 'left', 900); }
     if (net.status === 'playing') text('ONLINE', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
     else { keycap('R', W - WALL - 100, 24, 22, PAL.inkSoft, 0.6); drawPauseIcon(W - WALL - 74, 35, 12, PAL.inkSoft); }
     OUTLINE = false; ctx.restore();   // the glow
