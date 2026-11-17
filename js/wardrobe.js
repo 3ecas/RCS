@@ -114,7 +114,7 @@ function updateWardrobe(dt) {
   if (pressed.Escape || players.some(p => atDoor(p, wardrobe.exitX, GROUND_Y) && downKey(p))) startDoor(false);
 }
 
-// The wardrobe's way in (and out): an arch filled with a soft rainbow, a light sheen drifting up it, and a
+// The wardrobe's way in (and out): an arch holding a hypnotic rainbow portal (rings flowing in, a turning spiral), and a
 // round badge on top — the hanger icon, or a word (EXIT). open (0…1): someone is going through — it glows.
 // near: someone is standing at it — the down key(s) to go through bob beside it.
 function drawDoor(cx, floorY, label, near, open = 0) {
@@ -123,16 +123,29 @@ function drawDoor(cx, floorY, label, near, open = 0) {
   const base = ctx.globalAlpha;   // (respects a fade in progress)
   // rim
   ctx.fillStyle = SOFT.lilac[1]; arch(x - 5, y - 5, DOOR_W + 10, DOOR_H + 5, r + 5); ctx.fill();
-  // the rainbow, top to bottom
-  const g = ctx.createLinearGradient(0, y, 0, floorY);
-  ['rose', 'apricot', 'butter', 'mint', 'sky', 'lilac'].forEach((k, i) => g.addColorStop(i / 5, SOFT[k][0]));
-  ctx.fillStyle = g; arch(x, y, DOOR_W, DOOR_H, r); ctx.fill();
-  // a soft sheen rising through it (and a white glow while someone goes through)
+  // the portal: rainbow rings flowing endlessly into its middle, with a slow spiral of light turning over them
   ctx.save(); arch(x, y, DOOR_W, DOOR_H, r); ctx.clip();
-  const sy = floorY - ((time * 40) % (DOOR_H + 40));
-  const sg = ctx.createLinearGradient(0, sy - 20, 0, sy + 20);
-  sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.45)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = sg; ctx.fillRect(x, sy - 20, DOOR_W, 40);
+  const pcx = cx, pcy = y + DOOR_H * 0.52, RW = 7, cols = ['rose', 'apricot', 'butter', 'mint', 'sky', 'lilac'];
+  const flow = time * 2.2, f = flow % 1, n = Math.ceil(Math.hypot(DOOR_W / 2, DOOR_H * 0.52) / RW) + 2;
+  for (let i = n; i >= 0; i--) {
+    const rr = (i + 1 - f) * RW;
+    if (rr <= 0) continue;
+    ctx.fillStyle = SOFT[cols[(i + Math.floor(flow)) % 6]][0];   // (each ring keeps its colour as it shrinks)
+    ctx.beginPath(); ctx.arc(pcx, pcy, rr, 0, Math.PI * 2); ctx.fill();
+  }
+  if (ctx.createConicGradient) {
+    const sp = ctx.createConicGradient(-time * 1.6, pcx, pcy), arms = 5;
+    for (let k = 0; k < arms; k++) {
+      sp.addColorStop(k / arms, 'rgba(255,255,255,0.38)');
+      sp.addColorStop((k + 0.5) / arms, 'rgba(255,255,255,0)');
+    }
+    sp.addColorStop(1, 'rgba(255,255,255,0.38)');
+    ctx.fillStyle = sp; ctx.fillRect(x, y, DOOR_W, DOOR_H);
+  }
+  // a bright eye in the middle
+  const eg = ctx.createRadialGradient(pcx, pcy, 0, pcx, pcy, 12);
+  eg.addColorStop(0, 'rgba(255,255,255,0.9)'); eg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = eg; ctx.fillRect(pcx - 12, pcy - 12, 24, 24);
   if (open > 0) { ctx.globalAlpha = base * 0.75 * open; ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, DOOR_W, DOOR_H); ctx.globalAlpha = base; }
   ctx.restore();
   // the round badge on top
