@@ -127,8 +127,19 @@ function buttonSlab(p, on, color = PAL.ink, drop = 0) {
   slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.normalD, EDGE, drop);
 }
 
+// Platforms are never shown cut off by the top of the window: one only appears once it's fully on screen,
+// fading in over PLAT_FADE s (as a climb scrolls up, each new row fades in as it comes into view).
+const PLAT_FADE = 0.25;
 function drawPlatform(p) {
   if (p.y < camY - OY - 60 || p.y > camY + H + OY + 80) return;
+  if (p.type === 'ground' || p.menu === 'lift') return drawPlatformNow(p);
+  if (p.y - 8 < camY - OY) { p.shownAt = undefined; return; }      // (still partly above the top edge)
+  if (p.shownAt === undefined) p.shownAt = time;
+  const a = clamp((time - p.shownAt) / PLAT_FADE, 0, 1);
+  if (a >= 1) return drawPlatformNow(p);
+  ctx.save(); ctx.globalAlpha *= a; drawPlatformNow(p); ctx.restore();
+}
+function drawPlatformNow(p) {
   const y = p.y;
   if (p.type === 'ground') {
     // The floor: a lilac slab with a rounded deep edge on top, built of the same soft blocks
