@@ -109,7 +109,8 @@ function update(dt) {
 
 // The screen climbs at a speed that rises with height, and catches up when players climb fast
 function updateCamera(dt) {
-  if (state === 'play') {
+  if (climbWait && players.some(p => !p.dead && p.y + p.h < camY + H * 0.5)) climbWait = false;
+  if (state === 'play' && !climbWait) {
     const camM = Math.max(0, heightM(camY + H));
     scrollSpeed = Math.min(38 + camM * 0.4, 200);
     camY -= scrollSpeed * dt;

@@ -2,9 +2,14 @@
 // The start menu itself is a playable scene (js/lobby.js).
 'use strict';
 
-// A new run of the current mode on a clean tower (no start scene), with the 3-2-1 countdown
-// (stop menu → START OVER, end screen → PLAY AGAIN)
-function startGame() { startWipe(); reset(undefined, false); state = 'count'; countdown = 3; sfx.count(); }
+// A new run of the current mode on a clean tower (no start scene) (stop menu → RESTART, end screen → PLAY AGAIN).
+// Solo / co-op: no countdown — you're off straight away, and the screen only starts climbing once someone
+// reaches the middle of it (climbWait, in updateCamera). A race keeps its 3-2-1.
+function startGame() {
+  startWipe(); reset(undefined, false);
+  if (mode === 'versus') { state = 'count'; countdown = 3; sfx.count(); return; }
+  state = 'play'; climbWait = true;
+}
 // Back to the lobby (the start scene); player 2 stays if they joined
 function toMenu() { startWipe(); reset(); lobbyFade = 0; state = 'lobby'; ui.focus = 0; ui.help = false; }
 // Leaving an end screen: the race's stripes sweep away to the sides (or, after a solo game, the veil
