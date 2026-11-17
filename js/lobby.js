@@ -1,7 +1,8 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
 // - one player: just climb. Once you're past the middle of the screen the game starts, scrolling up
-//   this same tower (the first stair, a plain platform on the left, is where the climb begins). Jump onto ONLINE (a plain platform with its name on it) to play online.
-// - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds; both on ONLINE goes online
+//   this same tower (the first stair, a plain platform, is where the climb begins).
+// - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds
+// - the ONLINE portal on the floor by the right wall: stand in it for a second to play online
 // - a small SOUND pad (a jump above, on the left): land on it to turn the sound on or off
 // - the WARDROBE door on the floor, on the left: press down at it to go inside and change your cube (js/wardrobe.js)
 // Player 1 plays with W A S D. Holding an arrow key for 2 seconds adds player 2 (Esc removes them).
@@ -11,7 +12,7 @@ const HOLD_TIME = 2;          // seconds to stand on a mode platform / hold an a
 const lobby = { join: 0, on: null, holdT: 0 };
 
 // The modes on offer: one player can play solo or online; two players co-op or race (online is one per PC)
-const lobbyModes = () => playerCount === 2 ? ['coop', 'race', 'multi'] : ['stair', 'multi'];
+const lobbyModes = () => playerCount === 2 ? ['coop', 'race'] : ['stair'];   // (online: the ONLINE portal)
 const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'ONLINE' };
 const isMode = p => p.menu && MENU_LABEL[p.menu];
 // Until a game has been started once on this computer, little arrows point at the mode platforms
@@ -78,18 +79,17 @@ function updateLobby(dt) {
   updateWorld(dt);
   for (const p of players) updatePlayer(p, dt);
   updateParticles(dt);
-  checkWardrobeDoor();                 // down at the WARDROBE door: go inside (js/wardrobe.js)
+  checkWardrobeDoor(dt);               // a second in the wardrobe portal: go inside (js/wardrobe.js)
   if (state !== 'lobby') return;
+  if (checkOnlinePortal(dt)) return;   // a second in the ONLINE portal: go online
 
   // One player: climbing past the middle of the screen starts the game; landing on ONLINE goes online
   if (playerCount === 1) {
     const on = standingOn(players[0]);
     if (players[0].y + players[0].h < camY + H / 2) { chooseMode('solo'); return; }
-    if (on && on.menu === 'multi') { chooseMode('multi'); return; }
   }
   // Two players: both on ONLINE goes online at once; both on CO-OP / RACE for 2 seconds starts that
   const pl = standingOn(players[0]);
-  if (pl && pl.menu === 'multi' && players.every(p => standingOn(p) === pl)) { chooseMode('multi'); return; }
   const ok = pl && isMode(pl) && players.every(p => standingOn(p) === pl);
   if ((ok ? pl : null) !== lobby.on) { lobby.on = ok ? pl : null; lobby.holdT = 0; }
   if (lobby.on) {
@@ -271,7 +271,10 @@ function drawLobbyHUD(k = 0) {
   if (k > 0) { ctx.restore(); return; }
   if (!tutDone && playerCount === 1) {   // first visit: an arrow at the first stair too
     const st = platforms.find(p => p.stair);
-    if (st) { ctx.save(); ctx.translate(0, -camY); arrowOver(st.x + st.w / 2, st.y); ctx.restore(); }
+    ctx.save(); ctx.translate(0, -camY);
+    if (st) arrowOver(st.x + st.w / 2, st.y);
+    arrowOver(ONLINE_X(), GROUND_Y - DOOR_H - 34);   // ...and at the ONLINE portal
+    ctx.restore();
   }
   drawBanner(250);
 }

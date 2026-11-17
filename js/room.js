@@ -92,9 +92,9 @@ function updateRoom(dt) {
   updateWorld(dt);
   for (const p of players) p.remote ? updateRemote(p, dt) : updatePlayer(p, dt);
   updateParticles(dt);
-  checkWardrobeDoor();   // the wardrobe door, right of START (js/wardrobe.js)
+  checkWardrobeDoor(dt);   // the wardrobe portal, right of START (js/wardrobe.js)
   if (doorT) return;
-  if (checkRoomExit()) return;   // the EXIT portal by the left wall: back to the start scene (js/wardrobe.js)
+  if (checkRoomExit(dt)) return;   // the EXIT portal left of START: back to the start scene (js/wardrobe.js)
 
   // Ready = all of this computer's cubes are on START. Tell the server when that changes.
   const ready = players.filter(p => !p.remote).every(onStart);

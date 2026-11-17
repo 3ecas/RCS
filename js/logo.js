@@ -75,7 +75,8 @@ function drawLogoArt(c, cx, baseY, u, t = 0, opts = {}) {
   c.fillStyle = '#4a3b63';
   const blink = (t % 4.2) > 4.05;
   for (const ex of [0.36, 0.64]) c.fillRect(cubeX + cs * ex - cs * 0.05, cubeY + cs * (blink ? 0.4 : 0.32), cs * 0.1, cs * (blink ? 0.04 : 0.2));
-  // A few shapes rising around it
+  // A few shapes rising around it (left out with opts.noShapes: the wall logo draws its own, drifting)
+  if (opts.noShapes) { c.globalAlpha = base; c.restore(); return; }
   const SH = ['dot', 'tri', 'ring', 'plus', 'sq'], cols = Object.values(SOFT);
   // (evenly spread: four lanes each side, each shape a quarter of the way up from the one below it)
   for (let k = 0; k < 16; k++) {
@@ -117,7 +118,7 @@ function wallLogoImage(k) {
   c.width = Math.round(L.w * k); c.height = Math.round(L.h * k);
   const g = c.getContext('2d');
   g.scale(k, k);
-  drawLogoArt(g, L.cx, L.base, 25, 0);
+  drawLogoArt(g, L.cx, L.base, 25, 0, { noShapes: true });   // (the little shapes are drawn live, see below)
   // Fade the paint a little along the block joints (the same 58 x 30 blocks with 6 px joints as the walls,
   // lined up with them in the world)
   const m = document.createElement('canvas'); m.width = c.width; m.height = c.height;
@@ -147,6 +148,28 @@ function drawWallLogo() {
   ctx.save();
   ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha *= 0.92;
   ctx.drawImage(img, W / 2 - L.cx, y0, L.w, L.h);
+  drawWallLogoShapes(W / 2, wallLogoY());
   ctx.restore();
   if (best > 0 && mode !== 'versus') text('BEST ' + best + ' m', W / 2, wallLogoY() + 46, 14, PAL.inkSoft, 'center', 800);
+}
+
+// The little shapes around the wall logo: each wanders gently around its own spot and turns slowly
+// (the same layout as the logo's rising shapes, but they stay put and just drift — some detail, never busy)
+function drawWallLogoShapes(cx, baseY) {
+  const u = 25, half = 4.25 * u;   // (about half the letters' width)
+  const SH = ['dot', 'tri', 'ring', 'plus', 'sq'], cols = Object.values(SOFT), t = time;
+  for (let k = 0; k < 16; k++) {
+    const h = n => ((Math.sin(k * 127.1 + n * 311.7) * 43758.5453) % 1 + 1) % 1;
+    const side = k % 2 ? 1 : -1, lane = (k >> 1) % 4;
+    const ry = ((k >> 3) * 0.5 + lane * 0.27 + h(2) * 0.1) % 1;
+    const sp = 0.25 + h(7) * 0.35;                                   // each at its own pace
+    const wx = Math.sin(t * sp + h(8) * 6.3) * 0.35 * u + Math.sin(t * sp * 0.57 + h(9) * 6.3) * 0.2 * u;
+    const wy = Math.cos(t * sp * 0.8 + h(10) * 6.3) * 0.3 * u + Math.sin(t * sp * 0.43 + h(11) * 6.3) * 0.15 * u;
+    const xx = cx + side * (half + 1.0 * u + lane * 0.95 * u + h(1) * 0.3 * u) + wx;
+    const yy = baseY - (0.15 + ry * 0.8) * 6.2 * u + wy;
+    const spin = (h(6) < 0.5 ? -1 : 1) * (0.15 + h(5) * 0.3);       // slow turns, either way
+    ctx.globalAlpha = 0.75;
+    drawShape(ctx, SH[(k + lane) % SH.length], xx, yy, (0.15 + h(4) * 0.1) * u, cols[(k + lane) % cols.length][1], t * spin + k);
+  }
+  ctx.globalAlpha = 1;
 }

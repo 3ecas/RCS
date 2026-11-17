@@ -76,11 +76,12 @@ function drawSpeaker(cx, cy, k = 1, color = PAL.ink) {
 // A clothes hanger (the wardrobe's sign)
 // A T-shirt (the wardrobe's sign): soft white with a dark rounded outline and a little collar
 function drawShirt(cx, cy, color = PAL.ink) {
-  const P = [[-6, -11], [-15, -7], [-20, 0], [-14, 4], [-11, 1], [-11, 12], [11, 12], [11, 1], [14, 4], [20, 0], [15, -7], [6, -11]];
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 2.5; ctx.strokeStyle = color;
+  const P = [[-6, -11], [-15, -7], [-20, 0], [-14, 4], [-11, 1], [-11, 12], [11, 12], [11, 1], [14, 4], [20, 0], [15, -7], [6, -11]]
+    .map(([px, py]) => [px * 0.6, py * 0.8]);   // (small and narrow)
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 2; ctx.strokeStyle = color;
   ctx.beginPath(); ctx.moveTo(cx + P[0][0], cy + P[0][1]);
   for (const [px, py] of P.slice(1)) ctx.lineTo(cx + px, cy + py);
-  ctx.quadraticCurveTo(cx, cy - 4, cx + P[0][0], cy + P[0][1]);   // the collar
+  ctx.quadraticCurveTo(cx, cy - 3.5, cx + P[0][0], cy + P[0][1]);   // the collar
   ctx.closePath();
   ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
 }

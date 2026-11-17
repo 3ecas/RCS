@@ -1,7 +1,9 @@
-// RCS — The wardrobe: a little room you enter through the WARDROBE door in the start scene (stand at the
-// door and press down: S, or ↓ for player 2). Inside are the COLOUR / FACE / HAT / PATTERN platforms —
-// each landing switches that part of your cube — and a big mirror showing your cube(s). Leave through the
-// EXIT door (down again) or with Esc; you come back out at the wardrobe door.
+// RCS — The wardrobe and the portals. Every way in or out is a portal on the floor: stand in one for a
+// second (DOOR_HOLD) and you go through. The wardrobe is a little room behind the shirt portal in the start
+// scene (and in the online room). Inside are the COLOUR / FACE / HAT / PATTERN platforms — each landing
+// switches that part of your cube — and a big mirror showing your cube(s). Leave through EXIT (or Esc);
+// you come back out at the wardrobe portal. The start scene also has the ONLINE portal, and the online
+// room an EXIT portal back to the start scene.
 'use strict';
 
 const DOOR_W = 46, DOOR_H = 66;
@@ -15,12 +17,29 @@ const sceneDoorX = () => doorXOf(state === 'wardrobe' ? wardrobe.from : state);
 
 // Is this cube standing in front of a door (on that platform / floor, within the doorway)?
 const atDoor = (p, cx, floorY) => p.onGround && Math.abs(p.y + p.h - floorY) < 3 && Math.abs(p.x + p.w / 2 - cx) < DOOR_W / 2 + 6;
-// The down key of a cube on this keyboard (player 1: S, player 2: ↓)
-const downKey = p => pressed[CONTROLS[p.i].down];
+// Standing in a portal: after DOOR_HOLD seconds you go through. doorHold[id] = how long one of this
+// computer's cubes has been standing in it (back to 0 as soon as nobody is).
+const DOOR_HOLD = 1;
+let doorHold = {};
+function holdDoor(id, cx, dt) {
+  const inIt = !doorT && !iris && players.some(p => !p.remote && atDoor(p, cx, GROUND_Y));
+  const before = doorHold[id] || 0;
+  doorHold[id] = inIt ? before + dt : 0;
+  if (inIt && before === 0) sfx.beep(520);
+  if (doorHold[id] >= DOOR_HOLD) { doorHold = {}; return true; }
+  return false;
+}
+const holdOf = id => clamp((doorHold[id] || 0) / DOOR_HOLD, 0, 1);
 
-// Start scene: anyone pressing down at the door takes everyone inside
-function checkWardrobeDoor() {
-  if (players.some(p => !p.remote && atDoor(p, sceneDoorX(), GROUND_Y) && downKey(p))) startDoor(true);
+// Start scene / online room: anyone standing in the wardrobe portal for a second takes everyone inside
+function checkWardrobeDoor(dt) {
+  if (holdDoor('wardrobe', sceneDoorX(), dt)) startDoor(true);
+}
+// Start scene: the ONLINE portal, on the floor by the right wall
+const ONLINE_X = () => W - WALL - 52;
+function checkOnlinePortal(dt) {
+  if (holdDoor('online', ONLINE_X(), dt)) { chooseMode('multi'); return true; }
+  return false;
 }
 
 // Going through a door: it swings open, a soft circle closes in on the doorway, the scene changes at
@@ -111,14 +130,15 @@ function updateWardrobe(dt) {
   updateWorld(dt);
   for (const p of players) updatePlayer(p, dt);
   updateParticles(dt);
-  if (pressed.Escape || players.some(p => atDoor(p, wardrobe.exitX, GROUND_Y) && downKey(p))) startDoor(false);
+  if (holdDoor('exit', wardrobe.exitX, dt) || pressed.Escape) startDoor(false);
 }
 
 // The wardrobe's way in (and out): an arch holding a hypnotic rainbow portal (rings flowing in, a turning spiral), and a
-// round badge on top — the hanger icon, or a word (EXIT). open (0…1): someone is going through — it glows.
-// near: someone is standing at it — the down key(s) to go through bob beside it.
-function drawDoor(cx, floorY, label, near, open = 0) {
-  const x = cx - DOOR_W / 2, y = floorY - DOOR_H, r = DOOR_W / 2;
+// sign on top — a shirt, or a word (EXIT, ONLINE). Always a rectangle. open (0…1): someone is going
+// through — it glows. hold (0…1): someone is standing in it — a bar under the sign fills up, and it brightens.
+function drawDoor(cx, floorY, label, hold, open = 0) {
+  const x = cx - DOOR_W / 2, y = floorY - DOOR_H, r = 7;
+  open = Math.max(open, hold * 0.45);
   const arch = (dx, dy, w, h, rr) => { ctx.beginPath(); ctx.roundRect(dx, dy, w, h, [rr, rr, 0, 0]); };
   const base = ctx.globalAlpha;   // (respects a fade in progress)
   // rim
@@ -159,30 +179,28 @@ function drawDoor(cx, floorY, label, near, open = 0) {
   } else {
     drawShirt(cx, by + 2);   // a shirt sign, on its own (no badge behind it)
   }
-  if (near) {   // the down key(s), bobbing beside it
-    const b = Math.abs(Math.sin(time * 5)) * 4, kx = x + DOOR_W + 26;
-    keycap('S', kx, y + 14 + b, 26, PAL.good);
-    if (playerCount === 2) keycap('↓', kx + 32, y + 14 + b, 26, PAL.good);
+  if (hold > 0) {   // standing in it: a little bar fills up over the second
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.roundRect(cx - 16, y + 6, 32, 6, 3); ctx.fill();
+    ctx.fillStyle = PAL.good; ctx.beginPath(); ctx.roundRect(cx - 16, y + 6, 32 * hold, 6, 3); ctx.fill();
   }
 }
 
 // The wardrobe door in the start scene / the online room (drawn behind the cubes)
 function drawLobbyDoor() {
-  const x = sceneDoorX(), near = players.some(q => !q.remote && atDoor(q, x, GROUND_Y));
-  drawDoor(x, GROUND_Y, '', near && !doorT, doorOpen(true));
+  drawDoor(sceneDoorX(), GROUND_Y, '', holdOf('wardrobe'), doorOpen(true));
   if (state === 'room') drawRoomExit();
+  else drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0);
 }
 
 // The online room's way out: an EXIT portal left of START (mirroring the wardrobe on the right). Press down at it to leave online play
 // (the circle closes on your cube and opens back in the start scene — js/net.js leaveOnline).
 const ROOM_EXIT_X = () => W / 2 - 200;
-function checkRoomExit() {
-  if (players.some(p => !p.remote && atDoor(p, ROOM_EXIT_X(), GROUND_Y) && downKey(p))) { sfx.swoosh(); leaveOnline(); return true; }
+function checkRoomExit(dt) {
+  if (holdDoor('roomExit', ROOM_EXIT_X(), dt)) { sfx.swoosh(); leaveOnline(); return true; }
   return false;
 }
 function drawRoomExit() {
-  const x = ROOM_EXIT_X(), near = players.some(q => !q.remote && atDoor(q, x, GROUND_Y));
-  drawDoor(x, GROUND_Y, 'EXIT', near && !doorT && !iris, 0);
+  drawDoor(ROOM_EXIT_X(), GROUND_Y, 'EXIT', holdOf('roomExit'), 0);
 }
 
 // Inside: striped wallpaper, the exit door and the mirror with a big view of each cube
@@ -190,8 +208,7 @@ function drawWardrobeRoom() {
   // Wallpaper: soft lilac stripes with a little row of dots
   ctx.fillStyle = 'rgba(200,182,242,0.14)';
   for (let x = WALL; x < W - WALL; x += 60) ctx.fillRect(x, -OY, 30, GROUND_Y + OY);
-  const near = players.some(q => atDoor(q, wardrobe.exitX, GROUND_Y));
-  drawDoor(wardrobe.exitX, GROUND_Y, 'EXIT', near && !doorT, doorOpen(false));
+  drawDoor(wardrobe.exitX, GROUND_Y, 'EXIT', holdOf('exit'), doorOpen(false));
   // Mirror
   const n = players.length, mw = 260 * n + 80, mh = 330, mx = W / 2 - mw / 2, my = 120;
   ctx.fillStyle = SOFT.lilac[0]; ctx.beginPath(); ctx.roundRect(mx - 12, my - 12, mw + 24, mh + 24, 22); ctx.fill();
