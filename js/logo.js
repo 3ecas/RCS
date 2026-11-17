@@ -106,9 +106,8 @@ function drawShape(c, kind, x, y, r, col, rot = 0) {
   c.restore();
 }
 
-// The logo painted on the tower's back wall, at the bottom of the tower (the start scene): it stays put in
-// the world, so the cubes and platforms pass in front of it and it scrolls away as the climb begins. It's
-// multiplied onto the wall, and the joints of the wall's soft blocks show through the paint.
+// The logo on the tower's back wall, at the bottom of the tower (the start scene): it stays put in the
+// world, so the cubes and platforms pass in front of it and it scrolls away as the climb begins.
 const WALL_LOGO = { w: 720, h: 380, cx: 360, base: 300 };   // the painted area, and the logo's platform in it
 const wallLogoY = () => GROUND_Y - 4 * ROW_GAP + 10;       // where the logo's platform sits (world y)
 let wallLogoCache = null;
@@ -119,22 +118,6 @@ function wallLogoImage(k) {
   const g = c.getContext('2d');
   g.scale(k, k);
   drawLogoArt(g, L.cx, L.base, 25, 0, { noShapes: true });   // (the little shapes are drawn live, see below)
-  // Fade the paint a little along the block joints (the same 58 x 30 blocks with 6 px joints as the walls,
-  // lined up with them in the world)
-  const m = document.createElement('canvas'); m.width = c.width; m.height = c.height;
-  const mg = m.getContext('2d'); mg.scale(k, k);
-  mg.fillStyle = 'rgba(0,0,0,0.5)'; mg.fillRect(0, 0, L.w, L.h);
-  mg.globalCompositeOperation = 'destination-out'; mg.fillStyle = '#000';
-  const X0 = W / 2 - L.cx, Y0 = wallLogoY() - L.base, bw = 58, bh = 30, gap = 6, cw = bw + gap, rh = bh + gap;
-  mg.beginPath();
-  for (let row = Math.floor(Y0 / rh) - 1; row * rh < Y0 + L.h + rh; row++) {
-    const off = ((row % 2) + 2) % 2 ? -cw / 2 : 0;
-    for (let col = Math.floor((X0 - off) / cw) - 1; col * cw + off < X0 + L.w + cw; col++)
-      mg.roundRect(col * cw + off + gap / 2 - X0, row * rh + gap / 2 - Y0, bw, bh, 8);
-  }
-  mg.fill();
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0);
   wallLogoCache = { k, W, c };
   return c;
 }
@@ -146,14 +129,13 @@ function drawWallLogo() {
   const k = Math.max(1, Math.round(ctx.getTransform().a * 2) / 2);
   const img = wallLogoImage(k);
   ctx.save();
-  ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha *= 0.92;
   ctx.drawImage(img, W / 2 - L.cx, y0, L.w, L.h);
   drawWallLogoShapes(W / 2, wallLogoY());
   ctx.restore();
   if (best > 0 && mode !== 'versus') text('BEST ' + best + ' m', W / 2, wallLogoY() + 46, 14, PAL.inkSoft, 'center', 800);
 }
 
-// The little shapes around the wall logo: each wanders gently around its own spot and turns slowly
+// The little shapes around the wall logo (drawn live, not cached): each wanders gently around its own spot and turns slowly
 // (the same layout as the logo's rising shapes, but they stay put and just drift — some detail, never busy)
 function drawWallLogoShapes(cx, baseY) {
   const u = 25, half = 4.25 * u;   // (about half the letters' width)
