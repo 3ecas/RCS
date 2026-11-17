@@ -39,6 +39,7 @@ function holdDoor(id, cx, dt) {
   if (doorHold[id] >= DOOR_HOLD && !warpOut) {
     doorHold = {}; sfx.loadStop(); sfx.pling();
     warpOut = { id, t: 0, state, cx, priv: !!net.code };   // your cubes spin away into the portal first (then it's true)
+    sfx.warpOut();
     for (const p of mine) { p.vx = p.vy = 0; p.warpX = p.x + p.w / 2; p.warpY = p.y + p.h / 2; }
   }
   return false;
@@ -56,7 +57,7 @@ function updateWarp(dt) {
     // (only once the screen is showing where you came out: not while a circle or door is still closing)
     const covered = (iris && (iris.action || iris.hold || iris.t < iris.close)) || (doorT && !doorT.swapped) || state === 'search';
     if (!covered && !privOpen()) {
-      if (warpIn.t === 0) arriveAtPortal();
+      if (warpIn.t === 0) { arriveAtPortal(); sfx.warpIn(); }
       warpIn.t += dt; if (warpIn.t >= WARP_IN) warpIn = null;
     }
   }

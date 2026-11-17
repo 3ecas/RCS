@@ -76,6 +76,17 @@ const sfx = {
     if (actx) lastPortal = actx.currentTime;   // (no whoosh on top of it)
     tone(1568, 1568, 0.12, 'square', 0.025); tone(2093, 2093, 0.35, 'triangle', 0.05, 0.05); tone(3136, 3136, 0.25, 'sine', 0.02, 0.05);
   },
+  // Spinning into a portal: a swirl that spirals down and fades (a falling tone wobbling round, and soft air)
+  warpOut: () => {
+    for (let k = 0; k < 5; k++) tone(1200 - k * 190, 1050 - k * 190, 0.09, 'triangle', 0.03 * (1 - k * 0.15), k * 0.08);
+    tone(700, 180, 0.5, 'sine', 0.04); sweep(0.5, 0.05, 2600, 400, 'bandpass', 1.5);
+  },
+  // Spinning out of one: the same swirl going up, ending on a little sparkle
+  warpIn: () => {
+    for (let k = 0; k < 5; k++) tone(440 + k * 190, 590 + k * 190, 0.09, 'triangle', 0.03 * (0.4 + k * 0.15), k * 0.08);
+    tone(200, 760, 0.45, 'sine', 0.035); sweep(0.45, 0.04, 400, 2600, 'bandpass', 1.5);
+    tone(2093, 2093, 0.2, 'sine', 0.025, 0.42); tone(2637, 2637, 0.25, 'sine', 0.018, 0.48);
+  },
   // Going through a portal: a deep airy woooosh rising, with a soft rising tone under it
   portal: () => {   // (going through with Esc etc.: a whoosh)
     if (!actx || actx.currentTime - lastPortal < 0.4) return;
