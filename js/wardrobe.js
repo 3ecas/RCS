@@ -157,9 +157,7 @@ function drawDoor(cx, floorY, label, near, open = 0) {
     ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 2.5; ctx.stroke();
     text(label, cx, by + 5, 13, PAL.ink, 'center', 900);
   } else {
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, by, 19, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 2.5; ctx.stroke();
-    drawHanger(cx, by + 1);
+    drawShirt(cx, by + 2);   // a shirt sign, on its own (no badge behind it)
   }
   if (near) {   // the down key(s), bobbing beside it
     const b = Math.abs(Math.sin(time * 5)) * 4, kx = x + DOOR_W + 26;
