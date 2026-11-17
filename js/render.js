@@ -376,23 +376,24 @@ function drawJet(j) {
   ctx.restore();
 }
 
-// A player's cube, squashed when it lands. Other computers' cubes are faded ghosts (js/look.js).
+// A player's cube, squashed when it lands. Other computers' cubes keep their colours, a little see-through.
+const OTHERS_ALPHA = 0.7;
 function drawPlayer(p) {
   if (p.liftHide) return;   // not on the lift: appears at the start line when it arrives
   if (p.dead) {   // knocked out: the cube spins up and tumbles away (knockOut in js/game.js)
     const a = p.deathAnim;
     if (!a || a.t > 3 || a.y > camY + H + OY + 80) return;
     ctx.save();
-    ctx.globalAlpha = (p.remote ? 0.5 : 1) * clamp(2.6 - a.t, 0, 1);
+    ctx.globalAlpha = (p.remote ? OTHERS_ALPHA : 1) * clamp(2.6 - a.t, 0, 1);
     ctx.translate(a.x + p.w / 2, a.y + p.h / 2); ctx.rotate(a.rot);
-    const P = p.remote ? GHOST : { c: p.color, d: p.dark }, k = p.w / PS;
+    const P = { c: p.color, d: p.dark }, k = p.w / PS;
     drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, P, p.look, 0, 1, true);   // one body: X eyes, hat and shades off
     ctx.restore();
     // the hat and the shades, flying off on their own
     for (const [o, draw] of [[a.hat, () => drawHat(-p.w / 2, 0, p.w, p.look.h, k, 0, P)],
                              [a.shades, () => drawFace(-p.w / 2, -p.h * 0.36 - 3, p.w, p.h, 5, k, 0, false)]]) {
       if (!o) continue;
-      ctx.save(); ctx.globalAlpha = (p.remote ? 0.5 : 1) * clamp(2.6 - a.t, 0, 1);
+      ctx.save(); ctx.globalAlpha = (p.remote ? OTHERS_ALPHA : 1) * clamp(2.6 - a.t, 0, 1);
       ctx.translate(o.x, o.y); ctx.rotate(o.rot); draw(); ctx.restore();
     }
     return;
@@ -400,8 +401,8 @@ function drawPlayer(p) {
   const sx = 1 / Math.sqrt(p.sq), sy = p.sq;
   const w = p.w * sx, h = p.h * sy;
   const x = p.x + p.w / 2 - w / 2, y = p.y + p.h - h;
-  if (p.remote) ctx.globalAlpha = 0.5;
-  drawCubeArt(x, y, w, h, p.remote ? GHOST : { c: p.color, d: p.dark }, p.look, p.face, p.blink);
+  if (p.remote) ctx.globalAlpha = OTHERS_ALPHA;
+  drawCubeArt(x, y, w, h, { c: p.color, d: p.dark }, p.look, p.face, p.blink);
   ctx.globalAlpha = 1;
 }
 
