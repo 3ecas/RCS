@@ -287,7 +287,8 @@ function drawPlayer(p) {
     if (g >= 1) { ctx.globalAlpha = 1; return; }
     const e = g * g, k = 1 - e;
     ctx.save();
-    ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(e * Math.PI * 3 * (p.face < 0 ? -1 : 1)); ctx.scale(k, k);
+    const [wx, wy] = warpCentre(p, g);
+    ctx.translate(wx, wy); ctx.rotate(e * Math.PI * 3 * (p.face < 0 ? -1 : 1)); ctx.scale(k, k);
     ctx.globalAlpha *= clamp((1 - g) / 0.25, 0, 1);
     drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, { c: mixHex(p.color, '#ffffff', g), d: mixHex(p.dark, '#ffffff', g * 0.85) }, p.look, p.face, p.blink);
     ctx.globalAlpha *= g * 0.7; ctx.fillStyle = '#ffffff';            // and a white glow over the whole cube

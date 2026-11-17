@@ -17,7 +17,7 @@ function closePrivate(stepOut = true) {
   privBox.style.display = 'none';
   privCode.blur();
   // step out of the portal, so it doesn't open again straight away
-  if (stepOut && state === 'hub') for (const p of players) if (!p.remote && atDoor(p, PRIVATE_X(), GROUND_Y)) { p.x -= DOOR_W + 6; p.prevX = p.x; }
+  // (cancelled: your cube comes back out of the portal beside it — the warp in js/wardrobe.js)
 }
 const privOpen = () => privBox.style.display === 'block';
 // Same password, same room: case and extra spaces don't matter

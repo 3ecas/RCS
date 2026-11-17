@@ -28,6 +28,7 @@ const DOOR_HOLD = 1;
 let doorHold = {};
 function holdDoor(id, cx, dt) {
   if (warpOut) { if (warpOut.id === id) warpOut.t += dt; return warpDone(id); }
+  if (warpIn) return false;                                   // (still coming out of one)
   // (two players on this computer: both have to be standing in it)
   const mine = players.filter(p => !p.remote && !p.dead);
   const inIt = !doorT && !iris && mine.length > 0 && mine.every(p => atDoor(p, cx, GROUND_Y));
@@ -37,15 +38,15 @@ function holdDoor(id, cx, dt) {
   if (!inIt && before > 0) sfx.loadStop();               // stepped out
   if (doorHold[id] >= DOOR_HOLD && !warpOut) {
     doorHold = {}; sfx.loadStop(); sfx.pling();
-    if (id === 'private') return true;           // (the password box opens right there: you stay put)
-    warpOut = { id, t: 0, state };                      // your cubes spin away into the portal first (then it's true)
-    for (const p of mine) p.vx = p.vy = 0;
+    warpOut = { id, t: 0, state, cx, priv: !!net.code };   // your cubes spin away into the portal first (then it's true)
+    for (const p of mine) { p.vx = p.vy = 0; p.warpX = p.x + p.w / 2; p.warpY = p.y + p.h / 2; }
   }
   return false;
 }
 
-// Going into a portal: your cubes spin round, shrink and turn white until they're gone; then the portal takes
-// you. Coming out the other side they do the opposite: a white speck spins up into the cube.
+// Going into a portal: your cubes glide to its centre, spinning round, shrinking and turning white until they're
+// gone; then the portal takes you. Coming out the other side they do the opposite: a white speck spins out of
+// the centre of the portal you arrive by and lands, full size, on the floor beside it.
 const WARP_OUT = 0.5, WARP_IN = 0.5;
 let warpOut = null, warpIn = null;
 // Called every frame by the scenes (before their portals): true once the cubes are gone, for the portal `id`
@@ -54,13 +55,46 @@ function updateWarp(dt) {
   if (warpIn) {
     // (only once the screen is showing where you came out: not while a circle or door is still closing)
     const covered = (iris && (iris.action || iris.hold || iris.t < iris.close)) || (doorT && !doorT.swapped) || state === 'search';
-    if (!covered) { warpIn.t += dt; if (warpIn.t >= WARP_IN) warpIn = null; }
+    if (!covered && !privOpen()) {
+      if (warpIn.t === 0) arriveAtPortal();
+      warpIn.t += dt; if (warpIn.t >= WARP_IN) warpIn = null;
+    }
   }
 }
 function warpDone(id) {
   if (!warpOut || warpOut.id !== id || warpOut.t < WARP_OUT) return false;
-  warpOut = null; warpIn = { t: 0 };
+  warpIn = { t: 0, from: id, priv: warpOut.priv, cx: null };
+  warpOut = null;
   return true;
+}
+// Which portal you come out of, in the scene you've arrived in (null: none, you just appear where you are)
+function arrivalPortal() {
+  const f = warpIn.from;
+  if (state === 'wardrobe') return wardrobe.exitX;                       // into the wardrobe: its EXIT
+  if (f === 'exit') return sceneDoorX();                                  // out of the wardrobe: its portal
+  if (state === 'room') return ROOM_EXIT_X();                             // into a lobby: by its EXIT
+  if (state === 'hub') return f === 'online' ? HUB_EXIT_X() : f === 'roomExit' ? (warpIn.priv ? PRIVATE_X() : FIND_X()) : f === 'private' ? PRIVATE_X() : null;
+  if (state === 'lobby' && f === 'hubExit') return ONLINE_X();           // MAIN MENU: back by the ONLINE portal
+  return null;
+}
+// Put your cubes on the floor just beside that portal (towards the middle, so you're not standing in it)
+function arriveAtPortal() {
+  const cx = arrivalPortal();
+  if (cx == null) return;
+  warpIn.cx = cx;
+  const dir = cx < W / 2 ? 1 : -1;
+  players.filter(p => !p.remote && !p.dead).forEach((p, k) => {
+    p.x = p.prevX = cx + dir * (DOOR_W / 2 + p.w / 2 + 12 + k * (p.w + 8)) - p.w / 2;
+    p.y = p.prevY = GROUND_Y - p.h; p.vx = p.vy = 0; p.onGround = true; p.face = dir;
+  });
+}
+// Where to draw a cube mid-warp (its centre): gliding between where it stands and the portal's centre
+function warpCentre(p, g) {
+  const cx = warpOut ? warpOut.cx : warpIn && warpIn.cx;
+  const sx = warpOut ? p.warpX : p.x + p.w / 2, sy = warpOut ? p.warpY : p.y + p.h / 2;
+  if (cx == null || sx == null) return [p.x + p.w / 2, p.y + p.h / 2];
+  const u = g * g * (3 - 2 * g);
+  return [sx + (cx - sx) * u, sy + (GROUND_Y - DOOR_H / 2 - sy) * u];
 }
 // How far gone a cube is: 0 (normal) … 1 (vanished)
 function warpOf(p) {
