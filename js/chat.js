@@ -3,11 +3,14 @@
 'use strict';
 
 const chatBox = document.getElementById('chat');
-const chat = { log: [], bubbles: {} };   // log: recent messages; bubbles: latest message per computer (by id)
+const chat = { log: [], bubbles: {}, last: -99, vis: 0, drawnAt: 0 };   // log: recent messages; bubbles: latest message per computer (by id)
+// The log hides after CHAT_IDLE seconds with no chat activity (a message, or the chat box open) and comes back
+// while the mouse is over it
+const CHAT_IDLE = 5;
 
 function openChat() {
   for (const k in keys) keys[k] = false;     // your cube stops while you type
-  chatBox.value = '';
+  chatBox.value = ''; chat.last = time;
   chatBox.style.display = 'block';
   chatBox.focus();
 }
@@ -36,6 +39,7 @@ function onChat(m) {
   chat.log.push({ name, color, text: m.text, at: time, mine: R && R.players[R.me] && R.players[R.me].id === m.from });
   if (chat.log.length > 6) chat.log.shift();
   chat.bubbles[m.from] = { text: m.text, until: time + 5 };
+  chat.last = time;
   sfx.beep(900);
 }
 
@@ -68,15 +72,24 @@ function drawChatBubbles() {
   }
 }
 
-// The last few messages, in the screen's bottom-left corner, just above the chat box (fade after 25 s)
+// The last few messages, in the screen's bottom-left corner, just above the chat box. Hidden after a few
+// seconds without chat; hover the mouse there to see them again.
 function drawChatLog() {
   const px = VW / innerWidth;                    // (one screen pixel, in arena units: the box is placed in pixels)
-  const x = -OX + 16 * px;
-  let y = H + OY - (16 + 44 + 12) * px - 15 - (chat.log.length - 1) * 26;
+  const x = -OX + 16 * px, bottom = H + OY - (16 + 44 + 12) * px;
+  const n = chat.log.length;
+  let y = bottom - 15 - (n - 1) * 26;
+  // the corner it lives in (the hover area): a bit wider and taller than the lines, even when there are none
+  const hover = typeof ui !== 'undefined' && ui.mx != null && ui.mx < x + 460 && ui.my > bottom - Math.max(3, n) * 26 - 20 && ui.my < H + OY;
+  if (hover || chatOpen()) chat.last = time;
+  const dt = clamp(time - chat.drawnAt, 0, 0.1); chat.drawnAt = time;
+  const want = time - chat.last < CHAT_IDLE ? 1 : 0;
+  chat.vis += clamp(want - chat.vis, -dt / 0.4, dt / 0.15);   // (quick to show, gentle to fade)
+  if (chat.vis <= 0) return;
+  ctx.font = `900 14px ${FONT}`;
   for (const c of chat.log) {
-    const a = clamp(1 - (time - c.at - 25) / 5, 0, 1);
-    if (a > 0) {
-      ctx.globalAlpha = a;
+    ctx.globalAlpha = chat.vis;
+    {
       ctx.font = `900 14px ${FONT}`;
       const nw = ctx.measureText(c.name + ': ').width;
       ctx.font = `700 14px ${FONT}`;
