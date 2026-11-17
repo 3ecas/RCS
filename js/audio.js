@@ -60,21 +60,29 @@ const sfx = {
     lastPortal = actx.currentTime;
     sweep(0.9, 0.11, 220, 3200, 'bandpass', 0.9); tone(160, 620, 0.8, 'sine', 0.045);
   },
-  // Race start: three beeps (3, 2, 1) and a horn on GO
-  count: () => { tone(660, 660, 0.16, 'square', 0.035); tone(1320, 1320, 0.1, 'triangle', 0.025); },
+  // Race start: three soft beeps (3, 2, 1) and a trumpet ta-ra on GO
+  count: () => { tone(660, 660, 0.14, 'triangle', 0.035); tone(1320, 1320, 0.08, 'sine', 0.012); },   // a soft clean beep
+  // GO: a clean little trumpet call, "ta-RA!" — a short note, then the fourth above it held
   horn: () => {
     if (!actx || muted) return;
-    const t = actx.currentTime, f = actx.createBiquadFilter(), g = actx.createGain();
-    f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.linearRampToValueAtTime(2400, t + 0.08);
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.03); g.gain.setValueAtTime(0.09, t + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-    f.connect(g).connect(actx.destination);
-    for (const fr of [220, 277.2, 329.6, 440]) {
-      const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(fr * 0.97, t); o.frequency.linearRampToValueAtTime(fr, t + 0.06);
-      o.connect(f); o.start(t); o.stop(t + 0.95);
-    }
+    const brass = (fr, t0, dur, vol) => {
+      const t = actx.currentTime + t0, f = actx.createBiquadFilter(), g = actx.createGain();
+      f.type = 'lowpass'; f.Q.value = 0.7;
+      f.frequency.setValueAtTime(700, t); f.frequency.linearRampToValueAtTime(2200, t + 0.05); f.frequency.linearRampToValueAtTime(1500, t + dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.025);
+      g.gain.setValueAtTime(vol * 0.85, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      f.connect(g).connect(actx.destination);
+      const o = actx.createOscillator(), o2 = actx.createOscillator();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(fr * 0.985, t); o.frequency.linearRampToValueAtTime(fr, t + 0.04);
+      o2.type = 'sine'; o2.frequency.value = fr;                // (a round body under the brassy edge)
+      const g2 = actx.createGain(); g2.gain.value = 0.6; o2.connect(g2).connect(f);
+      o.connect(f); o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02);
+    };
+    brass(392, 0, 0.13, 0.035);          // ta (G)
+    brass(523.3, 0.15, 0.55, 0.04);      // RA! (C)
   },
   // a short, solid bop: a quick rising sine with a little low body under it (player 2 a bit higher)
-  jump: i => { const f = i ? 300 : 250; tone(f, f * 1.9, 0.09, 'sine', 0.07); tone(f * 0.5, f * 0.42, 0.06, 'sine', 0.05); },
+  jump: i => { const f = i ? 300 : 250; tone(f, f * 1.9, 0.08, 'sine', 0.035); tone(f * 0.5, f * 0.42, 0.05, 'sine', 0.025); },
   // a soft, low pat (a little fuller after a long fall; no noise)
   land: (k = 0.5) => tone(130, 75, 0.07 + 0.04 * k, 'sine', 0.02 + 0.025 * k),
   // A springy BOING: a rising tone with a wobble that settles
