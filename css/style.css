@@ -19,8 +19,8 @@ canvas { display: block; }
 
 /* Chat box in the online room (js/chat.js) */
 .chat-box {
-  position: fixed; display: none; left: 50%; bottom: 14%; transform: translateX(-50%);
-  width: min(560px, 80vw); height: 44px; box-sizing: border-box; padding: 0 14px;
+  position: fixed; display: none; left: 16px; bottom: 16px;
+  width: min(440px, calc(100vw - 32px)); height: 44px; box-sizing: border-box; padding: 0 14px;
   -webkit-appearance: none; appearance: none; background-clip: padding-box;
   border: 2px solid #9a84d6; border-radius: 22px; background: rgba(255, 255, 255, 0.96); color: #4a3b63; outline: none;
   font-family: 'Fredoka', ui-rounded, sans-serif; font-weight: 600; font-size: 17px;

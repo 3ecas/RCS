@@ -68,20 +68,25 @@ function drawChatBubbles() {
   }
 }
 
-// The last few messages, bottom-left above the floor (fade after 25 s)
+// The last few messages, in the screen's bottom-left corner, just above the chat box (fade after 25 s)
 function drawChatLog() {
-  const x = WALL + 18;
-  let y = GROUND_Y - 16 - (chat.log.length - 1) * 22;
+  const px = VW / innerWidth;                    // (one screen pixel, in arena units: the box is placed in pixels)
+  const x = -OX + 16 * px;
+  let y = H + OY - (16 + 44 + 12) * px - 15 - (chat.log.length - 1) * 26;
   for (const c of chat.log) {
     const a = clamp(1 - (time - c.at - 25) / 5, 0, 1);
     if (a > 0) {
       ctx.globalAlpha = a;
       ctx.font = `900 14px ${FONT}`;
       const nw = ctx.measureText(c.name + ': ').width;
-      text(c.name + ': ', x, y, 14, c.color, 'left', 900);
-      text(c.text, x + nw, y, 14, PAL.ink, 'left', 700);
+      ctx.font = `700 14px ${FONT}`;
+      const tw = ctx.measureText(c.text).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';  // a soft rounded pill behind each line
+      ctx.beginPath(); ctx.roundRect(x, y - 16, nw + tw + 24, 23, 11.5); ctx.fill();
+      text(c.name + ': ', x + 12, y, 14, c.color, 'left', 900);
+      text(c.text, x + 12 + nw, y, 14, PAL.ink, 'left', 700);
     }
-    y += 22;
+    y += 26;
   }
   ctx.globalAlpha = 1;
 }
