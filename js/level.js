@@ -14,7 +14,7 @@ function startWorld(withLobby) {
     // The mode platforms span the width, so the next row can start anywhere; keep it hazard-free.
     // On the sound pad's row the tower's platforms stay clear of the pad.
     gen = { prev: platforms.find(p => p.stair) || { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true, lo: padEnd + 60, loUntil: GROUND_Y - 2.5 * ROW_GAP,
-            avoid: { x0: W / 2 - 175, x1: W / 2 + 175, top: wallLogoY() - 175, bot: wallLogoY() + 40 } };   // the logo on the wall (js/logo.js)
+            avoid: { x0: W / 2 - 130, x1: W / 2 + 130, top: wallLogoY() - 130, bot: wallLogoY() + 30 } };   // the logo on the wall (js/logo.js)
   }
   generate();
 }

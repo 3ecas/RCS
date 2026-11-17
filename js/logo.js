@@ -109,7 +109,8 @@ function drawShape(c, kind, x, y, r, col, rot = 0) {
 // The logo on the tower's back wall, at the bottom of the tower (the start scene): it stays put in the
 // world, so the cubes and platforms pass in front of it and it scrolls away as the climb begins.
 const WALL_LOGO = { w: 720, h: 380, cx: 360, base: 300 };   // the painted area, and the logo's platform in it
-const wallLogoY = () => GROUND_Y - 4 * ROW_GAP + 10;       // where the logo's platform sits (world y)
+const wallLogoY = () => 190;                               // where the logo's platform sits (world y): near the top of the start view
+const WALL_LOGO_U = 18;                                    // its size unit (stroke thickness)
 let wallLogoCache = null;
 function wallLogoImage(k) {
   if (wallLogoCache && wallLogoCache.k === k && wallLogoCache.W === W) return wallLogoCache.c;
@@ -117,7 +118,7 @@ function wallLogoImage(k) {
   c.width = Math.round(L.w * k); c.height = Math.round(L.h * k);
   const g = c.getContext('2d');
   g.scale(k, k);
-  drawLogoArt(g, L.cx, L.base, 25, 0, { noShapes: true });   // (the little shapes are drawn live, see below)
+  drawLogoArt(g, L.cx, L.base, WALL_LOGO_U, 0, { noShapes: true });   // (the little shapes are drawn live, see below)
   wallLogoCache = { k, W, c };
   return c;
 }
@@ -138,7 +139,7 @@ function drawWallLogo() {
 // The little shapes around the wall logo (drawn live, not cached): each wanders gently around its own spot and turns slowly
 // (the same layout as the logo's rising shapes, but they stay put and just drift — some detail, never busy)
 function drawWallLogoShapes(cx, baseY) {
-  const u = 25, half = 4.25 * u;   // (about half the letters' width)
+  const u = WALL_LOGO_U, half = 4.25 * u;   // (about half the letters' width)
   const SH = ['dot', 'tri', 'ring', 'plus', 'sq'], cols = Object.values(SOFT), t = time;
   for (let k = 0; k < 16; k++) {
     const h = n => ((Math.sin(k * 127.1 + n * 311.7) * 43758.5453) % 1 + 1) % 1;
