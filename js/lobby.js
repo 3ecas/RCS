@@ -1,6 +1,7 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
-// - mode platforms (SOLO / MULTIPLAYER, or CO-OP / RACE / MULTIPLAYER with two players): everyone stands
-//   on one for 2 seconds to start — the screen then starts scrolling up this same tower
+// - one player: just climb. Step onto the first stair (a plain platform) and the game starts, scrolling up
+//   this same tower. Jump onto ONLINE (a plain platform with its name on it) to play online.
+// - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds; both on ONLINE goes online
 // - a small SOUND pad (a jump above, on the left): land on it to turn the sound on or off
 // - the WARDROBE door on the floor, on the left: press down at it to go inside and change your cube (js/wardrobe.js)
 // Player 1 plays with W A S D. Holding an arrow key for 2 seconds adds player 2 (Esc removes them).
@@ -10,7 +11,7 @@ const HOLD_TIME = 2;          // seconds to stand on a mode platform / hold an a
 const lobby = { join: 0, on: null, holdT: 0 };
 
 // The modes on offer: one player can play solo or online; two players co-op or race (online is one per PC)
-const lobbyModes = () => playerCount === 2 ? ['coop', 'race', 'multi'] : ['solo', 'multi'];
+const lobbyModes = () => playerCount === 2 ? ['coop', 'race', 'multi'] : ['stair', 'multi'];
 const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'ONLINE' };
 const isMode = p => p.menu && MENU_LABEL[p.menu];
 // Until a game has been started once on this computer, little arrows point at the mode platforms
@@ -38,10 +39,14 @@ function buildLobbyRow1() {
   const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(150, slot - 60);
   items.forEach((menu, k) => {
     const cx = LOBBY_LEFT + slot * (k + 0.5);
-    platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', menu, dx: 0, dy: 0, t: 0, falling: false,
- });
+    // ('stair': the first step of the tower — a plain platform; stepping onto it starts a solo game)
+    platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', menu: menu === 'stair' ? undefined : menu, stair: menu === 'stair',
+                     dx: 0, dy: 0, t: 0, falling: false });
   });
   lobby.on = null; lobby.holdT = 0;
+  // The tower carries on up from the first stair (or, with two players, from anywhere along the row)
+  const st = platforms.find(p => p.stair);
+  if (gen && st) gen.prev = st;
 }
 
 // What a player is standing on (through another player's head, if they're stacked)
@@ -76,8 +81,15 @@ function updateLobby(dt) {
   checkWardrobeDoor();                 // down at the WARDROBE door: go inside (js/wardrobe.js)
   if (state !== 'lobby') return;
 
-  // Everyone on the same mode platform for 2 seconds starts that mode
+  // One player: stepping onto the first stair starts the game; landing on ONLINE goes online
+  if (playerCount === 1) {
+    const on = standingOn(players[0]);
+    if (on && on.stair) { chooseMode('solo'); return; }
+    if (on && on.menu === 'multi') { chooseMode('multi'); return; }
+  }
+  // Two players: both on ONLINE goes online at once; both on CO-OP / RACE for 2 seconds starts that
   const pl = standingOn(players[0]);
+  if (pl && pl.menu === 'multi' && players.every(p => standingOn(p) === pl)) { chooseMode('multi'); return; }
   const ok = pl && isMode(pl) && players.every(p => standingOn(p) === pl);
   if ((ok ? pl : null) !== lobby.on) { lobby.on = ok ? pl : null; lobby.holdT = 0; }
   if (lobby.on) {
@@ -162,6 +174,17 @@ function touchLobby(p, pl) {
 // Mode / sound / wardrobe platforms: a normal platform, thicker, with its name (or an icon) on it
 function drawMenuPlatform(p) {
   const x = p.x, y = p.y, cx = x + p.w / 2;
+  if (p.menu === 'multi') {   // ONLINE: a plain platform like all the others, with its name on it
+    slab(x, y, p.w, p.h, PAL.normal, PAL.normalD);
+    let a = state === 'lobby' || state === 'wardrobe' ? 1 : lobbyFade > 0 ? 1 - clamp(lobbyFade / LOBBY_FADE, 0, 1) : 0;
+    if (a > 0) {
+      const b = ctx.globalAlpha; ctx.globalAlpha = b * a;
+      text('ONLINE', cx, y + p.h / 2 + 3.6, 10, PAL.ink, 'center', 900);
+      if (state === 'lobby' && !tutDone) arrowOver(cx, y);
+      ctx.globalAlpha = b;
+    }
+    return;
+  }
   // In the game they're plain platforms: the names go away
   if (state !== 'lobby' && state !== 'wardrobe') {
     slab(x, y, p.w, p.h, PAL.normal, PAL.normalD);
@@ -210,19 +233,18 @@ function drawMenuPlatform(p) {
   text(label, cx, y + p.h / 2 + size * 0.36, size, on && isMode(p) ? PAL.good : PAL.ink, 'center', 900);
 }
 
+// First visit: a bouncing arrow pointing down at a platform
+function arrowOver(cx, y) {
+  const b = Math.abs(Math.sin(time * 4)) * 8;
+  ctx.fillStyle = PAL.good;
+  ctx.beginPath(); ctx.moveTo(cx - 9, y - 30 - b); ctx.lineTo(cx + 9, y - 30 - b); ctx.lineTo(cx, y - 18 - b); ctx.closePath(); ctx.fill();
+}
+
 // The logo, and on the floor who plays with which keys — drawn as keys, not words
 // k: 0 in the lobby; 0…1 while it fades away after a game starts (the logo floats up, the floor's keys
 // go down with the floor as the camera rises)
 function drawLobbyHUD(k = 0) {
-  ctx.save(); ctx.translate(0, -OY - k * k * 140);
-  // Soft light behind the logo so the tower's platforms don't clash with it (the gradient fades out
-  // before the edges of the area it fills, so it has no visible edge)
-  const g = ctx.createRadialGradient(W / 2, 130, 30, W / 2, 130, 300);
-  g.addColorStop(0, 'rgba(255,251,247,0.98)'); g.addColorStop(0.6, 'rgba(255,251,247,0.9)'); g.addColorStop(1, 'rgba(255,251,247,0)');
-  ctx.fillStyle = g; ctx.fillRect(W / 2 - 310, 130 - 310, 620, 620);
-  drawLogoArt(ctx, W / 2, 182, 25, time);                        // the mark (js/logo.js)
-  if (best > 0) text('BEST ' + best + ' m', W / 2, 228, 14, PAL.inkSoft, 'center', 800);
-  ctx.restore();
+  // (the logo is painted on the back wall now: drawWallLogo in js/logo.js)
   if (k > 0) { ctx.save(); ctx.translate(0, -camY); }   // the floor strip rides down with the floor
 
   // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
@@ -247,5 +269,9 @@ function drawLobbyHUD(k = 0) {
     ctx.beginPath(); ctx.moveTo(rx - 132, y + 35); ctx.lineTo(rx - 124, y + 43); ctx.moveTo(rx - 124, y + 35); ctx.lineTo(rx - 132, y + 43); ctx.stroke();
   }
   if (k > 0) { ctx.restore(); return; }
+  if (!tutDone && playerCount === 1) {   // first visit: an arrow at the first stair too
+    const st = platforms.find(p => p.stair);
+    if (st) { ctx.save(); ctx.translate(0, -camY); arrowOver(st.x + st.w / 2, st.y); ctx.restore(); }
+  }
   drawBanner(250);
 }

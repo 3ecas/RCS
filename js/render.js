@@ -422,6 +422,7 @@ function render() {
     }
   }
   ctx.translate(0, -camY);
+  drawWallLogo();     // painted on the back wall at the bottom of the tower (js/logo.js)
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby' || state === 'room') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)

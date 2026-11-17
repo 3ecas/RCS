@@ -114,31 +114,41 @@ function updateWardrobe(dt) {
   if (pressed.Escape || players.some(p => atDoor(p, wardrobe.exitX, GROUND_Y) && downKey(p))) startDoor(false);
 }
 
-// A door: frame, wooden door, knob and a sign above it (a word, or the hanger icon for '').
+// The wardrobe's way in (and out): an arch filled with a soft rainbow, a light sheen drifting up it, and a
+// round badge on top — the hanger icon, or a word (EXIT). open (0…1): someone is going through — it glows.
 // near: someone is standing at it — the down key(s) to go through bob beside it.
 function drawDoor(cx, floorY, label, near, open = 0) {
-  const x = cx - DOOR_W / 2, y = floorY - DOOR_H;
-  // A rounded lilac frame, an apricot door with two soft panels and a butter knob
-  ctx.fillStyle = PAL.normal; ctx.beginPath(); ctx.roundRect(x - 6, y - 6, DOOR_W + 12, DOOR_H + 6, [10, 10, 0, 0]); ctx.fill();
-  // the doorway behind it (seen when it swings open)
-  ctx.fillStyle = PAL.normalD; ctx.beginPath(); ctx.roundRect(x, y, DOOR_W, DOOR_H, [7, 7, 0, 0]); ctx.fill();
-  // the door swings open on its left hinge: it narrows as it turns away from you
-  const e = open * open * (3 - 2 * open), dw = DOOR_W * (1 - 0.82 * e);
-  ctx.save(); ctx.translate(x, 0); ctx.scale(dw / DOOR_W, 1); ctx.translate(-x, 0);
-  ctx.fillStyle = SOFT.apricot[0]; ctx.beginPath(); ctx.roundRect(x, y, DOOR_W, DOOR_H, [7, 7, 0, 0]); ctx.fill();
+  const x = cx - DOOR_W / 2, y = floorY - DOOR_H, r = DOOR_W / 2;
+  const arch = (dx, dy, w, h, rr) => { ctx.beginPath(); ctx.roundRect(dx, dy, w, h, [rr, rr, 0, 0]); };
   const base = ctx.globalAlpha;   // (respects a fade in progress)
-  ctx.fillStyle = SOFT.apricot[1]; ctx.globalAlpha = base * 0.45;
-  ctx.beginPath(); ctx.roundRect(x + 7, y + 8, DOOR_W - 14, 20, 5); ctx.roundRect(x + 7, y + 34, DOOR_W - 14, 24, 5); ctx.fill();
-  ctx.globalAlpha = base;
-  ctx.fillStyle = SOFT.butter[1]; ctx.beginPath(); ctx.arc(x + DOOR_W - 9, y + DOOR_H / 2 + 4, 3.5, 0, Math.PI * 2); ctx.fill();
+  // rim
+  ctx.fillStyle = SOFT.lilac[1]; arch(x - 5, y - 5, DOOR_W + 10, DOOR_H + 5, r + 5); ctx.fill();
+  // the rainbow, top to bottom
+  const g = ctx.createLinearGradient(0, y, 0, floorY);
+  ['rose', 'apricot', 'butter', 'mint', 'sky', 'lilac'].forEach((k, i) => g.addColorStop(i / 5, SOFT[k][0]));
+  ctx.fillStyle = g; arch(x, y, DOOR_W, DOOR_H, r); ctx.fill();
+  // a soft sheen rising through it (and a white glow while someone goes through)
+  ctx.save(); arch(x, y, DOOR_W, DOOR_H, r); ctx.clip();
+  const sy = floorY - ((time * 40) % (DOOR_H + 40));
+  const sg = ctx.createLinearGradient(0, sy - 20, 0, sy + 20);
+  sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.45)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sg; ctx.fillRect(x, sy - 20, DOOR_W, 40);
+  if (open > 0) { ctx.globalAlpha = base * 0.75 * open; ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, DOOR_W, DOOR_H); ctx.globalAlpha = base; }
   ctx.restore();
-  ctx.font = `900 13px ${FONT}`;
-  const sw = label ? ctx.measureText(label).width + 18 : 44;
-  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(cx - sw / 2, y - 32, sw, 22, 7); ctx.fill();
-  ctx.strokeStyle = PAL.normalD; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(cx - sw / 2 + 1, y - 31, sw - 2, 20, 6); ctx.stroke();
-  if (label) text(label, cx, y - 16, 13, PAL.ink, 'center', 900);
-  else drawHanger(cx, y - 22);
-  if (near) {   // the down key(s), bobbing beside the door
+  // the round badge on top
+  const by = y - 24;
+  if (label) {
+    ctx.font = `900 13px ${FONT}`;
+    const sw = ctx.measureText(label).width + 22;
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(cx - sw / 2, by - 12, sw, 24, 12); ctx.fill();
+    ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 2.5; ctx.stroke();
+    text(label, cx, by + 5, 13, PAL.ink, 'center', 900);
+  } else {
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, by, 19, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 2.5; ctx.stroke();
+    drawHanger(cx, by + 1);
+  }
+  if (near) {   // the down key(s), bobbing beside it
     const b = Math.abs(Math.sin(time * 5)) * 4, kx = x + DOOR_W + 26;
     keycap('S', kx, y + 14 + b, 26, PAL.good);
     if (playerCount === 2) keycap('↓', kx + 32, y + 14 + b, 26, PAL.good);
