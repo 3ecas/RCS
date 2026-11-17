@@ -70,7 +70,7 @@ function onRoomPeer(d, from) {
     const r = players.find(p => p.remote && p.uid === from + ':' + s.j);
     if (!r) continue;
     r.net = { x: s.x, y: s.y, vx: s.vx, vy: s.vy, g: s.g, age: 0 };
-    r.face = s.f; r.sq = s.q;
+    r.face = s.f; r.sq = s.q; r.typing = !!s.w;   // (w: typing in the chat box — js/chat.js shows the three dots)
     if (r.dead) { r.dead = false; r.x = s.x; r.y = s.y; }
   }
 }
@@ -111,7 +111,7 @@ function updateRoom(dt) {
   if (roomSendT <= 0) {
     roomSendT = 1 / 20;
     const r1 = v => Math.round(v * 10) / 10;
-    relay({ k: 'r', p: players.filter(p => !p.remote).map(p => ({ j: p.slot, x: r1(p.x), y: r1(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), g: p.onGround, f: p.face, q: Math.round(p.sq * 100) / 100 })) });
+    relay({ k: 'r', p: players.filter(p => !p.remote).map(p => ({ j: p.slot, x: r1(p.x), y: r1(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), g: p.onGround, f: p.face, q: Math.round(p.sq * 100) / 100, w: !p.slot && chatOpen() ? 1 : 0 })) });
   }
 }
 

@@ -48,27 +48,46 @@ function drawChatBubbles() {
   const R = net.room;
   if (!R) return;
   const myId = R.players[R.me] && R.players[R.me].id;
+  // Who's typing right now (your first cube while the chat box is open; the others from their room updates):
+  // three dots over them instead of their last bubble
+  const typing = new Set(players.filter(p => !p.dead && (p.remote ? p.typing : !p.slot && chatOpen())));
+  for (const p of typing) drawTypingDots(p);
   for (const id in chat.bubbles) {
     const b = chat.bubbles[id];
     if (b.until < time) { delete chat.bubbles[id]; continue; }
     const cube = String(id) === String(myId) ? players.find(p => !p.remote && !p.slot) : players.find(p => p.remote && p.uid === id + ':0');
-    if (!cube || cube.dead) continue;
+    if (!cube || cube.dead || typing.has(cube)) continue;
     ctx.font = `800 18px ${FONT}`;
     const w = Math.min(380, ctx.measureText(b.text).width + 26), h = 34;
-    const x = clamp(cube.x + cube.w / 2 - w / 2, WALL + 4, W - WALL - w - 4), y = cube.y - h - 16;
     ctx.globalAlpha = clamp(b.until - time, 0, 1);
-    // a rounded pill with a little rounded tail pointing down at the cube
-    const tx = clamp(cube.x + cube.w / 2, x + h / 2, x + w - h / 2);
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, h / 2);
-    ctx.moveTo(tx - 7, y + h - 1); ctx.quadraticCurveTo(tx, y + h + 2, tx, y + h + 10); ctx.quadraticCurveTo(tx + 2, y + h + 2, tx + 7, y + h - 1);
-    ctx.fillStyle = '#ffffff'; ctx.fill();
-    ctx.strokeStyle = cube.dark; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(tx - 6, y + h - 4, 12, 4);   // (no outline where the tail meets the pill)
+    const [x, y] = bubbleShape(cube, w, h);
     ctx.save(); ctx.beginPath(); ctx.rect(x + 10, y, w - 20, h); ctx.clip();
     text(b.text, x + w / 2, y + 23, 18, PAL.ink, 'center', 800);
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+}
+
+// A rounded pill over the cube with a little rounded tail pointing down at it. Returns its top-left corner.
+function bubbleShape(cube, w, h) {
+  const x = clamp(cube.x + cube.w / 2 - w / 2, WALL + 4, W - WALL - w - 4), y = cube.y - h - 16;
+  const tx = clamp(cube.x + cube.w / 2, x + h / 2, x + w - h / 2);
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, h / 2);
+  ctx.moveTo(tx - 7, y + h - 1); ctx.quadraticCurveTo(tx, y + h + 2, tx, y + h + 10); ctx.quadraticCurveTo(tx + 2, y + h + 2, tx + 7, y + h - 1);
+  ctx.fillStyle = '#ffffff'; ctx.fill();
+  ctx.strokeStyle = cube.dark; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(tx - 6, y + h - 4, 12, 4);   // (no outline where the tail meets the pill)
+  return [x, y];
+}
+
+// "Typing…": three dots in a small bubble, each growing and shrinking in turn, like a wave
+function drawTypingDots(cube) {
+  const w = 62, h = 34, [x, y] = bubbleShape(cube, w, h);
+  ctx.fillStyle = cube.dark;
+  for (let k = 0; k < 3; k++) {
+    const u = 0.5 + 0.5 * Math.sin(time * 7 - k * 0.9);    // 0..1, each dot a little behind the one before
+    ctx.beginPath(); ctx.arc(x + w / 2 + (k - 1) * 15, y + h / 2, 2.6 + 2.4 * u, 0, Math.PI * 2); ctx.fill();
   }
 }
 
