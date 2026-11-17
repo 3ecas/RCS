@@ -7,6 +7,7 @@ function update(dt) {
   if (state !== 'room' && chatOpen()) closeChat();   // the chat box is only for the room
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();
+  ambTick(dt);   // the ambience follows what's near your cube (js/music.js)
 
   if (doorT) { updateDoor(dt); time += dt; return; }   // going through the wardrobe door (js/wardrobe.js)
   if (updateRaceStart(dt)) { time += dt; return; }      // online circle transitions (js/net.js)
@@ -18,7 +19,7 @@ function update(dt) {
   // Pause, room and end screens are driven by buttons (mouse or keyboard)
   if (state === 'found') {       // "Match found!" — then the countdown
     time += dt; foundT -= dt;
-    if (foundT <= 0) { state = 'count'; sfx.beep(440); }
+    if (foundT <= 0) { state = 'count'; sfx.count(); }
     return;
   }
   if (state === 'over' && overT < 0 && finaleOn()) {   // the finale: slow motion, zooming in on the winner
@@ -54,8 +55,8 @@ function update(dt) {
     countdown -= dt;
     const after = Math.ceil(countdown);
     if (after !== before) {
-      if (after > 0) sfx.beep(440);
-      else { sfx.beep(880); state = 'play'; floatText('GO!', W / 2, camY + H * 0.4, PAL.good); }
+      if (after > 0) sfx.count();                       // 3 … 2 … 1 …
+      else { sfx.horn(); state = 'play'; floatText('GO!', W / 2, camY + H * 0.4, PAL.good); }   // GO!
     }
   }
 
@@ -299,14 +300,14 @@ function updatePlayer(p, dt) {
   p.buf -= dt;
   p.coyote = p.onGround ? 0.1 : p.coyote - dt;
   if (p.buf > 0 && p.coyote > 0) {
-    p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.25;
-    sfx.jump(p.i); dust(p.x + p.w / 2, p.y + p.h);
+    p.vy = -JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false; p.ground = null; p.sq = 1.32;
+    sfx.jump(p.i); jumpPuff(p);
   } else if (wallJump) {
     // Wall jump: up and away from the wall, toward the side you pressed
     const side = p.wallSide;
     p.vy = -WALLJUMP_V; p.vx = -side * WALLJUMP_PUSH; p.buf = 0; p.face = -side; p.sq = 1.2; p.cling = 0;
     p.wallT = 0; p.awayBuf = null; p.wjBuf = 0; p.lastWall = p.wallId;
-    sfx.jump(p.i); dust(side < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
+    sfx.jump(p.i); jumpPuff(p, side);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
     p.dropT = 0.2; p.onGround = false; p.ground = null; p.y += 2;
@@ -401,7 +402,7 @@ function springPress(p, inp, dt) {
   else {
     p.vy = -JUMP_V; p.sq = 1.25;                   // a plain bounce, like a normal jump
     p.springT = 0.15; p.springPad = pl;            // short window to press jump for the boost
-    tone(220, 500, 0.15, 'sine', 0.06);
+    sfx.boing();
   }
 }
 
@@ -413,7 +414,10 @@ function land(p, pl, wasGround) {
     p.vy = 0; p.vx *= 0.5; p.press = { pl, t: 0 }; pl.held = true; pl.cv = 0;
     return;
   }
-  if (!wasGround) { p.sq = 0.75; sfx.land(); dust(p.x + p.w / 2, pl.y); }
+  if (!wasGround) {   // landing: squash and a spray of shapes, both by how hard you came down
+    const k = clamp((p.vy - 150) / 1000, 0, 1);
+    p.sq = 0.82 - 0.22 * k; sfx.land(k); landPuff(p, pl.y, k);
+  }
   p.vy = 0;
 }
 

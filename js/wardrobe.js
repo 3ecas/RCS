@@ -33,7 +33,7 @@ function holdDoor(id, cx, dt) {
   const before = doorHold[id] || 0;
   doorHold[id] = inIt ? before + dt : 0;
   if (inIt && before === 0) sfx.beep(520);
-  if (doorHold[id] >= DOOR_HOLD) { doorHold = {}; return true; }
+  if (doorHold[id] >= DOOR_HOLD) { doorHold = {}; sfx.portal(); return true; }
   return false;
 }
 const holdOf = id => clamp((doorHold[id] || 0) / DOOR_HOLD, 0, 1);
@@ -57,7 +57,7 @@ const DOOR_OPEN = 0.25, DOOR_SWAP = 0.6, DOOR_END = 1.05;
 function startDoor(enter) {
   if (doorT) return;
   doorT = { t: 0, enter, swapped: false };
-  sfx.creak();
+  sfx.portal();
 }
 function updateDoor(dt) {
   doorT.t += dt;

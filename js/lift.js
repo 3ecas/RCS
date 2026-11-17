@@ -80,7 +80,7 @@ function updateLift(dt) {
       p.x = p.prevX = p.liftX; p.y = p.prevY = GROUND_Y - p.h; p.onGround = true; p.ground = lift.ground; p.sq = 0.8;
     }
     for (let k = 0; k < 6; k++) dust(pl.x + (k + 0.5) * pl.w / 6, GROUND_Y);
-    sfx.land(); sfx.beep(440); shake = Math.max(shake, 0.12);
+    sfx.land(1); sfx.count(); shake = Math.max(shake, 0.12);
     countdown = lift.total - lift.dur;
     state = 'count';
     lift = null;

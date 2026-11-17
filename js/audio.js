@@ -11,6 +11,7 @@ function toggleMute() {
 function audioInit() {
   if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
+  if (actx && typeof musicStart === 'function') musicStart();   // the music and ambience (js/music.js)
 }
 function tone(f0, f1, dur, type = 'square', vol = 0.06, delay = 0) {
   if (!actx || muted) return;
@@ -39,12 +40,53 @@ function noise(dur, vol = 0.1, freq = 1200) {
   s.connect(f).connect(g).connect(actx.destination);
   s.start(t); s.stop(t + dur);
 }
+// Filtered noise whose filter sweeps from f0 to f1 (whooshes)
+function sweep(dur, vol, f0, f1, type = 'bandpass', q = 1.2, delay = 0) {
+  if (!actx || muted) return;
+  noise(0.001, 0);                                             // (makes sure the noise buffer exists)
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = type; f.Q.value = q;
+  const g = actx.createGain(), t = actx.currentTime + delay;
+  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(actx.destination);
+  s.start(t, Math.random() * 0.4); s.stop(t + dur + 0.02);
+}
+let lastPortal = 0;
 const sfx = {
+  // Going through a portal: a deep airy woooosh rising, with a soft rising tone under it
+  portal: () => {
+    if (!actx || actx.currentTime - lastPortal < 0.4) return;
+    lastPortal = actx.currentTime;
+    sweep(0.9, 0.11, 220, 3200, 'bandpass', 0.9); tone(160, 620, 0.8, 'sine', 0.045);
+  },
+  // Race start: three beeps (3, 2, 1) and a horn on GO
+  count: () => { tone(660, 660, 0.16, 'square', 0.035); tone(1320, 1320, 0.1, 'triangle', 0.025); },
+  horn: () => {
+    if (!actx || muted) return;
+    const t = actx.currentTime, f = actx.createBiquadFilter(), g = actx.createGain();
+    f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.linearRampToValueAtTime(2400, t + 0.08);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.03); g.gain.setValueAtTime(0.09, t + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    f.connect(g).connect(actx.destination);
+    for (const fr of [220, 277.2, 329.6, 440]) {
+      const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(fr * 0.97, t); o.frequency.linearRampToValueAtTime(fr, t + 0.06);
+      o.connect(f); o.start(t); o.stop(t + 0.95);
+    }
+  },
   jump: i => tone(i ? 360 : 290, i ? 720 : 580, 0.13, 'triangle', 0.06),
-  land: () => tone(170, 90, 0.06, 'triangle', 0.05),
-  spring: () => tone(240, 1300, 0.3, 'sine', 0.09),
+  land: (k = 0.5) => { tone(150, 70, 0.08 + 0.06 * k, 'triangle', 0.03 + 0.05 * k); if (k > 0.4) noise(0.06, 0.03 * k, 600); },
+  // A springy BOING: a rising tone with a wobble that settles
+  spring: () => {
+    if (!actx || muted) return;
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(), lfo = actx.createOscillator(), lg = actx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(820, t + 0.35);
+    lfo.frequency.value = 16; lg.gain.setValueAtTime(70, t); lg.gain.exponentialRampToValueAtTime(1, t + 0.5);
+    lfo.connect(lg).connect(o.frequency);
+    g.gain.setValueAtTime(0.11, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    o.connect(g).connect(actx.destination); o.start(t); lfo.start(t); o.stop(t + 0.6); lfo.stop(t + 0.6);
+  },
   creak: () => tone(140, 95, 0.18, 'triangle', 0.035),
-  flame: () => noise(0.35, 0.03, 2200),
+  flame: () => { sweep(0.45, 0.07, 300, 2600, 'lowpass', 0.7); tone(95, 55, 0.4, 'sawtooth', 0.02); },   // a flame bursting out
   gem: () => { tone(1320, 1320, 0.07, 'triangle', 0.06); tone(1760, 1760, 0.12, 'triangle', 0.06, 0.06); },
   zap: () => { noise(0.25, 0.035, 5000); tone(1400, 700, 0.2, 'sawtooth', 0.02); },
   fireball: () => tone(900, 300, 0.4, 'sine', 0.03),

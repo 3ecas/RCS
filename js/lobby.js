@@ -128,7 +128,7 @@ const inStartTowerGame = () => (state === 'count' || state === 'play' || state =
   gen && gen.lobby && net.status !== 'playing';
 function beginPlay() {
   state = 'play'; lobbyFade = 0.0001;
-  sfx.beep(880);
+  sfx.horn();
   floatText('GO!', W / 2, camY + H * 0.4, PAL.good);
 }
 

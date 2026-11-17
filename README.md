@@ -22,6 +22,8 @@ After a game, **PLAY AGAIN** (selected first: Space presses the selected button;
 
 During a game the **speaker** icon (top right) or **M** turns sound on/off (remembered).
 
+**Music and sound** (all generated in code with the Web Audio API — no sound files, `js/audio.js` and `js/music.js`): a little generative band plays over a pastel chord loop. It's **calm** in the start scene and the online rooms (84 bpm: a soft pad and a gentle arpeggio) and gets more **frenetic** as you climb: the tempo rises to about 155 bpm and layers come in — bass, then a kick and hats, then a four-on-the-floor beat with a snare and quick arpeggios, and near the top a bright lead. **Ambience** follows what's near your cube: wind when you move fast, a hum near moving platforms, bubbling near water columns, a whirr near shurikens, crackling near burning flames. Effects: a **woooosh** going through a portal, a springy **boing**, a flame bursting out, a landing thud as hard as the landing, and the race start — **three beeps and a horn** on GO. Jumping stretches the cube with a puff of little shapes under it; landing squashes it and sprays shapes along the floor, both by how hard you came down.
+
 ## Controls
 
 | | Jump | Move | Drop through |
@@ -62,6 +64,7 @@ js/utils.js       small maths and colour helpers
 js/canvas.js      the canvas, filling the whole window
 js/input.js       keyboard and mouse
 js/audio.js       sound effects (generated, no sound files)
+js/music.js       the music (gets faster and busier as you climb) and the ambience
 js/state.js       game state, players, starting a new tower
 js/net.js         online play (talks to the server)
 js/level.js       building the tower and its hazards

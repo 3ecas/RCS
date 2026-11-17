@@ -4,7 +4,7 @@
 
 // A new run of the current mode on a clean tower (no start scene), with the 3-2-1 countdown
 // (stop menu → START OVER, end screen → PLAY AGAIN)
-function startGame() { startWipe(); reset(undefined, false); state = 'count'; countdown = 3; sfx.beep(440); }
+function startGame() { startWipe(); reset(undefined, false); state = 'count'; countdown = 3; sfx.count(); }
 // Back to the lobby (the start scene); player 2 stays if they joined
 function toMenu() { startWipe(); reset(); lobbyFade = 0; state = 'lobby'; ui.focus = 0; ui.help = false; }
 // Leaving an end screen: the race's stripes sweep away to the sides (or, after a solo game, the veil
