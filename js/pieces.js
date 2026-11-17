@@ -7,7 +7,8 @@
 //   plaza    — a wide platform, then two routes (one with a gem), then they meet again
 //   fork     — a wide platform, then two routes side by side for a few rows (one with the obstacles), then
 //              they meet again: now and then there's more than one way up. Sometimes they don't meet: they
-//              lead straight into a chimney instead, one route into its shaft, the other up its outside
+//              lead straight into a chimney instead, one route into its shaft, the other up its outside —
+//              and a chimney's cap and outside route can lead straight on into a fork the same way
 // Each piece places the path's platform(s) for one row; js/level.js adds the extras, hazards and gems.
 'use strict';
 
@@ -33,6 +34,7 @@ function startPiece(m, L) {
   let r = R() * opts.reduce((s, [, p]) => s + p.weight, 0), kind = 'scatter';
   for (const [k, p] of opts) { r -= p.weight; if (r <= 0) { kind = k; break; } }
   if (gen.handoff) kind = 'chimney';   // a fork leading straight into a chimney (see fork)
+  if (gen.forkFrom) kind = 'fork';     // a chimney's two ways out leading straight into a fork (see chimney)
   const [a, b] = PIECES[kind].rows;
   const rows = a + Math.floor(R() * (b - a + 1));
   gen.piece = { kind, rows, left: rows, k: 0 };
@@ -111,6 +113,8 @@ const PIECE_ROW = {
         const side = pc.alt ? pc.alt.side : (ledgeL && ledgeR ? (R() < 0.5 ? -1 : 1) : ledgeL ? -1 : ledgeR ? 1 : 0);
         if (side && (side < 0 ? ledgeL : ledgeR)) pc.exit = { side, x: side < 0 ? pl.x - LEDGE : pr.x + pr.w, w: LEDGE };
       }
+      // Sometimes the cap and the top of the outside route lead straight on into a fork (one route each)
+      pc.toFork = !!pc.alt && pc.exit === 'cap' && R() < 0.4;
       const main = plain(pc.cx - capW / 2, y, capW);
       pc.altPrev = main;
       if (outLane && pc.alt) {   // the fork's other route carries straight on: the outside route's first step, this row
@@ -142,6 +146,10 @@ const PIECE_ROW = {
       const main = plain(pc.cx - capW / 2, y, capW);
       for (const dv of pc.pillars) dv.top = y + main.h;   // the pillars hold the cap up
       addGem(pc.cx, y - 50);
+      if (pc.toFork && row.length) {   // → a fork next: the cap and the outside route's top step are its two routes
+        const [a, b] = center(main) < center(row[0]) ? [main, row[0]] : [row[0], main];
+        gen.forkFrom = { l: a, r: b };
+      }
       return { main, row: [main, ...row], rowHaz: false, block: whole, noFly: true };
     }
     // Inside the shaft there's nothing to stand on: wall-jump between the pillars. Late in the climb some
@@ -156,7 +164,11 @@ const PIECE_ROW = {
 
   fork(pc, y, m, d, L, G, allowHaz) {
     const R0 = W - WALL, mid = (L + R0) / 2;
-    if (pc.k === 0) {            // a wide platform both routes start from
+    if (pc.k === 0 && gen.forkFrom) {   // straight out of a chimney: its two ways out are already the two routes
+      pc.lp = gen.forkFrom.l; pc.rp = gen.forkFrom.r; gen.forkFrom = null;
+      pc.risky = R() < 0.5 ? -1 : 1;
+      pc.toChimney = m >= PIECES.chimney.minM && R() < 0.25;
+    } else if (pc.k === 0) {     // a wide platform both routes start from
       const w = Math.min(R0 - L - 60, wrand(380, 480));
       pc.cx = pickCx(w, L, R0, gen.prev ? [gen.prev] : [], G);
       const main = plain(pc.cx - w / 2, y, w);
