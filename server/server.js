@@ -9,6 +9,7 @@
 //                                                       (protocol version, cube colours and looks, name)
 //                    {t:'ready', on}                    ready (or not) for the next race: this computer's cubes
 //                                                       are standing on the room's START platform (or not)
+//                    (find also carries code: a private room's password, or '' for the public rooms)
 //                    {t:'leave'}                        leave the room
 //                    {t:'relay', d:{...}}               pass game data on: to the others in the race, or (while
 //                                                       not racing) to the others walking around the room
@@ -169,7 +170,7 @@ setInterval(() => {
 //  - otherwise (everyone in the room scene), when every computer in the room is ready (at least 2).
 // Anyone joining while a race is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 24;              // game and server must speak the same version
+const PROTOCOL = 25;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -177,12 +178,13 @@ const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
 // Send each player the room: who's in it, who's ready, who's racing, and which one is them
 function roomStatus(r) {
   const list = r.members.map(c => ({ id: c.id, name: c.name, colors: c.colors, looks: c.looks, ready: r.ready.has(c), racing: r.racers.includes(c), results: r.atResults.has(c) }));
-  r.members.forEach((c, i) => c.send({ t: 'room', phase: r.phase, players: list, me: i, max: MAX_PLAYERS, round: r.round }));
+  r.members.forEach((c, i) => c.send({ t: 'room', phase: r.phase, players: list, me: i, max: MAX_PLAYERS, round: r.round, priv: !!r.code }));
 }
 
 function joinRoom(c) {
-  let r = rooms.find(x => cubesIn(x.members) + c.colors.length <= MAX_PLAYERS);
-  if (!r) { r = { members: [], racers: [], ready: new Set(), atResults: new Set(), phase: 'lobby', round: 0, mode: 'versus' }; rooms.push(r); }
+  const code = c.code || '';   // private rooms only take players with their password; public ones only those without
+  let r = rooms.find(x => x.code === code && cubesIn(x.members) + c.colors.length <= MAX_PLAYERS);
+  if (!r) { r = { members: [], racers: [], ready: new Set(), atResults: new Set(), phase: 'lobby', round: 0, mode: 'versus', code }; rooms.push(r); }
   c.room = r;
   r.members.push(c);
   roomStatus(r);
@@ -256,6 +258,8 @@ function onMessage(c, text) {
     c.looks = c.colors.map((_, k) => { const l = looks[k] || {}; return { f: Math.max(0, Math.min(15, l.f | 0)), h: Math.max(0, Math.min(15, l.h | 0)), p: Math.max(0, Math.min(15, l.p | 0)) }; });
     // The name the player typed: letters, numbers, spaces and a few symbols, at most 12 characters
     c.name = String(m.name || '').replace(/[^\p{L}\p{N} _.'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 12);
+    // A private room's password ('' = the public rooms): the same password puts you in the same room
+    c.code = String(m.code || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 24);
     joinRoom(c);
   } else if (m.t === 'ready') {
     const r = c.room;

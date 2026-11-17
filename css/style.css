@@ -26,3 +26,20 @@ canvas { display: block; }
   font-family: 'Fredoka', ui-rounded, sans-serif; font-weight: 600; font-size: 17px;
 }
 .chat-box::placeholder { color: rgba(74, 59, 99, 0.45); }
+/* Private room password box (js/private.js) */
+.priv-box {
+  position: fixed; display: none; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(420px, 86vw); box-sizing: border-box; padding: 26px 28px 20px; text-align: center;
+  background: #ffffff; border: 3px solid #9a84d6; border-radius: 26px; box-shadow: 0 8px 0 #c8b6f2;
+  font-family: 'Fredoka', ui-rounded, sans-serif; color: #4a3b63;
+}
+.priv-title { font-weight: 700; font-size: 28px; letter-spacing: 1px; }
+.priv-sub { font-weight: 600; font-size: 14px; color: rgba(74, 59, 99, 0.6); margin: 4px 0 16px; }
+.priv-input {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 48px; box-sizing: border-box; padding: 0 18px;
+  border: 2px solid #9a84d6; border-radius: 24px; outline: none; background: #faf7ff; color: #4a3b63;
+  font-family: 'Fredoka', ui-rounded, sans-serif; font-weight: 600; font-size: 19px; text-align: center;
+}
+.priv-input:focus { border-color: #6cbf9f; background: #ffffff; }
+.priv-input::placeholder { color: rgba(74, 59, 99, 0.4); }
+.priv-hint { font-weight: 600; font-size: 13px; color: rgba(74, 59, 99, 0.5); margin-top: 12px; }

@@ -9,10 +9,12 @@
 const DOOR_W = 46, DOOR_H = 66;
 const wardrobe = { saved: null, exitX: 0 };
 
-// The wardrobe door stands on the floor: in the start scene near the left wall, in the online room right of
-// the START platform. wardrobe.from = the scene you went in from (you come back out there).
+// Where the portals stand: the wardrobe always on the left, EXIT always on the right, any others in between.
+// Start scene: wardrobe by the left wall, PRIVATE in the middle, ONLINE by the right wall. Online room:
+// wardrobe left of START, EXIT right of it. Inside the wardrobe: EXIT by the right wall.
+// wardrobe.from = the scene you went into the wardrobe from (you come back out there).
 const LOBBY_DOOR_X = () => WALL + 52;
-const doorXOf = scene => scene === 'room' ? W / 2 + 200 : LOBBY_DOOR_X();
+const doorXOf = scene => scene === 'room' ? W / 2 - 200 : LOBBY_DOOR_X();
 const sceneDoorX = () => doorXOf(state === 'wardrobe' ? wardrobe.from : state);
 
 // Is this cube standing in front of a door (on that platform / floor, within the doorway)?
@@ -90,17 +92,17 @@ function enterWardrobe() {
   gems = [];
   state = 'wardrobe';
   sfx.beep(520);
-  wardrobe.exitX = WALL + 90;
+  wardrobe.exitX = W - WALL - 90;
   platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
-  // The four wardrobe platforms, one jump above the floor, right of the exit door
-  const left = WALL + 200, slot = (W - WALL - left) / WEAR.length, w = Math.min(190, slot - 50);
+  // The four wardrobe platforms, one jump above the floor, left of the exit
+  const left = WALL + 20, right = wardrobe.exitX - 110, slot = (right - left) / WEAR.length, w = Math.min(190, slot - 50);
   WEAR.forEach((wear, k) => {
     const cx = left + slot * (k + 0.5);
     platforms.push({ id: nextPid++, x: cx - w / 2, y: GROUND_Y - ROW_GAP, w, h: 30, type: 'normal', menu: 'wear', wear, dx: 0, dy: 0, t: 0, falling: false });
   });
   players.forEach((p, k) => {
-    p.x = p.prevX = wardrobe.exitX + 50 + k * 50; p.y = p.prevY = GROUND_Y - p.h;
-    p.vx = p.vy = 0; p.onGround = true; p.ground = platforms[0]; p.face = 1;
+    p.x = p.prevX = wardrobe.exitX - 50 - PS - k * 50; p.y = p.prevY = GROUND_Y - p.h;
+    p.vx = p.vy = 0; p.onGround = true; p.ground = platforms[0]; p.face = -1;
   });
   particles = [];
 }
@@ -189,12 +191,12 @@ function drawDoor(cx, floorY, label, hold, open = 0) {
 function drawLobbyDoor() {
   drawDoor(sceneDoorX(), GROUND_Y, '', holdOf('wardrobe'), doorOpen(true));
   if (state === 'room') drawRoomExit();
-  else drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0);
+  else { drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0); drawDoor(PRIVATE_X(), GROUND_Y, 'PRIVATE', holdOf('private'), 0); }
 }
 
-// The online room's way out: an EXIT portal left of START (mirroring the wardrobe on the right). Press down at it to leave online play
+// The online room's way out: an EXIT portal right of START (the wardrobe is on the left). Press down at it to leave online play
 // (the circle closes on your cube and opens back in the start scene — js/net.js leaveOnline).
-const ROOM_EXIT_X = () => W / 2 - 200;
+const ROOM_EXIT_X = () => W / 2 + 200;
 function checkRoomExit(dt) {
   if (holdDoor('roomExit', ROOM_EXIT_X(), dt)) { sfx.swoosh(); leaveOnline(); return true; }
   return false;

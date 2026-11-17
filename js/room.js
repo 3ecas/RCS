@@ -29,7 +29,7 @@ function enterRoom() {
   // Your cubes: player 1 (WASD) and player 2 (arrow keys) if you're two on this computer
   players = [];
   for (let j = 0; j < net.local; j++) {
-    const p = mkPlayer(j, W / 2 - 110 - j * 60);   // (between the EXIT portal and START)
+    const p = mkPlayer(j, W / 2 - 110 - j * 60);   // (between the wardrobe portal and START)
     p.slot = j; p.uid = 'me:' + j;
     players.push(p);
   }
@@ -94,7 +94,7 @@ function updateRoom(dt) {
   updateParticles(dt);
   checkWardrobeDoor(dt);   // the wardrobe portal, right of START (js/wardrobe.js)
   if (doorT) return;
-  if (checkRoomExit(dt)) return;   // the EXIT portal left of START: back to the start scene (js/wardrobe.js)
+  if (checkRoomExit(dt)) return;   // the EXIT portal right of START: back to the start scene (js/wardrobe.js)
 
   // Ready = all of this computer's cubes are on START. Tell the server when that changes.
   const ready = players.filter(p => !p.remote).every(onStart);
@@ -127,7 +127,9 @@ function drawStartPlatform(p) {
 function drawRoomHUD() {
   ctx.save(); ctx.translate(0, -OY);
   ctx.save(); OUTLINE = true;
-  text('ROOM', W / 2, 92, 56, PAL.ink, 'center', 900);
+  const priv = net.room && net.room.priv;
+  text(priv ? 'PRIVATE ROOM' : 'ROOM', W / 2, 92, priv ? 44 : 56, PAL.ink, 'center', 900);
+  if (priv) text('password: ' + net.code, W / 2, 152, 14, PAL.inkSoft, 'center', 800);
   text(roomLine(), W / 2, 128, 18, PAL.good, 'center', 900);
   OUTLINE = false; ctx.restore();
   const R = net.room;
