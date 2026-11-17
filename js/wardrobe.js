@@ -180,8 +180,10 @@ function drawDoor(cx, floorY, label, hold, open = 0) {
   if (label) {   // a word on its own, drawn like the shirt sign: white with a dark rounded outline
     ctx.save();
     ctx.font = `900 18px ${FONT}`; ctx.textAlign = 'center'; if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
-    ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = PAL.ink; ctx.strokeText(label, cx, by + 7);
-    ctx.fillStyle = '#ffffff'; ctx.fillText(label, cx, by + 7);
+    // (kept inside the walls: a long word over a corner portal shifts in a little)
+    const half = ctx.measureText(label).width / 2 + 4, lx = clamp(cx, WALL + 6 + half, W - WALL - 6 - half);
+    ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = PAL.ink; ctx.strokeText(label, lx, by + 7);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(label, lx, by + 7);
     ctx.restore();
   } else {
     drawShirt(cx, by + 2);   // a shirt sign, on its own (no badge behind it)

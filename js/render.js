@@ -432,7 +432,7 @@ function render() {
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby' || state === 'room' || state === 'hub') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
   // a game started from the start scene: its portals stay as they are and scroll away with the floor (no fade)
-  else if (gen && gen.lobby && net.status !== 'playing' && camY + H + OY > GROUND_Y - DOOR_H - 60) drawLobbyDoor();
+  else if (inStartTowerGame() && camY + H + OY > GROUND_Y - DOOR_H - 60) drawLobbyDoor();
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);
   for (const g of gems) drawGem(g);

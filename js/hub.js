@@ -73,9 +73,10 @@ function drawCeiling(dv) {
 function drawHubHUD() {
   const c = hubCeil();
   ctx.save(); ctx.translate(0, -camY);   // (in the tunnel, which the camera centres)
-  ctx.save(); OUTLINE = true;   // the title, inside the tunnel just under the ceiling
-  text('ONLINE', W / 2, c + 46, 36, PAL.ink, 'center', 900);
-  text('Find a match, or play in private with your friends', W / 2, c + 72, 15, PAL.good, 'center', 900);
+  // the title, centred in the tunnel's space between the ceiling and the portals' signs
+  const signTop = GROUND_Y - DOOR_H - 36, mid = (c + signTop) / 2;
+  ctx.save(); OUTLINE = true;
+  text('ONLINE', W / 2, mid + 14, 40, PAL.ink, 'center', 900);
   OUTLINE = false; ctx.restore();
   ctx.restore();
   drawBanner(250);

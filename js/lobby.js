@@ -122,6 +122,10 @@ function chooseMode(menu, code = '') {
 // lobbyFade: seconds since leaving the lobby for a game — its logo, keys and labels fade out over LOBBY_FADE
 let lobbyFade = 0;
 const LOBBY_FADE = 0.65;
+// A game going on in the start scene's own tower (solo / co-op): its floor's portals, logo and best height
+// are still there, scrolling away with the floor
+const inStartTowerGame = () => (state === 'count' || state === 'play' || state === 'paused' || state === 'over') &&
+  gen && gen.lobby && net.status !== 'playing';
 function beginPlay() {
   state = 'play'; lobbyFade = 0.0001;
   sfx.beep(880);
