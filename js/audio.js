@@ -60,6 +60,12 @@ const sfx = {
     lastPortal = actx.currentTime;
     sweep(0.9, 0.11, 220, 3200, 'bandpass', 0.9); tone(160, 620, 0.8, 'sine', 0.045);
   },
+  // A new best height: a quick happy chip arpeggio up, then a little trill
+  record: () => {
+    [523, 659, 784, 1047, 1319].forEach((f, k) => tone(f, f, 0.09, 'square', 0.03, k * 0.065));
+    [1568, 1319, 1568, 1319, 1568].forEach((f, k) => tone(f, f, 0.06, 'square', 0.022, 0.36 + k * 0.055));
+    tone(2093, 2093, 0.3, 'triangle', 0.03, 0.65);
+  },
   // Race start: three soft beeps (3, 2, 1) and a trumpet ta-ra on GO
   count: () => { tone(660, 660, 0.14, 'triangle', 0.035); tone(1320, 1320, 0.08, 'sine', 0.012); },   // a soft clean beep
   // GO: a clean little trumpet call, "ta-RA!" — a short note, then the fourth above it held

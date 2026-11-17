@@ -25,7 +25,7 @@ let regionOrder = [];
 function makeRegionOrder(seed) {
   let s = seed | 0;
   const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  regionOrder = [];
+  regionOrder = []; soloCache = {};
   for (let k = 0; k < 60; k++) {
     const prev = regionOrder[k - 1], pool = REGION_POOL.filter(r => r !== prev);
     regionOrder.push(pool[Math.floor(rnd() * pool.length)]);
@@ -37,7 +37,24 @@ function regionAt(m) {
   const k = regionIndex(m);
   return k < 0 ? 'start' : regionOrder[k % regionOrder.length];
 }
-const has = (m, hazard) => REGIONS[regionAt(m)].has.includes(hazard);
+const has = (m, hazard) => REGIONS[regionAt(m)].has.includes(hazard) || soloExtras(m).includes(hazard);
+// Solo and co-op runs get more obstacles, coming in gradually (online races are unchanged, so every racer
+// gets the same tower): from the second region on, each region also mixes in a hazard borrowed from another
+// one, two from the fourth region on — and all hazards get more frequent the higher you are (hz).
+const SOLO_EXTRA = ['spikes', 'shuriken', 'wallflame', 'zapper', 'tilt'], NO_EXTRA = [];
+let soloCache = {};
+function soloExtras(m) {
+  if (mode === 'versus') return NO_EXTRA;
+  const k = regionIndex(m);
+  if (k < 1) return NO_EXTRA;
+  if (soloCache[k]) return soloCache[k];
+  const own = REGIONS[regionAt(m)].has, pool = SOLO_EXTRA.filter(h => !own.includes(h));
+  const a = Math.floor(hash(k, towerSeed & 0xffff) * pool.length), out = [pool[a]];
+  if (k >= 3 && pool.length > 1) out.push(pool[(a + 1 + Math.floor(hash(towerSeed & 0xffff, k) * (pool.length - 1))) % pool.length]);
+  return (soloCache[k] = out);
+}
+// How much more often hazards turn up (solo / co-op): a little less than now at the start, up to 1.45x high up
+const hz = m => mode === 'versus' ? 1 : lerp(0.75, 1.45, ramp(m, START_REGION, 1000));
 // How hard hazards are: 0 at the end of the start region, 1 by 600 m
 const heat = m => ramp(m, START_REGION, 500);
 
@@ -109,7 +126,7 @@ function genPathRow(y, m, d, L) {
 
   // Sometimes an extra platform off to the side, in the free space beside the path
   const row = [...pc.row], extras = 1;
-  const pBlade = has(m, 'shuriken') ? lerp(0.25, 0.45, heat(m)) : 0;
+  const pBlade = has(m, 'shuriken') ? lerp(0.25, 0.45, heat(m)) * hz(m) : 0;
   for (let k = 0; k < extras; k++) {
     if (R() >= lerp(0.28, 0.12, d)) continue;
     const GAP = 50, minW = lerp(110, 80, d);
@@ -143,8 +160,8 @@ function genPathRow(y, m, d, L) {
   // One flying obstacle (shuriken, wall flame or lightning beam) in the gap above this row
   let blade = null;
   if (allowHaz && !rowHaz && !pc.noFly) {
-    const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) : 0;
-    const pZap = has(m, 'zapper') ? lerp(0.35, 0.55, heat(m)) : 0;
+    const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) * hz(m) : 0;
+    const pZap = has(m, 'zapper') ? lerp(0.35, 0.55, heat(m)) * hz(m) : 0;
     const r = R();
     if (r < pJet) { addJet(R() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
     else if (r < pJet + pBlade) {
@@ -191,7 +208,7 @@ function snapToWalls(row) {
 function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
   const p = { id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: wrand(0, 10), falling: false, vy: 0, bounceT: 0 };
   const r = R();
-  const pMove = has(m, 'move') ? lerp(0.15, 0.32, heat(m)) : 0;
+  const pMove = has(m, 'move') ? lerp(0.15, 0.32, heat(m)) * hz(m) : 0;
   const pTilt = has(m, 'tilt') ? lerp(0.3, 0.45, heat(m)) : 0;
   const pSpring = has(m, 'spring') ? 0.12 : 0;
   if (r < pMove) {
@@ -208,7 +225,7 @@ function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
     p.type = 'spring'; p.w = 70; p.x = cx - 35;
   }
   // Spikes: at most 45% of the platform, so there's always room to land
-  const pHaz = has(m, 'spikes') ? lerp(0.3, 0.55, heat(m)) : 0;
+  const pHaz = has(m, 'spikes') ? Math.min(0.8, lerp(0.3, 0.55, heat(m)) * hz(m)) : 0;
   if (allowHaz && (p.type === 'normal' || p.type === 'move') && p.w >= 100 && R() < pHaz) {
     const len = wrand(26, p.w * 0.45);
     const x0 = R() < 0.5 ? 0 : p.w - len;

@@ -1,7 +1,9 @@
 // RCS — The game rules: update loop, player movement, hazards and deaths.
 'use strict';
 
+let runRecord = null;   // { t } once this run has beaten your best height (see the height update below)
 function update(dt) {
+  if (runRecord) runRecord.t += dt;
   if (screenWipe && (screenWipe.t += dt) > 0.8) screenWipe = null;   // the end-screen transition (js/menu.js)
   if (lobbyFade > 0 && (lobbyFade += dt) > LOBBY_FADE) lobbyFade = 0;   // the lobby fading away (js/lobby.js)
   if (state !== 'room' && chatOpen()) closeChat();   // the chat box is only for the room
@@ -81,6 +83,11 @@ function update(dt) {
   const h = Math.max(0, ...alive().map(p => Math.floor(playerProgress(p))));
   if (h > height) {
     height = h;
+    // Passing your best height in a solo / co-op run: a jingle, and the height counter goes green and bounces
+    if (mode !== 'versus' && best > 0 && !runRecord && height > best) {
+      runRecord = { t: 0 }; sfx.record();
+      floatText('NEW BEST!', W / 2, camY + H * 0.3, PAL.good, 40);
+    }
     if (height >= nextMilestone) {
       const ms = Math.floor(height / 50) * 50;   // the highest one passed (a spring can skip one)
       floatText(ms + ' m!', W / 2, camY + H * 0.3);

@@ -489,7 +489,12 @@ function drawHUD() {
     ctx.save(); ctx.translate(0, -OY);     // pinned to the top of the window
     if (lobbyFade > 0) ctx.globalAlpha = clamp(lobbyFade / LOBBY_FADE, 0, 1);   // fading in as the lobby fades out
     ctx.save(); OUTLINE = true;     // a soft white edge keeps the text readable over the tower
-    text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
+    if (runRecord) {   // a new best: green, and bouncing bigger and smaller (a big bounce first, then a gentle one)
+      const t = runRecord.t, k = 1 + Math.sin(t * 10) * (t < 2.5 ? 0.22 * (1 - t / 3.2) : 0.05) + (t < 0.25 ? (0.25 - t) * 2 : 0);
+      ctx.save(); ctx.translate(W / 2, 56); ctx.scale(k, k);
+      text(height + ' m', 0, 14, 46, PAL.good, 'center', 900);
+      ctx.restore();
+    } else text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
     if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
     if (!VS && GEMS_ON) { drawGemIcon(WALL + 21, 54, 8); text(String(runGems), WALL + 34, 60, 16, '#1f97ab', 'left', 900); }
     if (net.status === 'playing') text('ONLINE', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);

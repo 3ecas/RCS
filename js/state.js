@@ -66,6 +66,7 @@ function mkPlayer(i, x, colorIdx = localColor(i), look = localLook(i)) {
 
 // withLobby: build the start scene at the bottom (offline only); PLAY AGAIN / START OVER get a clean tower
 function reset(seed, withLobby = true) {
+  runRecord = null;
   wseed = seed || (Math.random() * 2147483646 + 1) | 0;
   towerSeed = wseed;                // (kept: the winner animation is picked from it, the same on every computer)
   makeRegionOrder(wseed);   // which regions come in which order (js/level.js)
