@@ -9,11 +9,11 @@ function startWorld(withLobby) {
   gen = { prev: null, prevHaz: false };   // last main-path platform, and whether the last row had a hazard
   rowK = 1;
   if (withLobby) {
-    const padEnd = buildLobby();
+    buildLobby();
     rowK = 2;
     // The mode platforms span the width, so the next row can start anywhere; keep it hazard-free.
     // On the sound pad's row the tower's platforms stay clear of the pad.
-    gen = { prev: platforms.find(p => p.stair) || { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true, lo: padEnd + 60, loUntil: GROUND_Y - 2.5 * ROW_GAP,
+    gen = { prev: platforms.find(p => p.stair) || { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true,
             lobby: true };   // (the start scene: see clearTopEdge)
   }
   generate();

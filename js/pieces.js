@@ -6,7 +6,8 @@
 //   wall     — ledges hugging a side wall, alternating with platforms further out: wall-jump up the side
 //   plaza    — a wide platform, then two routes (one with a gem), then they meet again
 //   fork     — a wide platform, then two routes side by side for a few rows (one with the obstacles), then
-//              they meet again: now and then there's more than one way up
+//              they meet again: now and then there's more than one way up. Sometimes they don't meet: they
+//              lead straight into a chimney instead, one route into its shaft, the other up its outside
 // Each piece places the path's platform(s) for one row; js/level.js adds the extras, hazards and gems.
 'use strict';
 
@@ -31,6 +32,7 @@ function startPiece(m, L) {
     m >= (p.minM || 0) && (k === 'scatter' || k !== prev) && (k !== 'wall' || nearWall));
   let r = R() * opts.reduce((s, [, p]) => s + p.weight, 0), kind = 'scatter';
   for (const [k, p] of opts) { r -= p.weight; if (r <= 0) { kind = k; break; } }
+  if (gen.handoff) kind = 'chimney';   // a fork leading straight into a chimney (see fork)
   const [a, b] = PIECES[kind].rows;
   const rows = a + Math.floor(R() * (b - a + 1));
   gen.piece = { kind, rows, left: rows, k: 0 };
@@ -78,7 +80,14 @@ const PIECE_ROW = {
       // A floor under the shaft. The pillars start about three cubes above it, so there's room to walk in underneath.
       // Anywhere across the tower (away from the side walls) that its wide floor is still in jumping reach
       // of the last step — so chimneys turn up all over, not just straight above the path
-      pc.cx = pickCx(capW, L + 40, W - WALL - 40, gen.prev ? [gen.prev] : [], G);
+      // Straight out of a fork: one of its routes leads into the chimney, the other carries on up the outside
+      const hand = gen.handoff; gen.handoff = null;
+      let inLane = null, outLane = null;
+      if (hand) {
+        const leftIn = R() < 0.5, mid = (L + W - WALL) / 2;
+        inLane = leftIn ? hand.l : hand.r; outLane = leftIn ? hand.r : hand.l;
+        pc.cx = leftIn ? pickCx(capW, L + 40, mid + 40, [inLane], G) : pickCx(capW, mid - 40, W - WALL - 40, [inLane], G);
+      } else pc.cx = pickCx(capW, L + 40, W - WALL - 40, gen.prev ? [gen.prev] : [], G);
       const top = y - (pc.rows - 1) * ROW_GAP, bot = y - PS - 66;
       pc.pillars = [{ x: pc.cx - SHAFT_W / 2 - PILLAR_W, w: PILLAR_W, top, bot, pillar: true },
                     { x: pc.cx + SHAFT_W / 2, w: PILLAR_W, top, bot, pillar: true }];
@@ -90,8 +99,9 @@ const PIECE_ROW = {
       // platforms, each within reach of the last, ending beside the cap — with obstacles of its own.
       const roomL = pc.cx - capW / 2 - 30 - L, roomR = W - WALL - (pc.cx + capW / 2 + 30);
       const wantAlt = true, wantSide = R() < 0.45;
-      pc.alt = wantAlt && Math.max(roomL, roomR) >= 120
-        ? (roomL >= roomR ? { lo: L + 6, hi: pc.cx - capW / 2 - 30, side: -1 } : { lo: pc.cx + capW / 2 + 30, hi: W - WALL - 6, side: 1 }) : null;
+      const altSide = outLane ? (center(outLane) < pc.cx ? -1 : 1) : (roomL >= roomR ? -1 : 1);
+      pc.alt = wantAlt && (altSide < 0 ? roomL : roomR) >= 120
+        ? (altSide < 0 ? { lo: L + 6, hi: pc.cx - capW / 2 - 30, side: -1 } : { lo: pc.cx + capW / 2 + 30, hi: W - WALL - 6, side: 1 }) : null;
       // The way out at the top: a cap over the shaft, or (sometimes) a ledge beside it — you wall-jump out of
       // the top and step across. With an outside route, the ledge is on that route's side so it leads there too.
       const [pl, pr] = pc.pillars, LEDGE = 110;
@@ -103,6 +113,12 @@ const PIECE_ROW = {
       }
       const main = plain(pc.cx - capW / 2, y, capW);
       pc.altPrev = main;
+      if (outLane && pc.alt) {   // the fork's other route carries straight on: the outside route's first step, this row
+        const w = Math.min(wrand(95, 120), pc.alt.hi - pc.alt.lo - 4);
+        const q = makePlatform(pickCx(w, pc.alt.lo, pc.alt.hi, [outLane], G - 10), y, w, d, pc.alt.lo, pc.alt.hi, false);
+        q.alt = true; pc.altPrev = q;
+        return { main, row: [main, q], rowHaz: false, block: whole, noFly: true };
+      }
       return { main, row: [main], rowHaz: false, block: whole, noFly: true };
     }
     const row = [], ex = pc.exit !== 'cap' ? pc.exit : null;
@@ -145,9 +161,10 @@ const PIECE_ROW = {
       pc.cx = pickCx(w, L, R0, gen.prev ? [gen.prev] : [], G);
       const main = plain(pc.cx - w / 2, y, w);
       pc.lp = pc.rp = main; pc.risky = R() < 0.5 ? -1 : 1;   // which route gets the obstacles
+      pc.toChimney = m >= PIECES.chimney.minM && R() < 0.4;    // sometimes the two routes lead straight into a chimney
       return { main, row: [main], rowHaz: false };
     }
-    if (pc.left === 1) {         // they meet again: one platform reaching over both routes
+    if (pc.left === 1 && !pc.toChimney) {   // they meet again: one platform reaching over both routes
       const a = center(pc.lp), b = center(pc.rp), w = Math.min(R0 - L - 20, Math.max(170, b - a + 50));
       const x = clamp((a + b) / 2 - w / 2, L + 4, R0 - 4 - w);
       const p = plain(x, y, w);
@@ -158,6 +175,7 @@ const PIECE_ROW = {
     const l = makePlatform(pickCx(w, L + 6, mid - 40, [pc.lp], G), y, w, d, L + 6, mid - 40, allowHaz && pc.risky < 0);
     const r = makePlatform(pickCx(w, mid + 40, R0 - 6, [pc.rp], G), y, w, d, mid + 40, R0 - 6, allowHaz && pc.risky > 0);
     pc.lp = l; pc.rp = r;
+    if (pc.left === 1) gen.handoff = { l, r };   // (→ a chimney next: one route into it, the other up its outside)
     // (main = the risky route, so this row's flying obstacle lands on it)
     return { main: pc.risky < 0 ? l : r, row: [l, r], rowHaz: !!(l.spikes || r.spikes), block: [L, R0] };
   },

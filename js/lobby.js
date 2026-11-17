@@ -24,15 +24,10 @@ const LOBBY_LEFT = WALL + 100;   // the mode row starts right of the wardrobe do
 const WEAR = ['colour', 'face', 'hat', 'pattern'];
 const WEAR_LABEL = { colour: 'COLOUR', face: 'FACE', hat: 'HAT', pattern: 'PATTERN' };
 
-// Build the lobby: the mode platforms one jump above the floor, and a small sound pad one jump higher on the
-// left (the wardrobe door stands on the floor, see LOBBY_DOOR_X). Returns where the tower's own platforms
-// may start on the sound pad's row.
-const SOUND_W = 56;
+// Build the lobby: the first stair one jump above the floor (the wardrobe and ONLINE portals stand on the
+// floor; sound is the speaker icon next to ? in the top-right corner)
 function buildLobby() {
   buildLobbyRow1();
-  const x = WALL + 24;
-  platforms.push({ id: nextPid++, x, y: GROUND_Y - 2 * ROW_GAP, w: SOUND_W, h: 16, type: 'normal', menu: 'sound', noDrop: true, dx: 0, dy: 0, t: 0, falling: false });
-  return x + SOUND_W;
 }
 // Row 1 changes when player 2 joins or leaves, so it can be rebuilt on its own
 function buildLobbyRow1() {
@@ -66,7 +61,8 @@ function updateLobby(dt) {
     if (pressed.Escape || pressed.Enter || pressed.Space || click) ui.help = false;
     return;
   }
-  if (click && cornerIcons().some(b => inside(b, click.x, click.y))) { ui.help = true; return; }
+  const icon = click && cornerIcons().find(b => inside(b, click.x, click.y));   // ? (help) or the speaker (sound on/off)
+  if (icon) { if (icon.id === 'mute') { toggleMute(); audioInit(); } else ui.help = true; return; }
   if (pressed.Escape && playerCount === 2) removePlayer2();
 
   // Player 2 joins by holding any arrow key

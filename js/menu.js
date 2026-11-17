@@ -31,7 +31,8 @@ function drawScreenWipe() {
 const ICON = 44;
 function cornerIcons() {
   const y = 14 - OY, x = W + OX - 14 - ICON;   // the window's top-right corner
-  if (state === 'lobby') return [{ id: 'help', label: '?', x, y, w: ICON, h: ICON, nofocus: true }];
+  if (state === 'lobby') return [{ id: 'mute', label: '', icon: 'sound', x: x - ICON - 10, y, w: ICON, h: ICON, nofocus: true },   // sound, then ?
+                                 { id: 'help', label: '?', x, y, w: ICON, h: ICON, nofocus: true }];
   return [{ id: 'mute', label: '', icon: 'sound', x, y, w: ICON, h: ICON, nofocus: true }];
 }
 
