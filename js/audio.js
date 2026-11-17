@@ -60,9 +60,9 @@ const sfx = {
     if (!actx || muted) return;
     sfx.loadStop();
     const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(), steps = 16;
-    o.type = 'square';
+    o.type = 'triangle';   // (a round, soft tone)
     for (let k = 0; k < steps; k++) o.frequency.setValueAtTime(330 * Math.pow(2, 2 * k / (steps - 1)), t + k * dur / steps);   // two octaves up, in little steps
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.018, t + 0.04); g.gain.linearRampToValueAtTime(0.026, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.022, t + 0.06); g.gain.linearRampToValueAtTime(0.03, t + dur);
     o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.2);
     loader = { o, g };
   },
