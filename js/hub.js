@@ -10,13 +10,15 @@ const HUB_EXIT_X = () => W - WALL - CORNER_X;
 // it) this far above the floor
 const HUB_HEIGHT = 230;
 const hubCeil = () => GROUND_Y - HUB_HEIGHT;
+// The camera sits lower here, so the tunnel is in the middle of the screen (the floor fills the space below)
+const hubCamY = () => GROUND_Y - HUB_HEIGHT / 2 - H / 2;
 
 function enterHub() {
   netClose();
   net.room = null; net.code = '';
   state = 'hub'; mode = 'versus'; ui.focus = 0; ui.help = false;
   W = ARENA_W; resize();                                    // the same width as the online lobbies
-  camY = 0; time = time || 0; shake = 0; height = 0;
+  camY = hubCamY(); time = time || 0; shake = 0; height = 0;
   particles = []; fireballs = []; warnings = []; texts = []; blades = []; jets = []; zaps = []; bubbles = []; dividers = []; gems = [];
   platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
   dividers = [{ x: WALL, w: W - 2 * WALL, top: -OY - 2000, bot: hubCeil(), pillar: true, ceiling: true }];   // (solid, like a pillar)
@@ -70,10 +72,12 @@ function drawCeiling(dv) {
 
 function drawHubHUD() {
   const c = hubCeil();
+  ctx.save(); ctx.translate(0, -camY);   // (in the tunnel, which the camera centres)
   ctx.save(); OUTLINE = true;   // the title, inside the tunnel just under the ceiling
   text('ONLINE', W / 2, c + 46, 36, PAL.ink, 'center', 900);
   text('Find a match, or play in private with your friends', W / 2, c + 72, 15, PAL.good, 'center', 900);
   OUTLINE = false; ctx.restore();
   text('Stand in a portal for a second  ·  Esc: back', W / 2, GROUND_Y + 60, 14, PAL.inkSoft, 'center', 800);
+  ctx.restore();
   drawBanner(250);
 }

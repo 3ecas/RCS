@@ -90,7 +90,7 @@ function drawDoorIris() {
 
 function enterWardrobe() {
   wardrobe.from = state;                                    // 'lobby' or 'room'
-  wardrobe.saved = platforms; wardrobe.savedGems = gems;   // the scene, as it is, for when you come back out
+  wardrobe.saved = platforms; wardrobe.savedGems = gems; wardrobe.savedCamY = camY; wardrobe.savedDividers = dividers; camY = 0; dividers = [];   // the scene, as it is, for when you come back out
   wardrobe.savedPlayers = players; players = players.filter(p => !p.remote);   // only your own cubes come in
   gems = [];
   state = 'wardrobe';
@@ -111,7 +111,7 @@ function enterWardrobe() {
 }
 
 function leaveWardrobe() {
-  platforms = wardrobe.saved; gems = wardrobe.savedGems || [];
+  platforms = wardrobe.saved; gems = wardrobe.savedGems || []; camY = wardrobe.savedCamY || 0; dividers = wardrobe.savedDividers || [];
   const mine = players;
   players = wardrobe.savedPlayers || players;
   state = wardrobe.from || 'lobby';
