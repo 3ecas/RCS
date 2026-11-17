@@ -32,8 +32,9 @@ function holdDoor(id, cx, dt) {
   const inIt = !doorT && !iris && mine.length > 0 && mine.every(p => atDoor(p, cx, GROUND_Y));
   const before = doorHold[id] || 0;
   doorHold[id] = inIt ? before + dt : 0;
-  if (inIt && before === 0) sfx.beep(520);
-  if (doorHold[id] >= DOOR_HOLD) { doorHold = {}; sfx.portal(); return true; }
+  if (inIt && before === 0) sfx.loadStart(DOOR_HOLD);   // the loading tone climbs while you stand in it
+  if (!inIt && before > 0) sfx.loadStop();               // stepped out
+  if (doorHold[id] >= DOOR_HOLD) { doorHold = {}; sfx.loadStop(); sfx.pling(); return true; }
   return false;
 }
 const holdOf = id => clamp((doorHold[id] || 0) / DOOR_HOLD, 0, 1);

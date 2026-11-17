@@ -52,10 +52,32 @@ function sweep(dur, vol, f0, f1, type = 'bandpass', q = 1.2, delay = 0) {
   s.connect(f).connect(g).connect(actx.destination);
   s.start(t, Math.random() * 0.4); s.stop(t + dur + 0.02);
 }
-let lastPortal = 0;
+let lastPortal = 0, loader = null;
 const sfx = {
+  // Standing in a portal: a chip tone climbing step by step from low to high over the hold (0 … 100%),
+  // stopped if you step out; going through: a bright pling
+  loadStart: dur => {
+    if (!actx || muted) return;
+    sfx.loadStop();
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(), steps = 16;
+    o.type = 'square';
+    for (let k = 0; k < steps; k++) o.frequency.setValueAtTime(330 * Math.pow(2, 2 * k / (steps - 1)), t + k * dur / steps);   // two octaves up, in little steps
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.018, t + 0.04); g.gain.linearRampToValueAtTime(0.026, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.2);
+    loader = { o, g };
+  },
+  loadStop: () => {
+    if (!loader || !actx) return;
+    const t = actx.currentTime;
+    try { loader.g.gain.cancelScheduledValues(t); loader.g.gain.setTargetAtTime(0.0001, t, 0.015); loader.o.stop(t + 0.08); } catch (e) {}
+    loader = null;
+  },
+  pling: () => {
+    if (actx) lastPortal = actx.currentTime;   // (no whoosh on top of it)
+    tone(1568, 1568, 0.12, 'square', 0.025); tone(2093, 2093, 0.35, 'triangle', 0.05, 0.05); tone(3136, 3136, 0.25, 'sine', 0.02, 0.05);
+  },
   // Going through a portal: a deep airy woooosh rising, with a soft rising tone under it
-  portal: () => {
+  portal: () => {   // (going through with Esc etc.: a whoosh)
     if (!actx || actx.currentTime - lastPortal < 0.4) return;
     lastPortal = actx.currentTime;
     sweep(0.9, 0.11, 220, 3200, 'bandpass', 0.9); tone(160, 620, 0.8, 'sine', 0.045);
