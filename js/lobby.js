@@ -36,9 +36,11 @@ function buildLobby() {
 }
 // Row 1 changes when player 2 joins or leaves, so it can be rebuilt on its own
 function buildLobbyRow1() {
-  platforms = platforms.filter(p => !isMode(p));
+  platforms = platforms.filter(p => !isMode(p) && !p.stair);   // (the solo first stair too: it's rebuilt below if needed)
   const items = lobbyModes();
-  const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(150, slot - 60);
+  // (between the wardrobe portal in the left corner and ONLINE in the right one, never over them)
+  const right = W - WALL - 2 * CORNER_X - 10;
+  const y = GROUND_Y - ROW_GAP, slot = (right - LOBBY_LEFT) / items.length, w = Math.min(150, slot - 60);
   items.forEach((menu, k) => {
     const cx = LOBBY_LEFT + slot * (k + 0.5);
     // ('stair': the first step of the tower — a plain platform where the climb begins)

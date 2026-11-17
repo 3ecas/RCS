@@ -10,12 +10,14 @@ const DOOR_W = 46, DOOR_H = 66;
 const wardrobe = { saved: null, exitX: 0 };
 
 // Where the portals stand: the wardrobe always on the left, EXIT always on the right, any others in between.
-// Start scene: wardrobe by the left wall, ONLINE by the right wall. Online room: wardrobe left of START,
-// PRIVATE right of it (in the public room only), EXIT by the right wall. Inside the wardrobe: EXIT by the
-// right wall.
+// They stand in the corners, a little in from the walls (CORNER_X): the wardrobe in the left one, the way
+// out in the right one — ONLINE in the start scene, EXIT in the online room and inside the wardrobe. The
+// online room's PRIVATE portal is in between, right of START. Nothing low ever hangs over a corner portal
+// (the start scene's mode platforms and the room's platforms keep clear of them).
 // wardrobe.from = the scene you went into the wardrobe from (you come back out there).
-const LOBBY_DOOR_X = () => WALL + 52;
-const doorXOf = scene => scene === 'room' ? W / 2 - 200 : LOBBY_DOOR_X();
+const CORNER_X = 52;                        // a portal's centre, from the wall beside it
+const LOBBY_DOOR_X = () => WALL + CORNER_X;
+const doorXOf = scene => LOBBY_DOOR_X();   // (the same corner in every scene)
 const sceneDoorX = () => doorXOf(state === 'wardrobe' ? wardrobe.from : state);
 
 // Is this cube standing in front of a door (on that platform / floor, within the doorway)?
@@ -39,7 +41,7 @@ function checkWardrobeDoor(dt) {
   if (holdDoor('wardrobe', sceneDoorX(), dt)) startDoor(true);
 }
 // Start scene: the ONLINE portal, on the floor by the right wall
-const ONLINE_X = () => W - WALL - 52;
+const ONLINE_X = () => W - WALL - CORNER_X;
 function checkOnlinePortal(dt) {
   if (holdDoor('online', ONLINE_X(), dt)) { chooseMode('multi'); return true; }
   return false;
@@ -93,7 +95,7 @@ function enterWardrobe() {
   gems = [];
   state = 'wardrobe';
   sfx.beep(520);
-  wardrobe.exitX = W - WALL - 90;
+  wardrobe.exitX = W - WALL - CORNER_X;
   platforms = [{ id: 0, x: WALL, y: GROUND_Y, w: W - 2 * WALL, h: 70, type: 'ground', dx: 0, dy: 0, t: 0, falling: false }];
   // The four wardrobe platforms, one jump above the floor, left of the exit
   const left = WALL + 20, right = wardrobe.exitX - 110, slot = (right - left) / WEAR.length, w = Math.min(190, slot - 50);
@@ -199,7 +201,7 @@ function drawLobbyDoor() {
 
 // The online room's way out: an EXIT portal by the right wall (the wardrobe is on the left). Press down at it to leave online play
 // (the circle closes on your cube and opens back in the start scene — js/net.js leaveOnline).
-const ROOM_EXIT_X = () => W - WALL - 52;
+const ROOM_EXIT_X = () => W - WALL - CORNER_X;
 function checkRoomExit(dt) {
   if (holdDoor('roomExit', ROOM_EXIT_X(), dt)) { sfx.swoosh(); leaveOnline(); return true; }
   return false;

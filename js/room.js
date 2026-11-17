@@ -23,7 +23,7 @@ function enterRoom() {
     { id: 1, x: W / 2 - START_W / 2, y: GROUND_Y - ROW_GAP, w: START_W, h: 30, type: 'normal', menu: 'start', dx: 0, dy: 0, t: 0, falling: false },
   ];
   // A few platforms to hop around on while waiting
-  [[0.12, 1], [0.3, 2], [0.7, 2], [0.14, 3], [0.86, 3]].forEach(   // (none low on the right: EXIT's sign is there)
+  [[0.3, 2], [0.7, 2], [0.14, 3], [0.86, 3]].forEach(   // (none low by the walls: the corner portals are there; START leads up)
     ([f, row], k) => {
     platforms.push({ id: 2 + k, x: W * f - 60, y: GROUND_Y - row * ROW_GAP, w: 120, h: 16, type: 'normal', dx: 0, dy: 0, t: 0, falling: false });
   });
