@@ -35,10 +35,10 @@ function onChat(m) {
   const R = net.room;
   const member = R && R.players.find(p => p.id === m.from);
   const name = member ? roomName(member) : 'Someone';
-  const color = member ? COLORS[member.colors[0]].d : PAL.ink;
-  chat.log.push({ name, color, text: m.text, at: time, mine: R && R.players[R.me] && R.players[R.me].id === m.from });
+  const color = member ? COLORS[member.colors[0]].d : PAL.ink, tint = member ? COLORS[member.colors[0]].c : '#ffffff';
+  chat.log.push({ name, color, tint, text: m.text, at: time, mine: R && R.players[R.me] && R.players[R.me].id === m.from });
   if (chat.log.length > 6) chat.log.shift();
-  chat.bubbles[m.from] = { text: m.text, until: time + 5 };
+  chat.bubbles[m.from] = { text: m.text, until: time + 10 };
   chat.last = time;
   sfx.beep(900);
 }
@@ -94,8 +94,12 @@ function drawChatLog() {
       const nw = ctx.measureText(c.name + ': ').width;
       ctx.font = `700 14px ${FONT}`;
       const tw = ctx.measureText(c.text).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.88)';  // a soft rounded pill behind each line
-      ctx.beginPath(); ctx.roundRect(x, y - 16, nw + tw + 24, 23, 11.5); ctx.fill();
+      // a soft rounded pill behind each line, lightly tinted with the sender's colour (light enough to read on)
+      ctx.beginPath(); ctx.roundRect(x, y - 16, nw + tw + 24, 23, 11.5);
+      ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+      ctx.globalAlpha = chat.vis * 0.2; ctx.fillStyle = c.tint || '#ffffff'; ctx.fill();
+      ctx.globalAlpha = chat.vis * 0.45; ctx.strokeStyle = c.tint || '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.globalAlpha = chat.vis;
       text(c.name + ': ', x + 12, y, 14, c.color, 'left', 900);
       text(c.text, x + 12 + nw, y, 14, PAL.ink, 'left', 700);
     }
