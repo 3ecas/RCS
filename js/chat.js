@@ -94,16 +94,12 @@ function drawChatBubbles() {
   }
 }
 
-// A rounded pill over the cube with a little rounded tail pointing down at it. Returns its top-left corner.
+// A plain rounded capsule over the cube (no tail). Returns its top-left corner.
 function bubbleShape(cube, w, h) {
-  const x = clamp(cube.x + cube.w / 2 - w / 2, WALL + 4, W - WALL - w - 4), y = cube.y - h - 16;
-  const r = Math.min(h / 2, 17), tx = clamp(cube.x + cube.w / 2, x + r, x + w - r);
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-  ctx.moveTo(tx - 7, y + h - 1); ctx.quadraticCurveTo(tx, y + h + 2, tx, y + h + 10); ctx.quadraticCurveTo(tx + 2, y + h + 2, tx + 7, y + h - 1);
+  const x = clamp(cube.x + cube.w / 2 - w / 2, WALL + 4, W - WALL - w - 4), y = cube.y - h - 12;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(h / 2, 17));
   ctx.fillStyle = '#ffffff'; ctx.fill();
-  ctx.strokeStyle = cube.dark; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(tx - 6, y + h - 4, 12, 4);   // (no outline where the tail meets the pill)
+  ctx.strokeStyle = cube.dark; ctx.lineWidth = 2; ctx.stroke();
   return [x, y];
 }
 
