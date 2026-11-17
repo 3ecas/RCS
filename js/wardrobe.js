@@ -27,7 +27,9 @@ const atDoor = (p, cx, floorY) => p.onGround && Math.abs(p.y + p.h - floorY) < 3
 const DOOR_HOLD = 1;
 let doorHold = {};
 function holdDoor(id, cx, dt) {
-  const inIt = !doorT && !iris && players.some(p => !p.remote && atDoor(p, cx, GROUND_Y));
+  // (two players on this computer: both have to be standing in it)
+  const mine = players.filter(p => !p.remote && !p.dead);
+  const inIt = !doorT && !iris && mine.length > 0 && mine.every(p => atDoor(p, cx, GROUND_Y));
   const before = doorHold[id] || 0;
   doorHold[id] = inIt ? before + dt : 0;
   if (inIt && before === 0) sfx.beep(520);
@@ -248,6 +250,4 @@ function drawWardrobeHUD() {
   ctx.save(); ctx.translate(0, -OY);
   text('WARDROBE', W / 2, 78, 44, PAL.ink, 'center', 900);
   ctx.restore();
-  keycap('Esc', W - WALL - 44, GROUND_Y + 56, 26, PAL.inkSoft, 0.8);   // also leaves
-  drawArrow(W - WALL - 92, GROUND_Y + 70, 18, Math.PI, PAL.inkSoft);
 }

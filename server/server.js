@@ -170,7 +170,7 @@ setInterval(() => {
 //  - otherwise (everyone in the room scene), when every computer in the room is ready (at least 2).
 // Anyone joining while a race is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 27;              // game and server must speak the same version
+const PROTOCOL = 28;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -194,9 +194,10 @@ function joinRoom(c) {
 function maybeStart(r) {
   if (r.phase !== 'lobby') return false;
   const ready = r.members.filter(c => r.ready.has(c));
+  // (players are counted by cube: two players on one computer are two players — they can race each other)
   const ok = r.atResults.size
-    ? [...r.atResults].every(c => r.ready.has(c)) && ready.length >= 2   // after a race: the results screen decides
-    : r.members.length >= 2 && ready.length === r.members.length;      // all in the room scene: everyone
+    ? [...r.atResults].every(c => r.ready.has(c)) && cubesIn(ready) >= 2   // after a race: the results screen decides
+    : cubesIn(r.members) >= 2 && ready.length === r.members.length;      // all in the room scene: everyone
   if (!ok) return false;
   r.phase = 'playing';
   r.round++;

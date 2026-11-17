@@ -138,18 +138,17 @@ function drawRoomHUD() {
   if (R) {
     const x = WALL + 20, top = 24, rh = 26;
     text(`PLAYERS  ${R.players.reduce((n, m) => n + m.colors.length, 0)}/${R.max}`, x, top + 14, 13, PAL.inkSoft, 'left', 900);
-    R.players.forEach((m, k) => {
-      const y = top + 26 + k * rh;
-      m.colors.forEach((ci, j) => cube(x + j * 20, y, 16, COLORS[ci], cleanLook((m.looks || [])[j])));
-      const nm = m.name || m.colors.map(ci => COLORS[ci].name).join(' & ');
+    // one line per player — two players on one computer are two players
+    let row = 0;
+    R.players.forEach((m, k) => m.colors.forEach((ci, j) => {
+      const y = top + 26 + row++ * rh;
+      cube(x, y, 16, COLORS[ci], cleanLook((m.looks || [])[j]));
+      const nm = j === 0 && m.name ? m.name : COLORS[ci].name;
       const tagTxt = m.racing ? '  racing' : m.ready ? '  ✓' : '';
-      text(nm + (k === R.me ? ' (you)' : '') + tagTxt, x + m.colors.length * 20 + 8, y + 13, 14, m.ready ? PAL.good : PAL.ink, 'left', 800);
-    });
+      text(nm + (k === R.me ? ' (you)' : '') + tagTxt, x + 28, y + 13, 14, m.ready ? PAL.good : PAL.ink, 'left', 800);
+    }));
   }
   ctx.restore();
-  const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
   drawChatLog(); drawChatBubbles();
-  text('Everyone on START to begin  ·  Enter: chat  ·  Esc: leave', W / 2 - 60, GROUND_Y + 62, 14, PAL.inkSoft, 'center', 800);
-  text(keysTxt, W / 2 - 60, GROUND_Y + 90, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }

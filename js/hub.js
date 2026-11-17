@@ -77,7 +77,6 @@ function drawHubHUD() {
   text('ONLINE', W / 2, c + 46, 36, PAL.ink, 'center', 900);
   text('Find a match, or play in private with your friends', W / 2, c + 72, 15, PAL.good, 'center', 900);
   OUTLINE = false; ctx.restore();
-  text('Stand in a portal for a second  ·  Esc: back', W / 2, GROUND_Y + 60, 14, PAL.inkSoft, 'center', 800);
   ctx.restore();
   drawBanner(250);
 }

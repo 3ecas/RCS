@@ -1,7 +1,7 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
-// - one player: just climb. Once you're near the top of the screen the game starts, scrolling up
-//   this same tower (the first stair, a plain platform, is where the climb begins).
-// - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds
+// - just climb. Once you're near the top of the screen the game starts, scrolling up this same tower (the
+//   first stair, a plain platform, is where the climb begins): solo, or co-op with two players (the scene
+//   stays the same when player 2 joins)
 // - the ONLINE portal on the floor by the right wall: stand in it for a second to play online (the online
 //   room has a PRIVATE portal for playing with friends, js/private.js)
 // - a small SOUND pad (a jump above, on the left): land on it to turn the sound on or off
@@ -13,7 +13,7 @@ const HOLD_TIME = 2;          // seconds to stand on a mode platform / hold an a
 const lobby = { join: 0, on: null, holdT: 0 };
 
 // The modes on offer: one player can play solo or online; two players co-op or race (online is one per PC)
-const lobbyModes = () => playerCount === 2 ? ['coop', 'race'] : ['stair'];   // (online: the ONLINE portal)
+const lobbyModes = () => ['stair'];   // the same scene with one player or two (online: the ONLINE portal)
 const MENU_LABEL = { solo: 'SOLO', coop: 'CO-OP', race: 'RACE', multi: 'ONLINE' };
 const isMode = p => p.menu && MENU_LABEL[p.menu];
 // Until a game has been started once on this computer, little arrows point at the mode platforms
@@ -86,11 +86,8 @@ function updateLobby(dt) {
   if (state !== 'lobby') return;
   if (checkOnlinePortal(dt)) return;   // a second in the ONLINE portal: go online
 
-  // One player: climbing past the middle of the screen starts the game; landing on ONLINE goes online
-  if (playerCount === 1) {
-    const on = standingOn(players[0]);
-    if (players[0].y + players[0].h < camY + H * 0.3) { chooseMode('solo'); return; }   // (near the top of the screen)
-  }
+  // Climbing near the top of the screen starts the game: solo, or co-op with two players
+  if (players.some(p => p.y + p.h < camY + H * 0.3)) { chooseMode(playerCount === 2 ? 'coop' : 'solo'); return; }
   // Two players: both on ONLINE goes online at once; both on CO-OP / RACE for 2 seconds starts that
   const pl = standingOn(players[0]);
   const ok = pl && isMode(pl) && players.every(p => standingOn(p) === pl);
@@ -141,14 +138,12 @@ function addPlayer2() {
   players.push(p);
   burst(p.x + p.w / 2, p.y + p.h / 2, 16, p.color, 260, 0.6, 7);
   sfx.milestone();
-  floatText('Player 2 joined!', W / 2, GROUND_Y - 300, p.dark, 30);
-  buildLobbyRow1();
+  floatText('Player 2 joined!', W / 2, GROUND_Y - 300, p.dark, 30);   // (the scene stays the same)
 }
 function removePlayer2() {
   const p = players.pop();
   playerCount = 1;
   burst(p.x + p.w / 2, p.y + p.h / 2, 12, p.color, 200, 0.5, 6);
-  buildLobbyRow1();
 }
 
 // Landing on a lobby platform: the sound one switches sound, a wardrobe one changes that part of your cube
@@ -259,27 +254,6 @@ function drawLobbyHUD(k = 0) {
   if (k > 0) { ctx.save(); ctx.translate(0, -camY); }   // the floor strip rides down with the floor
   drawFloorLogo();   // the small logo and best height in the middle of the floor (js/logo.js)
 
-  // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
-  const y = GROUND_Y + 48, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
-  cube(WALL + 22, y + 14, 28, { c: p1.c, d: p1.d }, myLook);
-  keyCluster(WASD, WALL + 104, y, s, p1.d);
-  const rx = W - WALL - 104;
-  if (playerCount === 1) {
-    // A dashed "empty" cube with a plus, and the arrow keys faded: hold one to add player 2
-    const f = lobby.join / HOLD_TIME;
-    const bx = W - WALL - 50, by = y + 14;
-    ctx.setLineDash([4, 3]); ctx.strokeStyle = f > 0 ? p2.d : PAL.inkSoft; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(bx + 1, by + 1, 26, 26, 6); ctx.stroke(); ctx.setLineDash([]);
-    if (f > 0) { ctx.save(); ctx.beginPath(); ctx.roundRect(bx + 3, by + 3, 22, 24, 4); ctx.clip(); ctx.fillStyle = p2.c; ctx.fillRect(bx + 3, by + 27 - 24 * f, 22, 24 * f); ctx.restore(); }
-    text('+', bx + 14, by + 21, 20, f > 0 ? p2.d : PAL.inkSoft, 'center', 900);
-    keyCluster(ARROWS, rx, y, s, f > 0 ? p2.d : PAL.inkSoft, f > 0 ? 1 : 0.75, f);
-  } else {
-    cube(W - WALL - 50, y + 14, 28, { c: p2.c, d: p2.d }, p2Look);
-    keyCluster(ARROWS, rx, y, s, p2.d);
-    keycap('Esc', rx - 96, y + 27, s, PAL.inkSoft, 0.8);    // removes player 2
-    ctx.strokeStyle = PAL.inkSoft; ctx.lineWidth = 2.4; ctx.lineCap = 'round';   // a small rounded ✕
-    ctx.beginPath(); ctx.moveTo(rx - 132, y + 35); ctx.lineTo(rx - 124, y + 43); ctx.moveTo(rx - 124, y + 35); ctx.lineTo(rx - 132, y + 43); ctx.stroke();
-  }
   if (k > 0) { ctx.restore(); return; }
   if (!tutDone && playerCount === 1) {   // first visit: an arrow at the first stair too
     const st = platforms.find(p => p.stair);

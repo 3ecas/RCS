@@ -424,8 +424,8 @@ function roomLine() {
   const R = net.room;
   if (!R) return 'Joining the room…';
   if (R.phase === 'playing') return 'A race is on — wait here for the next one';
-  const n = R.players.length;
-  if (n < 2) return 'Waiting for more players to join…';
+  const n = R.players.length, cubes = R.players.reduce((t, m) => t + m.colors.length, 0);
+  if (cubes < 2) return 'Waiting for more players to join…';   // (two players on one computer count as two)
   // Right after a race the players still on the results screen decide; the room scene joins from START
   if (R.players.some(p => p.results)) {
     const atRes = R.players.map((p, i) => ({ p, i })).filter(x => x.p.results), slow = atRes.filter(x => !x.p.ready);
