@@ -29,7 +29,7 @@ function enterRoom() {
   // Your cubes: player 1 (WASD) and player 2 (arrow keys) if you're two on this computer
   players = [];
   for (let j = 0; j < net.local; j++) {
-    const p = mkPlayer(j, W / 2 - 200 - j * 60);
+    const p = mkPlayer(j, W / 2 - 110 - j * 60);   // (between the EXIT portal and START)
     p.slot = j; p.uid = 'me:' + j;
     players.push(p);
   }
@@ -94,6 +94,7 @@ function updateRoom(dt) {
   updateParticles(dt);
   checkWardrobeDoor();   // the wardrobe door, right of START (js/wardrobe.js)
   if (doorT) return;
+  if (checkRoomExit()) return;   // the EXIT portal by the left wall: back to the start scene (js/wardrobe.js)
 
   // Ready = all of this computer's cubes are on START. Tell the server when that changes.
   const ready = players.filter(p => !p.remote).every(onStart);

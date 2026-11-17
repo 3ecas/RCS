@@ -151,9 +151,11 @@ function drawDoor(cx, floorY, label, near, open = 0) {
   // the round badge on top
   const by = y - 24;
   if (label) {   // a word on its own, drawn like the shirt sign: white with a dark rounded outline
-    ctx.font = `900 18px ${FONT}`; ctx.textAlign = 'center';
-    ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = PAL.ink; ctx.strokeText(label, cx, by + 7);
+    ctx.save();
+    ctx.font = `900 18px ${FONT}`; ctx.textAlign = 'center'; if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = PAL.ink; ctx.strokeText(label, cx, by + 7);
     ctx.fillStyle = '#ffffff'; ctx.fillText(label, cx, by + 7);
+    ctx.restore();
   } else {
     drawShirt(cx, by + 2);   // a shirt sign, on its own (no badge behind it)
   }
@@ -168,6 +170,19 @@ function drawDoor(cx, floorY, label, near, open = 0) {
 function drawLobbyDoor() {
   const x = sceneDoorX(), near = players.some(q => !q.remote && atDoor(q, x, GROUND_Y));
   drawDoor(x, GROUND_Y, '', near && !doorT, doorOpen(true));
+  if (state === 'room') drawRoomExit();
+}
+
+// The online room's way out: an EXIT portal left of START (mirroring the wardrobe on the right). Press down at it to leave online play
+// (the circle closes on your cube and opens back in the start scene — js/net.js leaveOnline).
+const ROOM_EXIT_X = () => W / 2 - 200;
+function checkRoomExit() {
+  if (players.some(p => !p.remote && atDoor(p, ROOM_EXIT_X(), GROUND_Y) && downKey(p))) { sfx.swoosh(); leaveOnline(); return true; }
+  return false;
+}
+function drawRoomExit() {
+  const x = ROOM_EXIT_X(), near = players.some(q => !q.remote && atDoor(q, x, GROUND_Y));
+  drawDoor(x, GROUND_Y, 'EXIT', near && !doorT && !iris, 0);
 }
 
 // Inside: striped wallpaper, the exit door and the mirror with a big view of each cube
