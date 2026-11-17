@@ -28,7 +28,7 @@ function startLift(m) {
   // (still on the results screen) shows up at the start line when the lift arrives.
   for (const p of players) {
     const s = at[p.remote ? p.uid : 'me:' + (p.slot || 0)];
-    if (s) { p.x = p.prevX = clamp(s.x, plat.x + 2, plat.x + plat.w - PS - 2); p.face = s.face; p.liftHide = false; }
+    if (s) { p.x = p.prevX = p.liftX = clamp(s.x, plat.x + 2, plat.x + plat.w - PS - 2); p.face = s.face; p.liftHide = false; }
     else p.liftHide = true;
   }
   const dur = Math.max(1.2, total - 3);            // (3 s are left for the countdown)
@@ -43,13 +43,22 @@ function liftProgress() {
   const u = clamp((lift.t - LIFT_WAIT) / (lift.dur - LIFT_WAIT), 0, 1);
   return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // ease in and out
 }
+// The tremble: a quick shudder before it goes, then a lighter shake all the way up (strongest mid-way)
+function liftShake() {
+  if (!lift) return [0, 0];
+  const u = clamp((lift.t - LIFT_WAIT) / (lift.dur - LIFT_WAIT), 0, 1);
+  const a = lift.t < LIFT_WAIT ? 1.6 : u < 1 ? 0.7 + 1.1 * Math.sin(Math.PI * u) : 0;
+  return [Math.sin(lift.t * 57) * a, Math.sin(lift.t * 83 + 1) * a * 0.6];
+}
 function placeRiders() {
-  const e = liftProgress(), pl = lift.plat;
+  const e = liftProgress(), pl = lift.plat, [jx, jy] = liftShake();
   pl.y = lift.y0 + (lift.y1 - lift.y0) * e;
   camY = pl.y - (lift.s0 + (lift.s1 - lift.s0) * e);   // the platform's place on screen glides from the room's to the floor's
+  pl.jx = jx; pl.jy = jy;                               // (the camera doesn't shake with it)
   for (const p of players) {
     if (p.liftHide) continue;
-    p.y = p.prevY = pl.y - p.h; p.vx = p.vy = 0; p.onGround = true; p.ground = pl;
+    p.x = p.prevX = p.liftX + jx;
+    p.y = p.prevY = pl.y + jy - p.h; p.vx = p.vy = 0; p.onGround = true; p.ground = pl;
   }
 }
 
@@ -64,11 +73,11 @@ function updateLift(dt) {
   if (lift.t >= lift.dur) {
     // Clunk: it's in. That's the start line; the room below is gone.
     const pl = lift.plat;
-    pl.y = GROUND_Y; camY = 0; pl.base = 0;   // (no piston any more: it's part of the floor)
+    pl.y = GROUND_Y; camY = 0; pl.base = 0; pl.jx = pl.jy = 0;   // (no piston any more: it's part of the floor)
     platforms = platforms.filter(q => !q.roomPart);
     for (const p of players) {
       if (p.liftHide) { p.liftHide = false; continue; }
-      p.y = p.prevY = GROUND_Y - p.h; p.onGround = true; p.ground = lift.ground; p.sq = 0.8;
+      p.x = p.prevX = p.liftX; p.y = p.prevY = GROUND_Y - p.h; p.onGround = true; p.ground = lift.ground; p.sq = 0.8;
     }
     for (let k = 0; k < 6; k++) dust(pl.x + (k + 0.5) * pl.w / 6, GROUND_Y);
     sfx.land(); sfx.beep(440); shake = Math.max(shake, 0.12);
@@ -78,17 +87,19 @@ function updateLift(dt) {
   }
 }
 
-// The START slab, with the block that plugs the floor's hole under it and, below that, the piston
+// The START slab, with the block that plugs the floor's hole under it and, below that, the piston.
+// All in flat colours, so it all moves as one piece (a texture would stay put on screen and slide).
 function drawLiftPlatform(p) {
-  const shudder = lift && lift.t < LIFT_WAIT ? Math.sin(lift.t * 90) * 1.2 : 0;
-  const x = p.x + shudder, y = p.y;
+  const x = p.x + (p.jx || 0), y = p.y + (p.jy || 0);
   // piston (only while there's a room below to stand it on)
   if (p.base > y + p.h + LIFT_PLUG) {
     const pw = 70;
     ctx.fillStyle = PAL.normalD; ctx.fillRect(x + p.w / 2 - pw / 2, y + p.h + LIFT_PLUG, pw, p.base - y - p.h - LIFT_PLUG);
     ctx.fillStyle = PAL.normal; ctx.fillRect(x + p.w / 2 - pw / 2 + 10, y + p.h + LIFT_PLUG, pw - 20, p.base - y - p.h - LIFT_PLUG);
   }
-  tiles(x, x + p.w, y + p.h - 6, y + p.h + LIFT_PLUG, 58, 30, 6, 'rgba(255,255,255,0.28)', PAL.ground);
+  ctx.fillStyle = PAL.ground; ctx.fillRect(x + 2, y + p.h - 6, p.w - 4, LIFT_PLUG + 6);
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';   // two soft bands, like a course of the floor's blocks
+  ctx.beginPath(); ctx.roundRect(x + 8, y + p.h + 4, p.w - 16, 12, 6); ctx.roundRect(x + 8, y + p.h + 22, p.w - 16, 12, 6); ctx.fill();
   slab(x, y, p.w, p.h, '#ffffff', PAL.good, 3);
   text('START', x + p.w / 2, y + 21, 18, PAL.good, 'center', 900);
 }
