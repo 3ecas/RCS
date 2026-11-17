@@ -159,6 +159,7 @@ const myCubeOnScreen = () => { const p = players && players.find(q => !q.remote)
 function onNet(m) {
   if (pendingStart && m.t !== 'room') applyStart(pendingStart.m, pendingStart.t);   // (the race comes first)
   if (m.t === 'room') {
+    noticeRoomMoves(net.room, m);
     net.room = m;
     if (net.readyWant !== undefined && serverReady() === net.readyWant) net.readyWant = undefined;   // the server agrees
     if (state === 'search' && iris && iris.hold) {   // through the PRIVATE portal: the circle, still closed, opens on you in the new room

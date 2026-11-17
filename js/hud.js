@@ -482,6 +482,76 @@ function drawBanner(y) {
   text(net.banner, W / 2, y + 24, 16, '#ffffff', 'center', 900);
 }
 
+// The race ladder, down the left side: everyone in order of how high they are, with their height. When two swap
+// places they slide past each other up or down the ladder. Knocked-out cubes drop to the bottom, faded.
+let ladderAt = 0;
+function drawRaceLadder() {
+  const now = performance.now() / 1000, dt = clamp(now - ladderAt, 0, 0.1); ladderAt = now;
+  const order = [...players].sort((a, b) =>
+    (a.dead - b.dead) || (a.dead ? (b.outAt || 0) - (a.outAt || 0) : playerProgress(b) - playerProgress(a)));
+  const many = order.length > 6, RH = many ? 30 : 38, S = many ? 16 : 20, F = many ? 13 : 15, RW = many ? 150 : 176;
+  // in the margin left of the tower when there's room, otherwise just inside its left wall
+  const x = OX >= RW + 24 ? -OX + 16 : WALL + 8, top = 20;
+  order.forEach((p, k) => {
+    const want = k * RH;
+    if (p.ladY == null || Math.abs(p.ladY - want) > RH * 12) p.ladY = want;
+    p.ladY += (want - p.ladY) * Math.min(1, dt * 9);          // glide to its new rung
+    const y = top + p.ladY, mine = !p.remote, m = Math.max(0, Math.floor(p.dead ? p.best : playerProgress(p)));
+    ctx.globalAlpha = p.dead ? 0.4 : 1;
+    ctx.beginPath(); ctx.roundRect(x, y, RW, RH - 6, (RH - 6) / 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+    ctx.globalAlpha *= 0.22; ctx.fillStyle = p.color; ctx.fill();
+    ctx.globalAlpha = p.dead ? 0.4 : 1;
+    ctx.strokeStyle = p.dark; ctx.lineWidth = mine ? 3 : 1.5; ctx.stroke();
+    const cy = y + (RH - 6) / 2;
+    text(String(k + 1), x + 14, cy + F * 0.36, F, p.dark, 'center', 900);
+    cube(x + 26, cy - S / 2, S, { c: p.color, d: p.dark, name: p.name }, p.look);
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 30 + S, y, RW - 30 - S - 46, RH); ctx.clip();
+    text(p.name.toUpperCase(), x + 32 + S, cy + F * 0.36, F, p.dark, 'left', 900);
+    ctx.restore();
+    text(m + 'm', x + RW - 12, cy + F * 0.36, F, PAL.ink, 'right', 900);
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Waiting for a rematch: everyone lined up down the left side in groups — READY (on the results screen and ready),
+// WAITING (on the results screen, not ready yet) and IN THE ROOM (went back to the room scene). When someone
+// changes group their pill glides to its new place.
+const lineupY = {};
+let lineupAt = 0;
+function drawRematchLineup() {
+  const R = net.room, now = performance.now() / 1000, dt = clamp(now - lineupAt, 0, 0.1); lineupAt = now;
+  const groups = [['READY ✓', PAL.good, []], ['WAITING', PAL.inkSoft, []], ['IN THE ROOM', '#7a64c8', []]];
+  R.players.forEach((m, k) => m.colors.forEach((ci, j) => {
+    const racer = players.find(p => p.uid === m.id + ':' + j);
+    const name = racer ? racer.name : j === 0 && m.name ? m.name : COLORS[ci].name;
+    const g = m.results ? (m.ready ? 0 : 1) : 2;
+    groups[g][2].push({ id: m.id + ':' + j, name, C: COLORS[ci], look: cleanLook((m.looks || [])[j]), mine: k === R.me });
+  }));
+  const RH = 34, RW = 176, x = OX >= RW + 24 ? -OX + 16 : WALL + 8;
+  let y = 20;
+  for (const [title, col, list] of groups) {
+    if (!list.length) continue;
+    text(title, x + 6, y + 14, 13, col, 'left', 900);
+    y += 22;
+    for (const it of list) {
+      if (lineupY[it.id] == null) lineupY[it.id] = y;
+      lineupY[it.id] += (y - lineupY[it.id]) * Math.min(1, dt * 9);
+      const py = lineupY[it.id];
+      ctx.beginPath(); ctx.roundRect(x, py, RW, RH - 6, (RH - 6) / 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+      ctx.globalAlpha = 0.22; ctx.fillStyle = it.C.c; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = it.C.d; ctx.lineWidth = it.mine ? 3 : 1.5; ctx.stroke();
+      cube(x + 10, py + 4, 20, it.C, it.look);
+      ctx.save(); ctx.beginPath(); ctx.rect(x + 36, py, RW - 46, RH); ctx.clip();
+      text(it.name.toUpperCase() + (it.mine ? ' (YOU)' : ''), x + 38, py + 19, 14, it.C.d, 'left', 900);
+      ctx.restore();
+      y += RH;
+    }
+    y += 10;
+  }
+}
+
 function drawHUD() {
   const VS = mode === 'versus';
   const inGame = state === 'count' || state === 'play' || state === 'paused' || state === 'over';
@@ -495,11 +565,11 @@ function drawHUD() {
       text(height + ' m', 0, 14, 46, PAL.good, 'center', 900);
       ctx.restore();
     } else text(height + ' m', W / 2, 70, 46, PAL.ink, 'center', 900);
-    if (VS) textRows(players.map(p => ({ t: `${tag(p)} ${p.best}m`, c: p.dark, a: p.dead ? 0.3 : 1 })), 100, players.length > 5 ? 14 : 17, 14);
     if (!VS && GEMS_ON) { drawGemIcon(WALL + 21, 54, 8); text(String(runGems), WALL + 34, 60, 16, '#1f97ab', 'left', 900); }
     if (net.status === 'playing') text('ONLINE', W - WALL - 72, 42, 12, PAL.inkSoft, 'right', 800);
     else { keycap('R', W - WALL - 100, 24, 22, PAL.inkSoft, 0.6); drawPauseIcon(W - WALL - 74, 35, 12, PAL.inkSoft); }
     OUTLINE = false; ctx.restore();   // the glow
+    if (VS && state !== 'over') drawRaceLadder();
     ctx.restore();
   }
 
@@ -561,6 +631,7 @@ function drawHUD() {
     const y0 = H * 0.3 + (1 - overFade) * 24;   // (solo: the text drifts up as it fades in)
     if (VS) {
       drawResults();
+      if (net.status === 'playing' && net.room && overT > REVEAL + 0.6) { ctx.save(); ctx.translate(0, -OY); drawRematchLineup(); ctx.restore(); }
     } else {
       ctx.globalAlpha = overFade;
       text(deathMsg, W / 2, y0 - 10, 20, PAL.spike, 'center', 900);

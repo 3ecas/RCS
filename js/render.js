@@ -351,6 +351,7 @@ function render() {
     ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - deathCam.t / 0.16)})`; ctx.fillRect(-OX, -OY, VW, VH);
   }
   drawHUD();
+  drawNotices();      // "Pink went to the room" (js/chat.js)
   drawScreenWipe();   // leaving an end screen (js/menu.js)
   drawDoorIris();     // going through the wardrobe door (js/wardrobe.js)
   drawIris();         // online: connecting -> room, room -> race (js/net.js)

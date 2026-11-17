@@ -154,3 +154,39 @@ function drawChatLog() {
   }
   ctx.globalAlpha = 1;
 }
+
+// "Pink went to the room": when someone leaves the race or the results screen for the room scene, everyone still
+// in the race / on the results screen gets a small notice at the top, in that player's colour, so they can follow
+const notices = [];
+function noticeRoomMoves(before, after) {
+  if (!before || !after || mode !== 'versus' || net.status !== 'playing') return;
+  if (!(state === 'play' || state === 'count' || state === 'over' || state === 'found')) return;
+  const meId = after.players[after.me] && after.players[after.me].id;
+  for (const m of after.players) {
+    if (m.id === meId || m.racing || m.results) continue;
+    const was = before.players.find(o => o.id === m.id);
+    if (!was || !(was.racing || was.results)) continue;
+    const racer = players.find(p => p.uid === m.id + ':0');   // (the name they had in the race)
+    notices.push({ text: (racer ? racer.name : roomName(m)) + ' went to the room', color: COLORS[m.colors[0]], at: performance.now() / 1000 });
+    if (notices.length > 3) notices.shift();
+    sfx.beep(740);
+  }
+}
+function drawNotices() {
+  const now = performance.now() / 1000;
+  while (notices.length && now - notices[0].at > 4.5) notices.shift();
+  let y = -OY + (state === 'over' ? 74 : 112);   // (in a race: under the height and the ladder's top)
+  ctx.font = `900 17px ${FONT}`;
+  for (const n of notices) {
+    const age = now - n.at, a = clamp(Math.min(age / 0.2, (4.5 - age) / 0.5), 0, 1);
+    const w = ctx.measureText(n.text).width + 34, x = W / 2 - w / 2, dy = (1 - Math.min(1, age / 0.2)) * -10;
+    ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.roundRect(x, y + dy, w, 32, 16);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.globalAlpha = a * 0.22; ctx.fillStyle = n.color.c; ctx.fill();
+    ctx.globalAlpha = a; ctx.strokeStyle = n.color.d; ctx.lineWidth = 2; ctx.stroke();
+    text(n.text, W / 2, y + dy + 22, 17, n.color.d, 'center', 900);
+    y += 40;
+  }
+  ctx.globalAlpha = 1;
+}
