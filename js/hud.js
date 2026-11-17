@@ -437,13 +437,13 @@ function drawHelp() {
   // Three tips
   yy += 46;
   const tip = (t, draw) => { draw(L + 14, yy - 6); text(t, L + 44, yy, 15, PAL.ink, 'left', 700); yy += 38; };
-  tip('On a wall, press the other way to jump off it', (cx, cy) => {
+  tip('On a wall, jump + the other way to jump off it', (cx, cy) => {
     ctx.fillStyle = PAL.wallLine; ctx.fillRect(cx - 14, cy - 12, 4, 24); ctx.fillRect(cx + 12, cy - 12, 4, 24);
     ctx.strokeStyle = PAL.good; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx + 8, cy - 8); ctx.stroke();
   });
   tip('Press jump as you land on a spring: big boost', (cx, cy) => drawSpringI(cx - 14, cy - 14, 28, 0));
   if (GEMS_ON) tip('Gems unlock new looks in the wardrobe', (cx, cy) => drawGemIcon(cx, cy, 10));
-  tip('Stand on a mode for 2 s to start', (cx, cy) => { ctx.fillStyle = PAL.good; ctx.fillRect(cx - 14, cy, 28, 8); text('2', cx, cy - 4, 14, PAL.good, 'center', 900); });
+  tip('Climb to start · stand in a portal to go through', (cx, cy) => { ctx.fillStyle = PAL.good; ctx.fillRect(cx - 14, cy, 28, 8); text('1', cx, cy - 4, 14, PAL.good, 'center', 900); });
   // Other keys
   yy += 10;
   let kx = L + 14;

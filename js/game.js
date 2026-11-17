@@ -262,13 +262,13 @@ function updatePlayer(p, dt) {
   }
 
   let dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
-  // Hanging on a wall: touch a wall in mid-air to grab it; you then slide down it slowly until you land,
-  // slip off its end, or press the other way — which wall-jumps
+  // Hanging on a wall: touch a wall in mid-air to grab it; you then slide down it slowly until you land or
+  // slip off its end. Jump + the other way wall-jumps; the other way alone just lets go (you drop)
   if (p.cling && (p.onGround || p.wall !== p.cling)) p.cling = 0;
   // Touching a wall in mid-air grabs it — no key needed (unless you're pressing away from it)
   if (!p.onGround && p.wall && dir !== -p.wall) p.cling = p.wall;
-  // Wall jump: press the other way while on (or close to) a wall. Forgiving on timing: being near the wall
-  // counts, so does having just left it, and a press made just before reaching it is remembered.
+  // Wall jump: jump AND the other way while on (or close to) a wall. Forgiving on timing: being near the wall
+  // counts, so does having just left it, and either press made a moment before the other is remembered.
   if (p.onGround) { p.wallT = 0; p.lastWall = null; }
   else {
     const nw = wallNear(p, WALL_REACH);
@@ -276,11 +276,13 @@ function updatePlayer(p, dt) {
   }
   if (inp.leftPressed) p.awayBuf = { d: -1, t: WALL_BUFFER };
   if (inp.rightPressed) p.awayBuf = { d: 1, t: WALL_BUFFER };
+  if (inp.jumpPressed) p.wjBuf = WALL_BUFFER;
   // (not off the same wall twice in a row without landing, so you can't climb a single wall — any other
   // wall is fine, including the outside of a pillar on the same side)
-  const wallJump = !p.onGround && p.wallT > 0 && p.awayBuf && p.awayBuf.t > 0 &&
-                   p.awayBuf.d === -p.wallSide && p.lastWall !== p.wallId;
+  const away = dir === -p.wallSide || (p.awayBuf && p.awayBuf.t > 0 && p.awayBuf.d === -p.wallSide);
+  const wallJump = !p.onGround && p.wallT > 0 && p.wjBuf > 0 && away && p.lastWall !== p.wallId;
   if (p.wallT > 0) p.wallT -= dt;
+  if (p.wjBuf > 0) p.wjBuf -= dt;
   if (p.awayBuf) p.awayBuf.t -= dt;
   if (dir) p.face = dir;
   const accel = p.onGround ? 3200 : 2200;
@@ -303,7 +305,7 @@ function updatePlayer(p, dt) {
     // Wall jump: up and away from the wall, toward the side you pressed
     const side = p.wallSide;
     p.vy = -WALLJUMP_V; p.vx = -side * WALLJUMP_PUSH; p.buf = 0; p.face = -side; p.sq = 1.2; p.cling = 0;
-    p.wallT = 0; p.awayBuf = null; p.lastWall = p.wallId;
+    p.wallT = 0; p.awayBuf = null; p.wjBuf = 0; p.lastWall = p.wallId;
     sfx.jump(p.i); dust(side < 0 ? p.x : p.x + p.w, p.y + p.h / 2);
   }
   if (inp.down && p.onGround && p.ground && !p.ground.isPlayer && p.ground.type !== 'ground' && !p.ground.noDrop) {
