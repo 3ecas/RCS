@@ -7,7 +7,8 @@
 // sixteenth-note arps, and near the top a bright lead line. Notes are scheduled a little ahead with a
 // look-ahead timer, so the beat stays steady whatever the frame rate.
 //
-// Ambience: a few soft loops whose volume follows what's near your cube — wind when you move fast,
+// Ambience: a few soft loops whose volume follows what's near your cube — a clean rush of air while a water
+// current carries you up,
 // a hum near moving platforms, bubbling near water columns, a whirr near shurikens, crackle near flames.
 'use strict';
 
@@ -109,9 +110,10 @@ function ambLoop(build) {   // a looping source → its own gain (silent until s
 function ambInit() {
   if (amb.ready || !actx) return;
   amb.ready = true;
-  // wind: band-passed noise, brighter the faster you go
-  amb.windF = actx.createBiquadFilter(); amb.windF.type = 'bandpass'; amb.windF.Q.value = 0.8; amb.windF.frequency.value = 700;
-  amb.wind = ambLoop(g => { const s = noiseSrc(); s.loop = true; s.connect(amb.windF).connect(g); s.start(); });
+  // riding a water current up: a clean, soft rush of air (noise smoothed twice, low, no hiss)
+  amb.windF = actx.createBiquadFilter(); amb.windF.type = 'lowpass'; amb.windF.Q.value = 0.5; amb.windF.frequency.value = 500;
+  const smooth = actx.createBiquadFilter(); smooth.type = 'lowpass'; smooth.frequency.value = 900;
+  amb.wind = ambLoop(g => { const s = noiseSrc(); s.loop = true; s.connect(amb.windF).connect(smooth).connect(g); s.start(); });
   // moving platforms: a low hum with a slow wobble
   amb.hum = ambLoop(g => {
     const o = actx.createOscillator(), o2 = actx.createOscillator(), lfo = actx.createOscillator(), lg = actx.createGain(), m = actx.createGain();
@@ -143,10 +145,10 @@ function ambTick(dt) {
   const cx = me.x + me.w / 2, cy = me.y + me.h / 2;
   const near = (x, y, R) => clamp(1 - Math.hypot(x - cx, y - cy) / R, 0, 1);
   const onScreen = y => y > camY - 40 && y < camY + H + 40;
-  // wind
-  const sp = Math.hypot(me.vx, me.vy), w = clamp((sp - 420) / 900, 0, 1);
-  amb.windF.frequency.setTargetAtTime(500 + 1600 * w, actx.currentTime, 0.1);
-  set(amb.wind, 0.09 * w);
+  // a water current carrying you up: the rush rises a little with your speed (nothing otherwise)
+  const w = me.inBubbles ? clamp(0.5 + -me.vy / 1200, 0.3, 1) : 0;
+  amb.windF.frequency.setTargetAtTime(350 + 350 * w, actx.currentTime, 0.15);
+  set(amb.wind, 0.035 * w);
   // moving platforms
   let mv = 0; for (const p of platforms) if (p.type === 'move' && onScreen(p.y)) mv = Math.max(mv, near(p.x + p.w / 2, p.y, 380));
   set(amb.hum, 0.05 * mv);
