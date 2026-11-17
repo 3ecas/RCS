@@ -76,10 +76,11 @@ function onRoomPeer(d, from) {
 }
 
 const startPlatform = () => platforms.find(p => p.menu === 'start');
-// Ready = standing on START (cubes pass through each other, so everyone fits)
+// Ready = actually standing on START: feet on its top, any part of the cube over it (an edge counts). Standing on
+// a platform above it, or jumping off it, doesn't. (Cubes pass through each other, so everyone fits.)
 const onStart = p => {
-  const s = startPlatform(), cx = p.x + p.w / 2;
-  return !p.dead && p.onGround && cx >= s.x && cx <= s.x + s.w && p.y + p.h <= s.y + 2;
+  const s = startPlatform();
+  return !p.dead && p.onGround && p.x + p.w > s.x && p.x < s.x + s.w && Math.abs(p.y + p.h - s.y) <= 3;
 };
 
 function updateRoom(dt) {
@@ -116,7 +117,7 @@ function updateRoom(dt) {
 
 // START platform: its name, and how many computers are on it
 function drawStartPlatform(p) {
-  const on = players.some(q => !q.remote && q.onGround && q.ground === p);
+  const on = players.some(q => !q.remote && onStart(q));
   slab(p.x, p.y, p.w, p.h, on ? PAL.good : '#ffffff', PAL.good, EDGE);
   text('START', p.x + p.w / 2, p.y + 21, 18, on ? '#ffffff' : PAL.good, 'center', 900);
   const R = net.room;
