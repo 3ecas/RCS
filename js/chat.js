@@ -53,11 +53,15 @@ function drawChatBubbles() {
     const w = Math.min(320, ctx.measureText(b.text).width + 22), h = 30;
     const x = clamp(cube.x + cube.w / 2 - w / 2, WALL + 4, W - WALL - w - 4), y = cube.y - h - 16;
     ctx.globalAlpha = clamp(b.until - time, 0, 1);
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = cube.dark; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.beginPath(); ctx.moveTo(cube.x + cube.w / 2 - 6, y + h); ctx.lineTo(cube.x + cube.w / 2, y + h + 9); ctx.lineTo(cube.x + cube.w / 2 + 6, y + h); ctx.closePath();
+    // a rounded pill with a little rounded tail pointing down at the cube
+    const tx = clamp(cube.x + cube.w / 2, x + h / 2, x + w - h / 2);
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, h / 2);
+    ctx.moveTo(tx - 7, y + h - 1); ctx.quadraticCurveTo(tx, y + h + 2, tx, y + h + 10); ctx.quadraticCurveTo(tx + 2, y + h + 2, tx + 7, y + h - 1);
     ctx.fillStyle = '#ffffff'; ctx.fill();
-    ctx.save(); ctx.beginPath(); ctx.rect(x + 6, y, w - 12, h); ctx.clip();
+    ctx.strokeStyle = cube.dark; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(tx - 6, y + h - 4, 12, 4);   // (no outline where the tail meets the pill)
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 10, y, w - 20, h); ctx.clip();
     text(b.text, x + w / 2, y + 20, 15, PAL.ink, 'center', 800);
     ctx.restore();
     ctx.globalAlpha = 1;
