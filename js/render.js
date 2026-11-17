@@ -146,7 +146,7 @@ function drawPlatform(p) {
     T(-OX, W + OX, y, y + p.h + OY + 400);   // (deep enough for the winner zoom too)
     ctx.fillStyle = PAL.groundD; ctx.beginPath(); ctx.roundRect(p.x - 2, y, p.w + 4, 5, 2.5); ctx.fill();
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe' && state !== 'hub' && !p.roomPart) ctx.fillText('START', W / 2, y + 40);
+    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe' && state !== 'hub' && !p.roomPart && !(gen && gen.lobby)) ctx.fillText('START', W / 2, y + 40);
     return;
   }
   if (p.menu === 'lift') return drawLiftPlatform(p);     // (js/lift.js)

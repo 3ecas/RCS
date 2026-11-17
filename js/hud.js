@@ -478,10 +478,8 @@ function drawHUD() {
   }
 
   if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
-  else if (lobbyFade > 0) {                 // ...fading away as a game starts
-    const k = clamp(lobbyFade / LOBBY_FADE, 0, 1);
-    ctx.globalAlpha = 1 - k; drawLobbyHUD(k); ctx.globalAlpha = 1;
-  }
+  // a game started from the start scene: the floor's logo and keys stay as they are and scroll away with it
+  else if (gen && gen.lobby && net.status !== 'playing' && GROUND_Y - camY < H + OY) drawLobbyHUD(1);
   if (state === 'room') drawRoomHUD();      // the online room scene (js/room.js)
   if (state === 'hub') drawHubHUD();        // the online hub (js/hub.js)
   if (state === 'wardrobe') drawWardrobeHUD();
