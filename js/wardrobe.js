@@ -150,12 +150,10 @@ function drawDoor(cx, floorY, label, near, open = 0) {
   ctx.restore();
   // the round badge on top
   const by = y - 24;
-  if (label) {
-    ctx.font = `900 13px ${FONT}`;
-    const sw = ctx.measureText(label).width + 22;
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(cx - sw / 2, by - 12, sw, 24, 12); ctx.fill();
-    ctx.strokeStyle = SOFT.lilac[1]; ctx.lineWidth = 2.5; ctx.stroke();
-    text(label, cx, by + 5, 13, PAL.ink, 'center', 900);
+  if (label) {   // a word on its own, drawn like the shirt sign: white with a dark rounded outline
+    ctx.font = `900 18px ${FONT}`; ctx.textAlign = 'center';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = PAL.ink; ctx.strokeText(label, cx, by + 7);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(label, cx, by + 7);
   } else {
     drawShirt(cx, by + 2);   // a shirt sign, on its own (no badge behind it)
   }
