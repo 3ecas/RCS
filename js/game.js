@@ -152,7 +152,6 @@ function blockDividersY(p, prevTop, prevBottom) {
 // Has something scrolled far enough off-screen to be thrown away?
 function offScreen(x, y, w) { return y >= camY + H + OY + 250; }
 // Where a falling fireball comes from (its warning shows at the top of the screen)
-function fireballX() { return Math.round(rand(WALL + 20, W - WALL - 20)); }
 
 function updateWorld(dt) {
   for (const p of platforms) {
@@ -169,29 +168,8 @@ function updateWorld(dt) {
     p.dx = p.x - ox;
     p.dy = p.falling ? 0 : p.y - oy;
   }
-  for (const b of blades) {
-    b.x += b.vx * dt;
-    if (b.x < b.lo) { b.x = b.lo; b.vx = -b.vx; }
-    if (b.x > b.hi) { b.x = b.hi; b.vx = -b.vx; }
-    b.ang += dt * 9 * Math.sign(b.vx);
-  }
-  for (const j of jets) {
-    j.t += dt;
-    const s = jetState(j);
-    if (s === 2 && j.last !== 2 && j.oy > camY && j.oy < camY + H) sfx.flame();
-    j.last = s;
-  }
   platforms = platforms.filter(p => !offScreen(p.x, p.y, p.w));
-  blades = blades.filter(b => !offScreen(b.hi, b.y, 0));
-  jets = jets.filter(j => !offScreen(W, j.oy, 0));
-  for (const z of zaps) {
-    z.t += dt;
-    const s = zapState(z);
-    if (s === 2 && z.last !== 2 && z.y1 > camY && z.y1 < camY + H) sfx.zap();
-    z.last = s;
-  }
-  zaps = zaps.filter(z => !offScreen(0, Math.min(z.y1, z.y2), 0));
-  bubbles = bubbles.filter(b => !offScreen(0, b.top, 0));
+  updateObstacles(dt);   // shurikens, flames, lightning, water columns (js/obstacles.js)
   dividers = dividers.filter(dv => !offScreen(0, dv.top, 0));
   gems = gems.filter(g => !g.taken && !offScreen(0, g.y, 0));
 }
@@ -429,54 +407,7 @@ function land(p, pl, wasGround) {
 }
 
 function updateHazards(dt) {
-  const m = levelM();
-  const fd = heat(m);
-  // Online, only Player 1's computer decides fireballs and tells the other one
-  if (state === 'play' && has(m, 'fireball') && !(net.status === 'playing' && net.me !== 0)) {
-    fireTimer -= dt;
-    if (fireTimer <= 0) {
-      fireTimer = rand(lerp(3, 1.2, fd), lerp(4.5, 2.2, fd));
-      const x = fireballX();
-      warnings.push({ x, t: 1.1 });
-      if (net.status === 'playing') relay({ k: 'f', x });
-    }
-  }
-  for (const w of warnings) {
-    w.t -= dt;
-    if (w.t <= 0) { fireballs.push({ x: w.x, y: camY - OY - 40, vy: 360 + fd * 260, r: 13 }); sfx.fireball(); }
-  }
-  warnings = warnings.filter(w => w.t > 0);
-  for (const f of fireballs) { f.vy += 250 * dt; f.y += f.vy * dt; }
-  fireballs = fireballs.filter(f => f.y < camY + H + 80);
-
-  const circleHit = (p, cx, cy, r) => {
-    const nx = clamp(cx, p.x + 3, p.x + p.w - 3), ny = clamp(cy, p.y + 3, p.y + p.h);
-    return (nx - cx) ** 2 + (ny - cy) ** 2 < r * r;
-  };
-  const hazardHit = p => {
-    const px0 = p.x + 4, px1 = p.x + p.w - 4, py0 = p.y + 4, py1 = p.y + p.h;
-    for (const pl of platforms) {
-      if (!pl.spikes || pl.y < camY - 150 || pl.y > camY + H + 50) continue;
-      const x0 = pl.x + pl.spikes.x0 + 3, x1 = pl.x + pl.spikes.x1 - 3;
-      if (px1 > x0 && px0 < x1 && py1 > pl.y - 9 && py0 < pl.y) return 'got spiked';
-    }
-    for (const b of blades) if (circleHit(p, b.x, b.y, b.r - 5)) return 'was hit by a shuriken';
-    for (const j of jets) {
-      if (jetState(j) !== 2) continue;
-      const [x0, x1, y0, y1] = jetBox(j, 0.86);
-      if (px1 > x0 + 4 && px0 < x1 - 4 && py1 > y0 + 4 && py0 < y1 - 4) return 'got burned';
-    }
-    for (const f of fireballs) if (circleHit(p, f.x, f.y, f.r - 2)) return 'was hit by a fireball';
-    for (const z of zaps) {
-      if (zapState(z) !== 2) continue;
-      // Closest point on the beam to the cube's centre, then is it inside the cube (a little forgiving)?
-      const cx = p.x + p.w / 2, cy = p.y + p.h / 2, dx = z.x2 - z.x1, dy = z.y2 - z.y1;
-      const t = clamp(((cx - z.x1) * dx + (cy - z.y1) * dy) / (dx * dx + dy * dy), 0, 1);
-      const qx = z.x1 + dx * t, qy = z.y1 + dy * t;
-      if (Math.abs(qx - cx) < p.w / 2 - 3 && Math.abs(qy - cy) < p.h / 2 - 3) return 'got zapped';
-    }
-    return null;
-  };
+  updateFireballs(dt);   // (js/obstacles/fireball.js)
   // Gems: picked up by touching them (each computer collects its own)
   for (const p of alive()) {
     if (p.remote) continue;
@@ -490,7 +421,7 @@ function updateHazards(dt) {
   }
   for (const p of alive()) {
     if (p.remote) continue;
-    const why = hazardHit(p);
+    const why = obstacleHit(p);   // (js/obstacles.js)
     if (why) die(p, why);
     if (state === 'over') return;
   }

@@ -149,42 +149,14 @@ function genPathRow(y, m, d, L) {
     const side = makePlatform(sx, y, w2, d, lo, hi, first ? allowHaz && !rowHaz : true);
     platforms.push(side); row.push(side);
     if (first) rowHaz = rowHaz || !!side.spikes;
-    else if (!side.spikes && R() < pBlade) addBlade(y, clamp(sx - w2 / 2 - 60, lo, hi), clamp(sx + w2 / 2 + 60, lo, hi), m);
+    else if (!side.spikes && R() < pBlade) addShuriken(side, m);
   }
 
   snapToWalls(row);   // no thin gaps between a platform and a wall
-  // Fire region: a flamethrower on the path's platform (strategic: you have to land / jump past it)
-  if (has(m, 'wallflame') && allowHaz && !rowHaz && main.type === 'normal' && main.w >= 110 && R() < lerp(0.3, 0.5, heat(m))) {
-    addPlatformJet(main); rowHaz = true;
-  }
-  // One flying obstacle (shuriken, wall flame or lightning beam) in the gap above this row
-  let blade = null;
-  if (allowHaz && !rowHaz && !pc.noFly) {
-    const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) * hz(m) : 0;
-    const pZap = has(m, 'zapper') ? lerp(0.35, 0.55, heat(m)) * hz(m) : 0;
-    const r = R();
-    if (r < pJet) {
-      // from the wall next to the path, and only when its flame reaches over where you jump
-      const side = cx < (L + W - WALL) / 2 ? 'L' : 'R';
-      const gap = side === 'L' ? main.x - WALL : W - WALL - (main.x + main.w);
-      if (gap < JET_LEN - 80) { addJet(side, y); rowHaz = true; }
-    }
-    else if (r < pJet + pBlade) {
-      addBlade(y, clamp(cx - w / 2 - 90, L, W - WALL), clamp(cx + w / 2 + 90, L, W - WALL), m);
-      blade = blades[blades.length - 1];
-      rowHaz = true;
-    } else if (r < pJet + pBlade + pZap) { addZapper(y, cx, L, m); rowHaz = true; }
-  }
-  // Water region: bubble columns rising from some rows (helpers, not hazards). Wider towers get more.
-  if (has(m, 'bubbles')) {
-    // Now and then, and never close to another column that overlaps it in height
-    if (R() < 0.18) {
-      const x = wrand(L + BUBBLE_W, W - WALL - BUBBLE_W), top = y - 3 * ROW_GAP - 40;
-      const clear = !bubbles.some(b => b.top < y + 10 + ROW_GAP && b.bot > top - ROW_GAP && Math.abs(b.x + b.w / 2 - x) < 300) &&
-                    !dividers.some(dv => dv.top < y + 10 && dv.bot > top && dv.x < x + BUBBLE_W / 2 + 20 && dv.x + dv.w > x - BUBBLE_W / 2 - 20);   // not through a pillar / wall
-      if (clear) addBubbles(y, x);
-    }
-  }
+  // This row's obstacles (js/obstacles.js): picked here, each one placed from the platforms
+  const ob = obstaclesForRow({ main, prev: gen.prev, m, allowHaz, rowHaz, noFly: pc.noFly });
+  rowHaz = ob.rowHaz;
+  const blade = ob.blade;
   placeGems(y, row, main, blade);   // gems off the path (js/pieces.js)
   gen.prevHaz = rowHaz;
   gen.prev = pc.prev || main;
@@ -231,11 +203,7 @@ function makePlatform(cx, y, w, d, lo, hi, allowHaz, m = heightM(y)) {
   }
   // Spikes: at most 45% of the platform, so there's always room to land
   const pHaz = has(m, 'spikes') ? Math.min(0.8, lerp(0.3, 0.55, heat(m)) * hz(m)) : 0;
-  if (allowHaz && (p.type === 'normal' || p.type === 'move') && p.w >= 100 && R() < pHaz) {
-    const len = wrand(26, p.w * 0.45);
-    const x0 = R() < 0.5 ? 0 : p.w - len;
-    p.spikes = { x0, x1: x0 + len };
-  }
+  if (allowHaz && (p.type === 'normal' || p.type === 'move') && p.w >= 100 && R() < pHaz) addSpikes(p, gen.prev);   // (js/obstacles/spikes.js)
   return p;
 }
 
@@ -250,63 +218,4 @@ function tiltY(pl, x) {
   return pl.py + clamp(x - pl.px, -pl.w / 2, pl.w / 2) * Math.tan(pl.angle);
 }
 
-// Spinning shuriken that patrols left-right in the gap above a row
-function addBlade(rowY, lo, hi, m) {
-  const sp = lerp(70, 150, heat(m));
-  blades.push({ x: wrand(lo + 20, hi - 20), y: rowY - 62, lo: lo + 16, hi: hi - 16, vx: (R() < 0.5 ? -1 : 1) * sp, r: 18, ang: 0 });
-}
-// Lightning beam between two posts in the gap above a row, switching on and off on a timer.
-// Near the path (cx); sometimes tilted.
-function addZapper(rowY, cx, lo, m) {
-  const len = wrand(200, lerp(280, 420, heat(m)));
-  const mid = clamp(cx + wrand(-50, 50), lo + len / 2 + 10, W - WALL - len / 2 - 10);   // (across the path)
-  const tilt = R() < 0.35 ? wrand(-36, 36) : 0;
-  const y = rowY - 62;
-  zaps.push({ x1: mid - len / 2, y1: y - tilt, x2: mid + len / 2, y2: y + tilt,
-              period: wrand(2.4, 3.4), on: lerp(0.9, 1.4, heat(m)), off: wrand(0, 3), t: 0, last: 0, seed: (R() * 1000) | 0 });
-}
-function zapState(z) {
-  const ph = (z.t + z.off) % z.period;
-  if (ph >= z.period - z.on) return 2;          // on
-  if (ph >= z.period - z.on - 0.6) return 1;    // warning flicker
-  return 0;
-}
-// Water region: a column of rising bubbles from a row up to three rows higher
-function addBubbles(rowY, x) {
-  bubbles.push({ x: x - BUBBLE_W / 2, w: BUBBLE_W, top: rowY - 3 * ROW_GAP - 40, bot: rowY + 10, seed: (R() * 1000) | 0 });
-}
 
-// Flamethrowers fire on a timer from a nozzle: ox, oy = the nozzle, dx, dy = which way the flame goes,
-// len / thick = its reach and thickness.
-// From a side wall, across the gap above a row:
-function addJet(side, rowY) {
-  const L = side === 'L';
-  jets.push({ ox: L ? WALL : W - WALL, oy: rowY - 62, dx: L ? 1 : -1, dy: 0, len: JET_LEN, thick: JET_THICK, wall: true,
-              period: wrand(2.6, 3.6), off: wrand(0, 3), t: 0, last: 0 });
-}
-// On a platform on the path: either at one end pointing straight up (time your landing / take-off),
-// or at one end pointing out sideways over the gap, just above the platform
-function addPlatformJet(p) {
-  const left = R() < 0.5;
-  const base = { period: wrand(2.4, 3.4), off: wrand(0, 3), t: 0, last: 0 };
-  // (straight up it stops short of the row above: it mustn't reach that row's platform)
-  if (R() < 0.6) jets.push({ ...base, ox: left ? p.x + 18 : p.x + p.w - 18, oy: p.y, dx: 0, dy: -1, len: Math.min(PJET_LEN, ROW_GAP + 80), thick: PJET_THICK });
-  else {   // sideways: from the end you arrive at, pointing back the way you come from (over your jump, not into empty air)
-    const from = gen.prev && gen.prev.type !== 'shaft' ? center(gen.prev) < center(p) : left;
-    jets.push({ ...base, ox: from ? p.x : p.x + p.w, oy: p.y - 20, dx: from ? -1 : 1, dy: 0, len: PJET_LEN + 20, thick: PJET_THICK });
-  }
-}
-function jetState(j) {
-  const ph = (j.t + j.off) % j.period;
-  if (ph >= j.period - 1.0) return 2;   // burning
-  if (ph >= j.period - 1.6) return 1;   // warning
-  return 0;
-}
-// The flame's box [x0, x1, y0, y1]
-// reach: how much of the flame's length counts (the drawn flame narrows to a point, so the part that
-// burns stops a little short of its tip)
-function jetBox(j, reach = 1) {
-  const len = j.len * reach, ex = j.ox + j.dx * len, ey = j.oy + j.dy * len, h = j.thick / 2;
-  return j.dy ? [j.ox - h, j.ox + h, Math.min(j.oy, ey), Math.max(j.oy, ey)]
-              : [Math.min(j.ox, ex), Math.max(j.ox, ex), j.oy - h, j.oy + h];
-}

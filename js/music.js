@@ -6,7 +6,8 @@
 //  - LOBBY (start scene, online rooms, lobbies, wardrobe): sunny and bouncy, F major, 104 bpm.
 //  - OVER (after a solo run): happy and easy, C major, 112 bpm.
 //  - WIN (the race results): a triumphant fanfare loop, C major, 132 bpm.
-//  - GAME: six songs, each run plays the next one (CLIMB, SPRINT, SKY, NEON, GROOVE, STORM — different keys,
+//  - GAME: seven songs, each run plays the next one (PASTEL — friendly and cute, the beat coming in as you
+//    climb — then CLIMB, SPRINT, SKY, NEON, GROOVE, STORM: different keys,
 //    tempos, bass lines, arpeggios and beats). Each is driving from the start and builds as you climb:
 //    faster (+42 bpm at the top), a snare, busier hats and bass, a second arpeggio, the tune, a counter-melody.
 // Changing scene crossfades: the old song keeps playing while it fades out and the new one fades in.
@@ -83,7 +84,8 @@ function hat(song, t, vol = 0.018) { hit(t, 0.025, vol, 'highpass', 9000, trackB
 const C = [60, 64, 67], G = [55, 59, 62], Am = [57, 60, 64], F = [53, 57, 60], Em = [52, 55, 59], E = [52, 56, 59], Dm = [50, 53, 57];
 // A song: its bars [chord (root first), melody], its tempo (I: the game's intensity 0 … 1), and its style:
 // how the bass, the arpeggio and the drums play. dynamic: layers come in with the intensity (game songs).
-const song = (bpm, bars, bass, arp, drums, dynamic = false) => ({ bpm, bars, bass, arp, drums, dynamic });
+// (opts: lead — the tune's pulse duty, 0.5 by default; leadFrom — the intensity the tune comes in at, in a game song)
+const song = (bpm, bars, bass, arp, drums, dynamic = false, opts = {}) => ({ bpm, bars, bass, arp, drums, dynamic, ...opts });
 
 // A seeded melody for the generated game songs: a phrase per section, strong beats on chord tones, the rest
 // walking up and down the scale (so each song has its own tune, the same every time it plays)
@@ -139,8 +141,16 @@ const SONGS = {
     [Am, [76, -1, 72, 76, 81, -1, 76, -1]], [F, [77, -1, 81, 84, 89, -1, 84, -1]], [G, [86, 84, 83, 81, 79, 77, 76, 74]], [C, [72, -1, 76, -1, 79, -1, 84, -1]],
   ], 'march', 'none', 'march'),
 };
-// Six game songs; each run plays the next one
+// Seven game songs; each run plays the next one
+const Bm = [47, 50, 54];
 const GAME_SONGS = [
+  song(I => 102 + 50 * I, [   // 0 PASTEL — G major, friendly and cute: a tinkly tune over a hopping bass; the beat
+    // comes in as you climb (a kick, then four on the floor and a snare) and it speeds up a lot
+    [G, [79, -1, 83, -1, 86, 83, 79, -1]], [Em, [79, -1, 83, 81, 79, -1, 76, -1]], [C, [76, -1, 79, -1, 84, 83, 81, -1]], [D2, [81, 79, 78, -1, 74, -1, -1, -1]],
+    [G, [79, -1, 83, -1, 86, -1, 88, 86]], [Em, [83, -1, 79, -1, 76, 79, 83, -1]], [C, [84, -1, 83, 81, 79, -1, 76, 79]], [D2, [78, -1, 81, -1, 79, -1, -1, -1]],
+    [C, [84, -1, 84, 86, 88, -1, 84, -1]], [D2, [86, -1, 86, 88, 90, -1, 86, -1]], [Bm, [86, -1, 83, -1, 79, -1, 83, -1]], [Em, [83, 81, 79, 76, -1, 79, -1, -1]],
+    [C, [84, -1, 88, -1, 91, -1, 88, 84]], [D2, [86, -1, 90, -1, 93, -1, 90, 86]], [G, [91, -1, 86, -1, 83, -1, 79, -1]], [G, [79, -1, -1, -1, -1, -1, -1, -1]],
+  ], 'hop', 'spread', 'cute', true, { lead: 0.125, leadFrom: -1 }),
   song(I => 126 + 42 * I, [   // 1 CLIMB — A minor, driving
     [Am, [81, -1, 81, 84, 81, 79, 76, -1]], [F, [77, -1, 77, 81, 77, 76, 72, -1]], [C, [76, -1, 76, 79, 76, 74, 72, 74]], [G, [74, -1, 74, 79, 83, -1, 81, 79]],
     [Am, [81, -1, 81, 84, 88, 84, 81, -1]], [F, [77, -1, 81, 84, 81, 77, 72, -1]], [C, [76, -1, 79, 84, 79, 76, 72, 76]], [G, [79, -1, 83, 86, 83, 79, 74, 79]],
@@ -165,6 +175,7 @@ function playStep(spec, S, s, t, I) {
   else if (D === 'rock') { if ([0, 6, 8, 11].includes(pos)) kick(S, t, 0.14); if (pos === 4 || pos === 12) snare(S, t, 0.05); }
   else if (D === 'break') { if ([0, 7, 10].includes(pos)) kick(S, t, 0.14); if (pos === 4 || pos === 12) snare(S, t, 0.05); if (on(0.3) && pos === 15) snare(S, t, 0.025); }
   else if (D === 'light') { if (pos === 0 || pos === 8) kick(S, t, 0.11); if (pos === 4 || pos === 12) snare(S, t, 0.03); }
+  else if (D === 'cute') { if (on(0.25) && (pos === 0 || pos === 8 || (on(0.55) && pos % 4 === 0))) kick(S, t, 0.1 + 0.05 * I); if (on(0.45) && (pos === 4 || pos === 12)) snare(S, t, 0.04); }
   else if (D === 'march') { if (pos === 0 || pos === 8) kick(S, t, 0.13); if (pos === 4 || pos === 12) snare(S, t, 0.045); if (bar % 2 === 1 && pos >= 12) snare(S, t, 0.025); }
   if (pos % 4 === 2) hat(S, t, D === 'light' ? 0.012 : 0.022); else if (on(0.45) && pos % 2 === 1) hat(S, t, 0.012);
   if (spec.dynamic && I > 0.6 && bar % 4 === 3 && pos >= 12) snare(S, t, 0.03);   // a fill before each section
@@ -187,10 +198,10 @@ function playStep(spec, S, s, t, I) {
     if (spec.dynamic && I > 0.4 && pos % 2 === 1) chip(S, 0.125, midi(ch[(pos >> 1) % 3] + 24), t, sx * 0.8, 0.009);
   }
   // the tune (50% pulse; in a game song it comes in a little way up), with a thin echo / harmony
-  if (pos % 2 === 0 && on(0.3)) {
+  if (pos % 2 === 0 && on(spec.leadFrom !== undefined ? spec.leadFrom : 0.3)) {
     const n = mel[pos / 2];
     if (n > 0) {
-      chip(S, 0.5, midi(n), t, sx * 1.7, spec.dynamic ? 0.022 + 0.008 * I : 0.026);
+      chip(S, spec.lead || 0.5, midi(n), t, sx * 1.7, spec.dynamic ? 0.022 + 0.008 * I : 0.026);
       if (S === 'win') chip(S, 0.25, midi(n - (n % 12 === 0 || n % 12 === 5 ? 4 : 3)), t, sx * 1.6, 0.014);
       else if (!spec.dynamic) chip(S, 0.125, midi(n - 12), t + sx, sx * 1.2, 0.01);
     }
@@ -214,10 +225,10 @@ function musicStep(s, t, I, name = 'game') { playStep(specOf(name), name, s, t, 
 const songBpm = (name, I) => specOf(name).bpm(I);
 // Each run plays the next game song (remembered, so it carries on from where you left off)
 function nextGameSong() {
-  let k = 0; try { k = (parseInt(localStorage.getItem('rcs.song') || '-1', 10) + 1) % GAME_SONGS.length; } catch (e) {}
+  let k = 0; try { k = (parseInt(localStorage.getItem('rcs.song7') || '-1', 10) + 1) % GAME_SONGS.length; } catch (e) {}
   if (!(k >= 0)) k = 0;
   music.gameIdx = k;
-  try { localStorage.setItem('rcs.song', String(k)); } catch (e) {}
+  try { localStorage.setItem('rcs.song7', String(k)); } catch (e) {}
 }
 
 const TRACKS = ['lobby', 'over', 'win', 'game'];

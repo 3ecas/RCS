@@ -113,7 +113,7 @@ const PIECE_ROW = {
       // (obstacles on the outside route: spikes every other step, and higher up a shuriken sweeping across it)
       const q = makePlatform(pickCx(w, a.lo, a.hi, refs, G - 10), y, w, d, a.lo, a.hi, pc.k % 2 === 1 && pc.left > 1);
       q.alt = true; row.push(q); pc.altPrev = q;
-      if (pc.k >= 1 && pc.left > 1 && !q.spikes && R() < lerp(0.15, 0.5, heat(m))) addBlade(y, a.lo, a.hi, m);
+      if (pc.k >= 1 && pc.left > 1 && !q.spikes && R() < lerp(0.15, 0.5, heat(m))) addShuriken(q, m);   // (sweeping across the outside route's step)
     }
     if (pc.left === 1 && ex) {
       // A ledge beside the top of the shaft, level with the pillars' tops
@@ -132,8 +132,7 @@ const PIECE_ROW = {
     // rows get a flamethrower in a pillar, firing across the shaft on a timer (from alternate sides)
     if (pc.k >= 1 && pc.left > 2 && heat(m) > 0.4 && R() < lerp(0.25, 0.55, (heat(m) - 0.4) / 0.6)) {
       const side = pc.k % 2 ? -1 : 1;
-      jets.push({ ox: side < 0 ? pc.cx - SHAFT_W / 2 : pc.cx + SHAFT_W / 2, oy: y - 50, dx: -side, dy: 0, len: SHAFT_W * 0.55, thick: 26,
-                  period: wrand(2.4, 3.2), off: wrand(0, 3), t: 0, last: 0, shaft: true });
+      addShaftFlame(side < 0 ? pc.cx - SHAFT_W / 2 : pc.cx + SHAFT_W / 2, y, -side);   // (js/obstacles/flame.js)
     }
     const main = { type: 'shaft', x: pc.cx - SHAFT_W / 2, w: SHAFT_W };
     return { main, row, rowHaz: false, block: whole, noFly: true };

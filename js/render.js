@@ -192,14 +192,7 @@ function drawPlatform(p) {
     }
   }
 
-  if (p.spikes) {
-    const x0 = x + p.spikes.x0, len = p.spikes.x1 - p.spikes.x0;
-    const n = Math.max(1, Math.floor(len / 11)), sw = len / n;
-    ctx.fillStyle = PAL.spike; ctx.strokeStyle = PAL.spike; ctx.lineWidth = 2; ctx.lineJoin = 'round';
-    ctx.beginPath();
-    for (let k = 0; k < n; k++) { ctx.moveTo(x0 + k * sw + 1, y); ctx.lineTo(x0 + k * sw + sw / 2, y - 10); ctx.lineTo(x0 + (k + 1) * sw - 1, y); ctx.closePath(); }
-    ctx.fill(); ctx.stroke();
-  }
+  if (p.spikes) drawSpikes(p, x, y);   // (js/obstacles/spikes.js)
 }
 
 // A plain platform in its region's style: colours, a decoration, and a bracket into the wall when it's next to one
@@ -244,58 +237,8 @@ function drawSpringI(x, y, w, comp) {
   for (const dx of [10, w - 10]) { ctx.beginPath(); ctx.arc(x + dx, ty + 5, 1.8, 0, Math.PI * 2); ctx.fill(); }
 }
 
-function drawBlade(b) {
-  if (b.y < camY - OY - 40 || b.y > camY + H + OY + 40) return;
-  ctx.save();
-  ctx.translate(b.x, b.y); ctx.rotate(b.ang);
-  ctx.fillStyle = PAL.blade; ctx.strokeStyle = PAL.bladeD; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
-  ctx.beginPath();
-  for (let k = 0; k < 8; k++) {
-    const r = k % 2 ? b.r * 0.4 : b.r - 1;
-    const a = k * Math.PI / 4;
-    k ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(r, 0);
-  }
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = PAL.bladeD; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.restore();
-  // its patrol track: small dots
-  ctx.fillStyle = PAL.bladeD; ctx.globalAlpha = 0.22;
-  for (let tx = b.lo; tx <= b.hi; tx += 14) { ctx.beginPath(); ctx.arc(tx, b.y, 1.8, 0, Math.PI * 2); ctx.fill(); }
-  ctx.globalAlpha = 1;
-}
 
 // Lightning beam: two posts, a flicker while it warms up, then a jagged bolt while it's on
-function drawZapper(z) {
-  if (Math.max(z.y1, z.y2) < camY - OY - 40 || Math.min(z.y1, z.y2) > camY + H + OY + 40) return;
-  const s = zapState(z);
-  if (s === 1 && Math.floor(time * 14) % 2) {
-    // warming up: a row of butter dots between the posts
-    const n = Math.max(2, Math.floor(Math.hypot(z.x2 - z.x1, z.y2 - z.y1) / 16));
-    ctx.fillStyle = PAL.zapD; ctx.globalAlpha = 0.6;
-    for (let i = 1; i < n; i++) { ctx.beginPath(); ctx.arc(z.x1 + (z.x2 - z.x1) * i / n, z.y1 + (z.y2 - z.y1) * i / n, 2.5, 0, Math.PI * 2); ctx.fill(); }
-    ctx.globalAlpha = 1;
-  } else if (s === 2) {
-    const n = 12, dx = z.x2 - z.x1, dy = z.y2 - z.y1, len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
-    const k = Math.floor(time * 30);
-    const pts = [];
-    for (let i = 0; i <= n; i++) {
-      const j = i === 0 || i === n ? 0 : (hash(z.seed + i, k) - 0.5) * 18;
-      pts.push([z.x1 + dx * i / n + nx * j, z.y1 + dy * i / n + ny * j]);
-    }
-    const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); };
-    // on: a soft butter bolt with a deeper edge and a white core, round at every bend
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(255,217,107,0.35)'; ctx.lineWidth = 14; path();
-    ctx.strokeStyle = PAL.zapD; ctx.lineWidth = 7; path();
-    ctx.strokeStyle = PAL.zap; ctx.lineWidth = 4.5; path();
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6; path();
-  }
-  for (const [x, y] of [[z.x1, z.y1], [z.x2, z.y2]]) {
-    ctx.fillStyle = PAL.zapPost; ctx.beginPath(); ctx.roundRect(x - 8, y - 8, 16, 16, 5); ctx.fill();
-    ctx.fillStyle = s ? PAL.zap : PAL.nozzle; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
-  }
-}
 
 // Two Paths region: the dividing wall, in the same stone as the side walls
 function drawDivider(dv) {
@@ -311,75 +254,7 @@ function drawDivider(dv) {
   if (dv.pillar && dv.top >= top) { ctx.beginPath(); ctx.roundRect(dv.x - 4, dv.top, dv.w + 8, 7, 3.5); ctx.fill(); }   // a pillar's cap
 }
 
-// Bubble column: a pale blue stream with bubbles rising through it
-function drawBubbles(b) {
-  if (b.bot < camY - OY - 20 || b.top > camY + H + OY + 20) return;
-  const [soft, deep] = SOFT.sky, h = b.bot - b.top, cx = b.x + b.w / 2;
-  // the column: a soft rounded sky shape with a light edge (round at the top, open into the vent below)
-  ctx.globalAlpha = 0.4; ctx.fillStyle = soft;
-  ctx.beginPath(); ctx.roundRect(b.x, b.top, b.w, h, [b.w / 2, b.w / 2, 6, 6]); ctx.fill();
-  ctx.globalAlpha = 0.45; ctx.strokeStyle = soft; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(b.x + 1, b.top + 1, b.w - 2, h - 2, [b.w / 2, b.w / 2, 6, 6]); ctx.stroke();
-  // chevrons drifting up the middle: this way!
-  ctx.globalAlpha = 0.5; ctx.strokeStyle = deep; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (let k = 0; k < 4; k++) {
-    const y = b.bot - 20 - ((time * 70 + k * h / 4) % (h - 40));
-    ctx.beginPath(); ctx.moveTo(cx - 7, y + 4); ctx.lineTo(cx, y - 3); ctx.lineTo(cx + 7, y + 4); ctx.stroke();
-  }
-  // bubbles: rings and dots rising and swaying, bigger as they go up
-  for (let k = 0; k < 9; k++) {
-    const sp = 80 + hash(b.seed, k) * 70, f = ((time * sp + hash(b.seed + k, 7) * h) % h) / h;
-    const y = b.bot - f * h, x = cx + Math.sin(time * 3 + k) * (b.w / 2 - 12) * hash(k, 3);
-    const r = (2.5 + hash(k, b.seed) * 3.5) * (0.7 + f * 0.6);
-    ctx.globalAlpha = 0.85 * Math.min(1, (1 - f) * 4);
-    drawShape(ctx, k % 3 ? 'ring' : 'dot', x, y, r, k % 3 ? '#ffffff' : deep);
-  }
-  ctx.globalAlpha = 1;
-  // the vent it rises from
-  slab(b.x + 4, b.bot - 4, b.w - 8, 8, soft, deep);
-}
 
-// Flamethrower: a nozzle (on a wall or a platform), a flicker while it warms up, then the flame
-function drawJet(j) {
-  const [, , y0, y1] = jetBox(j);
-  if (y1 < camY - OY - 40 || y0 > camY + H + OY + 40) return;
-  const s = jetState(j), h = j.thick / 2;
-  ctx.save();
-  ctx.translate(j.ox, j.oy);
-  ctx.rotate(Math.atan2(j.dy, j.dx));        // draw it along +x
-  ctx.fillStyle = s ? PAL.flame : PAL.nozzle; // nozzle
-  if (j.wall) { ctx.beginPath(); ctx.roundRect(-12, -h * 0.6, 14, h * 1.2, 5); ctx.fill(); }
-  else { ctx.beginPath(); ctx.roundRect(-4, -h * 0.55, 14, h * 1.1, 4); ctx.fill(); ctx.fillStyle = PAL.zapPost; ctx.beginPath(); ctx.roundRect(-4, -h * 0.55, 5, h * 1.1, 2); ctx.fill(); }
-  if (s === 1 && Math.floor(time * 12) % 2) {   // warming up: a small flickering tongue
-    ctx.fillStyle = PAL.flame; ctx.beginPath(); ctx.roundRect(0, -h * 0.4, 22, h * 0.8, h * 0.4); ctx.fill();
-  }
-  if (s === 2) {
-    // Burning: three rounded tongues (apricot, butter, cream), each flickering on its own,
-    // and a few little shapes drifting off the tip
-    const f = k => 0.9 + 0.1 * Math.sin(time * (24 + k * 7) + j.ox * 0.1 + k);
-    ctx.save(); ctx.beginPath(); ctx.rect(-1, -h * 2, j.len * 1.4, h * 4); ctx.clip();   // nothing behind the nozzle
-    // a tongue: round at the nozzle, swelling a little, then narrowing to a soft point
-    const tongue = (len, th, col) => {
-      ctx.fillStyle = col; ctx.beginPath();
-      ctx.moveTo(0, -th);
-      ctx.bezierCurveTo(len * 0.45, -th * 1.2, len * 0.8, -th * 0.5, len, 0);
-      ctx.bezierCurveTo(len * 0.8, th * 0.5, len * 0.45, th * 1.2, 0, th);
-      ctx.arc(0, 0, th, Math.PI / 2, Math.PI * 1.5);
-      ctx.fill();
-    };
-    tongue(j.len * f(0), h * 0.9, PAL.flame);
-    tongue(j.len * 0.74 * f(1), h * 0.6, PAL.flame2);
-    tongue(j.len * 0.42 * f(2), h * 0.28, PAL.flameCore);
-    ctx.restore();
-    for (let k = 0; k < 3; k++) {
-      const ph = (time * 2.2 + k / 3 + j.ox * 0.01) % 1;
-      ctx.globalAlpha = 1 - ph;
-      drawShape(ctx, k % 2 ? 'tri' : 'dot', j.len * (0.88 + ph * 0.2), Math.sin(time * 5 + k * 2) * h * 0.6, 3.5 - ph * 2, PAL.flame, time * 3 + k);
-    }
-    ctx.globalAlpha = 1;
-  }
-  ctx.restore();
-}
 
 // A player's cube, squashed when it lands. Other computers' cubes keep their colours, a little see-through.
 const OTHERS_ALPHA = 0.5;
@@ -440,13 +315,7 @@ function render() {
   // Other computers' cubes first, so yours are always drawn in front
   for (const p of players) if (p.remote) drawPlayer(p);
   for (const p of players) if (!p.remote) drawPlayer(p);
-  for (const f of fireballs) {
-    // a little flame-coloured ball: a soft halo, an apricot ball, a butter middle and a cream spark
-    ctx.fillStyle = PAL.flame; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(f.x, f.y - f.r * 0.3, f.r * 1.6, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = PAL.fire; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = PAL.flame2; ctx.beginPath(); ctx.arc(f.x, f.y + f.r * 0.15, f.r * 0.62, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = PAL.flameCore; ctx.beginPath(); ctx.arc(f.x - f.r * 0.15, f.y + f.r * 0.25, f.r * 0.28, 0, Math.PI * 2); ctx.fill();
-  }
+  drawFireballs();   // (js/obstacles/fireball.js)
   for (const q of particles) {
     ctx.globalAlpha = clamp(q.life / q.max, 0, 1);
     if (q.kind) drawShape(ctx, q.kind, q.x, q.y, q.size * 0.6, q.color, q.rot || 0);
@@ -466,16 +335,7 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // Fireball warnings at the top edge
-  for (const w of warnings) {
-    if (Math.floor(w.t * 10) % 2) continue;
-    ctx.fillStyle = PAL.fire;
-    const wx = w.x;
-    const wy = 14 - OY;   // top of the window
-    ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(wx - 13, wy + 22); ctx.lineTo(wx + 13, wy + 22); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = `900 14px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('!', wx, wy + 19);
-  }
+  drawFireballWarnings();   // fireball warnings at the top edge (js/obstacles/fireball.js)
 
   // Tall windows show a bit below the tower's bottom edge: that's out, so shade it
   if (OY > 0) {
