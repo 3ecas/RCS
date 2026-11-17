@@ -81,13 +81,15 @@ function bubbleShape(cube, w, h) {
   return [x, y];
 }
 
-// "Typing…": three dots in a small bubble, each growing and shrinking in turn, like a wave
+// "Typing…": just three small dots floating over the cube (no balloon), each growing and shrinking in turn,
+// like a wave. White-ringed so they show on any background.
 function drawTypingDots(cube) {
-  const w = 62, h = 34, [x, y] = bubbleShape(cube, w, h);
-  ctx.fillStyle = cube.dark;
+  const cx = cube.x + cube.w / 2, cy = cube.y - 18;
   for (let k = 0; k < 3; k++) {
     const u = 0.5 + 0.5 * Math.sin(time * 7 - k * 0.9);    // 0..1, each dot a little behind the one before
-    ctx.beginPath(); ctx.arc(x + w / 2 + (k - 1) * 15, y + h / 2, 2.6 + 2.4 * u, 0, Math.PI * 2); ctx.fill();
+    const r = 2.8 + 2.6 * u;
+    ctx.beginPath(); ctx.arc(cx + (k - 1) * 14, cy, r + 1.8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + (k - 1) * 14, cy, r, 0, Math.PI * 2); ctx.fillStyle = cube.dark; ctx.fill();
   }
 }
 
