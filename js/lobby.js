@@ -1,6 +1,6 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
-// - one player: just climb. Step onto the first stair (a plain platform) and the game starts, scrolling up
-//   this same tower. Jump onto ONLINE (a plain platform with its name on it) to play online.
+// - one player: just climb. Once you're past the middle of the screen the game starts, scrolling up
+//   this same tower (the first stair, a plain platform on the left, is where the climb begins). Jump onto ONLINE (a plain platform with its name on it) to play online.
 // - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds; both on ONLINE goes online
 // - a small SOUND pad (a jump above, on the left): land on it to turn the sound on or off
 // - the WARDROBE door on the floor, on the left: press down at it to go inside and change your cube (js/wardrobe.js)
@@ -39,7 +39,7 @@ function buildLobbyRow1() {
   const y = GROUND_Y - ROW_GAP, slot = (W - WALL - LOBBY_LEFT) / items.length, w = Math.min(150, slot - 60);
   items.forEach((menu, k) => {
     const cx = LOBBY_LEFT + slot * (k + 0.5);
-    // ('stair': the first step of the tower — a plain platform; stepping onto it starts a solo game)
+    // ('stair': the first step of the tower — a plain platform where the climb begins)
     platforms.push({ id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', menu: menu === 'stair' ? undefined : menu, stair: menu === 'stair',
                      dx: 0, dy: 0, t: 0, falling: false });
   });
@@ -81,10 +81,10 @@ function updateLobby(dt) {
   checkWardrobeDoor();                 // down at the WARDROBE door: go inside (js/wardrobe.js)
   if (state !== 'lobby') return;
 
-  // One player: stepping onto the first stair starts the game; landing on ONLINE goes online
+  // One player: climbing past the middle of the screen starts the game; landing on ONLINE goes online
   if (playerCount === 1) {
     const on = standingOn(players[0]);
-    if (on && on.stair) { chooseMode('solo'); return; }
+    if (players[0].y + players[0].h < camY + H / 2) { chooseMode('solo'); return; }
     if (on && on.menu === 'multi') { chooseMode('multi'); return; }
   }
   // Two players: both on ONLINE goes online at once; both on CO-OP / RACE for 2 seconds starts that
