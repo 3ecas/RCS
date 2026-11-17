@@ -503,14 +503,14 @@ function drawDanger() {
 // the line; close to the edge some break away and rise as sparks. (Tension for whoever has fallen behind.)
 const DANGER_SHAPES = ['dot', 'tri', 'ring', 'plus', 'sq'], DANGER_COLS = ['rose', 'apricot', 'rose', 'butter', 'rose', 'lilac'];
 function drawDangerLine(danger) {
-  const span = W - 2 * WALL, n = Math.round(span / 7), base = H - 7;   // (dense: about one shape every 7 px)
+  const span = W - 2 * WALL, n = Math.round(span / 9), base = H - 10;   // (dense: about one shape every 7 px)
   ctx.save();
   for (let k = 0; k < n; k++) {
     const h = m => ((Math.sin(k * 91.7 + m * 47.3) * 43758.5453) % 1 + 1) % 1;
     const row = k % 2;                                               // two staggered rows
     const x = WALL + (((k + 0.5) / n * span + time * (h(1) < 0.5 ? -18 : 18) * (0.5 + h(2))) % span + span) % span;
-    const y = base - row * 9 + Math.sin(time * (2 + h(3) * 3) + h(4) * 6.3) * 3.5;
-    const r = (2.5 + h(5) * 2.5) * (0.6 + 0.6 * danger);
+    const y = base - row * 14 + Math.sin(time * (2 + h(3) * 3) + h(4) * 6.3) * 3.5;
+    const r = (5 + h(5) * 4) * (0.6 + 0.6 * danger);   // (big enough to read at a glance)
     ctx.globalAlpha = danger * (0.5 + 0.45 * Math.sin(time * 6 + h(6) * 6.3)) * (row ? 0.75 : 1);
     drawShape(ctx, DANGER_SHAPES[k % 5], x, y, r, SOFT[DANGER_COLS[k % 6]][1], time * (h(7) < 0.5 ? -1.5 : 1.5) + k);
     // sparks: as it gets close, more and more rise off the line and fade
