@@ -1,14 +1,15 @@
 // RCS — Music and ambience, generated with the Web Audio API (no sound files).
 //
-// Two songs, played by a small generative band and scheduled a little ahead with a look-ahead timer (so the
-// beat stays steady whatever the frame rate):
-//  - the LOBBY song (start scene, online rooms, lobbies, wardrobe, results): a happy, bouncy pop loop in
-//    C major at 112 bpm — C, G, Am, F — with a hopping bass, off-beat chord stabs, a cheerful little
-//    melody, claps and a soft shaker.
-//  - the GAME song (a run or a race): paced and driving from the first second — A minor, F, C, G at
-//    126 bpm, a four-on-the-floor kick, pumping eighth-note bass and sixteenth arpeggios — and it builds as
-//    you climb (intensity 0 … 1 with the height): faster (up to 168 bpm), snare, busier hats and bass, a
-//    second arpeggio, and near the top a lead line.
+// The music is 8-bit chiptune: pulse waves (12.5%, 25% and 50% duty, like an old console's square
+// channels) for melodies and arpeggios, a triangle for the bass, and short noise bursts for the drums.
+// Three songs, each a long loop (an A and a B section) that keeps going for as long as you stay:
+//  - LOBBY (start scene, online rooms, lobbies, wardrobe, solo results): happy and bouncy, C major, 112 bpm.
+//  - GAME (a run or a race): driving, A minor, from 126 bpm up to about 168 as you climb, adding layers as
+//    it goes (snare, busier hats and bass, a second arpeggio, a lead and a counter-melody).
+//  - WIN (the race results): a triumphant fanfare loop, C major, 132 bpm.
+// Changing scene crossfades: the old song keeps playing while it fades out and the new one fades in.
+// During the slow-motion finale everything fades away, then the WIN song comes in with the results.
+// Notes are scheduled a little ahead with a look-ahead timer, so the beat stays steady.
 //
 // Ambience: a few soft loops whose volume follows what's near your cube — a clean rush of air while a water
 // current carries you up, a hum near moving platforms, bubbling near water columns, a whirr near shurikens,
@@ -16,32 +17,43 @@
 'use strict';
 
 const MUSIC_VOL = 0.38;   // (the whole band; sound effects are louder than this)
-const music = { next: 0, step: 0, I: 0, target: 0, bus: null, timer: null };
+const FADE = 0.55;        // crossfade time constant (s): a song fades out / in over about two seconds
+const music = { I: 0, target: 0, timer: null, tracks: {}, song: null };
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
-// The chord loop (a bar each), and a pentatonic scale for the lead
-const LOBBY_PROG = [[48, 64, 67, 72], [43, 62, 67, 71], [45, 64, 69, 72], [41, 65, 69, 72]];   // C  G  Am  F
-const GAME_PROG = [[45, 57, 60, 64], [41, 57, 60, 65], [48, 55, 60, 64], [43, 55, 59, 62]];    // Am F  C  G
-// The lobby's tune: a call and an answer over four bars (MIDI notes in C major, -1 = rest), per 8th note
-const TUNE = [[76, -1, 79, 76, 74, -1, 72, 74], [76, -1, 79, 81, 79, -1, 76, -1], [76, -1, 79, 76, 74, -1, 72, 69], [72, -1, 74, 76, 72, -1, -1, -1]];
-const GAME_LEAD = [81, 84, 88, 86, 84, 81, 79, 81, 84, 86, 88, 91, 88, 86, 84, 86];
-const lobbyBpm = () => 112, gameBpm = I => 126 + 42 * I;
 
-function musicBus() {
-  if (!music.bus) { music.bus = actx.createGain(); music.bus.gain.value = MUSIC_VOL; music.bus.connect(actx.destination); }
-  return music.bus;
+// ---- 8-bit instruments ----
+const pulseWaves = new Map();
+function pulse(duty) {   // a pulse wave of this duty cycle (cached per audio context)
+  const key = duty + '|' + (actx && actx.sampleRate);
+  if (pulseWaves.has(key) && pulseWaves.get(key).ctx === actx) return pulseWaves.get(key).w;
+  const N = 32, re = new Float32Array(N), im = new Float32Array(N);
+  for (let n = 1; n < N; n++) {   // (the Fourier series of a pulse with this duty)
+    re[n] = (2 / (n * Math.PI)) * Math.sin(2 * n * Math.PI * duty); im[n] = (2 / (n * Math.PI)) * (1 - Math.cos(2 * n * Math.PI * duty)); }
+  const w = actx.createPeriodicWave(re, im, { disableNormalization: false });
+  pulseWaves.set(key, { w, ctx: actx });
+  return w;
 }
-// One note into the music bus at time t
-function note(freq, t, dur, type = 'triangle', vol = 0.03, attack = 0.005) {
+function trackBus(song) {
+  let tr = music.tracks[song];
+  if (!tr || tr.ctx !== actx) {
+    const bus = actx.createGain(); bus.gain.value = 0; bus.connect(actx.destination);
+    tr = music.tracks[song] = { bus, ctx: actx, step: 0, next: 0, on: false, offAt: 0 };
+  }
+  return tr.bus;
+}
+// One chip note: instant attack, a short hold, then a quick release (no slow swells)
+function chip(song, wave, freq, t, dur, vol) {
   const o = actx.createOscillator(), g = actx.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, t);
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(vol, t + attack);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(musicBus());
-  o.start(t); o.stop(t + dur + 0.05);
+  if (wave === 'tri') o.type = 'triangle'; else o.setPeriodicWave(pulse(wave));
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.setValueAtTime(vol * 0.75, t + dur * 0.55);
+  g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(trackBus(song));
+  o.start(t); o.stop(t + dur + 0.02);
 }
 function noiseSrc() {
-  if (!noiseBuf) {
+  if (!noiseBuf || noiseBuf.sampleRate !== actx.sampleRate) {
     noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -55,72 +67,124 @@ function hit(t, dur, vol, ftype, freq, bus) {   // a filtered noise burst (drums
   s.connect(f).connect(g).connect(bus);
   s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
 }
-function kick(t, vol = 0.16) {
+// chip drums: a kick that drops in pitch, a noise snare with a little tone, a short tick hat
+function kick(song, t, vol = 0.14) {
   const o = actx.createOscillator(), g = actx.createGain();
-  o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.13);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-  o.connect(g).connect(musicBus()); o.start(t); o.stop(t + 0.22);
+  o.type = 'triangle'; o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.09);
+  g.gain.setValueAtTime(vol, t); g.gain.linearRampToValueAtTime(0.0001, t + 0.13);
+  o.connect(g).connect(trackBus(song)); o.start(t); o.stop(t + 0.15);
 }
+function snare(song, t, vol = 0.05) { hit(t, 0.11, vol, 'highpass', 1800, trackBus(song)); chip(song, 'tri', 200, t, 0.06, vol * 0.8); }
+function hat(song, t, vol = 0.018) { hit(t, 0.025, vol, 'highpass', 9000, trackBus(song)); }
 
-function clap(t, vol = 0.05) { hit(t, 0.09, vol, 'bandpass', 1500, musicBus()); hit(t + 0.012, 0.07, vol * 0.7, 'bandpass', 1700, musicBus()); }
+// ---- The songs (bars of 16 sixteenth-steps; melodies are 8 eighth-notes a bar, MIDI numbers, -1 = rest) ----
+const C = [60, 64, 67], G = [59, 62, 67], Am = [57, 60, 64], F = [57, 60, 65], Em = [59, 64, 67], E = [56, 59, 64], Dm = [57, 62, 65];
+const SONGS = {
+  lobby: {
+    bpm: () => 112,
+    bars: [   // A A B — C G Am F, twice, then F G Em Am F G C C
+      [C, [72, -1, 76, 79, 76, -1, 72, 74]], [G, [74, -1, 79, 83, 81, 79, -1, 74]], [Am, [76, -1, 81, 79, 76, -1, 72, 76]], [F, [77, 76, 74, 72, -1, -1, 69, -1]],
+      [C, [72, -1, 76, 79, 76, -1, 79, 84]], [G, [83, -1, 79, 74, 79, -1, 83, 86]], [Am, [84, -1, 81, 76, 81, -1, 84, 81]], [F, [77, -1, 81, 77, 72, -1, -1, -1]],
+      [F, [81, -1, 79, 77, -1, 77, 79, 81]], [G, [83, -1, 81, 79, -1, 79, 81, 83]], [Em, [84, 83, 79, 76, -1, 79, 76, -1]], [Am, [76, -1, 72, 76, 81, -1, -1, -1]],
+      [F, [77, -1, 81, 84, 81, -1, 77, -1]], [G, [79, -1, 83, 86, 83, -1, 79, -1]], [C, [84, -1, 79, 76, 79, -1, 84, -1]], [C, [72, -1, -1, -1, -1, -1, -1, -1]],
+    ],
+  },
+  game: {
+    bpm: I => 126 + 42 * I,
+    bars: [   // A A B A' — Am F C G, twice, then F G Am E, then Am F C G again
+      [Am, [81, -1, 81, 84, 81, 79, 76, -1]], [F, [77, -1, 77, 81, 77, 76, 72, -1]], [C, [76, -1, 76, 79, 76, 74, 72, 74]], [G, [74, -1, 74, 79, 83, -1, 81, 79]],
+      [Am, [81, -1, 81, 84, 88, 84, 81, -1]], [F, [77, -1, 81, 84, 81, 77, 72, -1]], [C, [76, -1, 79, 84, 79, 76, 72, 76]], [G, [79, -1, 83, 86, 83, 79, 74, 79]],
+      [F, [72, 77, 81, 77, 72, 77, 81, 84]], [G, [74, 79, 83, 79, 74, 79, 83, 86]], [Am, [88, -1, 84, -1, 81, -1, 76, -1]], [E, [80, 83, 88, 83, 80, 83, 88, 92]],
+      [Am, [81, 84, 88, 84, 81, 84, 88, 93]], [F, [89, 88, 84, 81, 77, 81, 84, 89]], [C, [88, 84, 79, 76, 79, 84, 88, 91]], [G, [86, 83, 79, 74, 79, 83, 86, 91]],
+    ],
+  },
+  win: {
+    bpm: () => 132,
+    bars: [   // a fanfare: C F G C, Am F G C
+      [C, [72, 72, 72, 76, 79, -1, 76, 79]], [F, [81, -1, 77, 81, 84, -1, 81, -1]], [G, [79, -1, 83, 86, 83, 79, 74, -1]], [C, [84, -1, -1, 79, 84, -1, -1, -1]],
+      [Am, [76, -1, 72, 76, 81, -1, 76, -1]], [F, [77, -1, 81, 84, 89, -1, 84, -1]], [G, [86, 84, 83, 81, 79, 77, 76, 74]], [C, [72, -1, 76, -1, 79, -1, 84, -1]],
+    ],
+  },
+};
+const lobbyBpm = () => SONGS.lobby.bpm(), gameBpm = I => SONGS.game.bpm(I);
 
-// The lobby song, one sixteenth-note step
 function lobbyStep(s, t) {
-  const bar = Math.floor(s / 16), pos = s % 16, ch = LOBBY_PROG[bar % 4], sx = 60 / lobbyBpm() / 4;
-  // hopping bass: root, fifth, octave
-  const bassPat = { 0: 0, 6: 7, 8: 12, 12: 7, 14: 0 };
-  if (bassPat[pos] !== undefined) note(midi(ch[0] - 12 + bassPat[pos]), t, sx * 1.7, 'triangle', 0.075);
-  // chord stabs on the off-beats, and a soft pad under the bar
-  if (pos % 4 === 2) for (const n of ch.slice(1)) note(midi(n), t, sx * 1.1, 'triangle', 0.012);
-  if (pos === 0) for (const n of ch.slice(1)) note(midi(n - 12), t, sx * 16, 'sine', 0.008, 0.2);
-  // the tune, on 8th notes (it rests every fourth bar's second half, so it breathes)
-  if (pos % 2 === 0) { const n = TUNE[bar % 4][pos / 2]; if (n > 0) note(midi(n), t, sx * 1.6, 'square', 0.011); }
-  // kick, clap, shaker
-  if (pos === 0 || pos === 8) kick(t, 0.09);
-  if (pos === 4 || pos === 12) clap(t, 0.04);
-  hit(t, 0.025, pos % 2 ? 0.012 : 0.02, 'highpass', 8000, musicBus());
+  const S = 'lobby', bar = Math.floor(s / 16) % SONGS.lobby.bars.length, pos = s % 16, [ch, mel] = SONGS.lobby.bars[bar], sx = 60 / lobbyBpm() / 4;
+  // hopping triangle bass: root, fifth, octave
+  const hop = { 0: 0, 6: 7, 8: 12, 12: 7, 14: 0 };
+  if (hop[pos] !== undefined) chip(S, 'tri', midi(ch[0] - 12 + hop[pos]), t, sx * 1.6, 0.11);
+  // a quiet fast chip arpeggio through the chord (the classic 8-bit "chord")
+  chip(S, 0.25, midi(ch[pos % 3] + 12), t, sx * 0.9, 0.014);
+  // the tune on a 50% pulse, an echo of it on a thin 12.5% pulse an octave down
+  if (pos % 2 === 0) { const n = mel[pos / 2]; if (n > 0) { chip(S, 0.5, midi(n), t, sx * 1.7, 0.026); chip(S, 0.125, midi(n - 12), t + sx, sx * 1.2, 0.01); } }
+  // drums
+  if (pos === 0 || pos === 8) kick(S, t, 0.12);
+  if (pos === 4 || pos === 12) snare(S, t, 0.035);
+  if (pos % 2 === 0) hat(S, t, 0.012);
 }
 
-// The game song, one sixteenth-note step (I: intensity 0 … 1)
 function gameStep(s, t, I) {
-  const bar = Math.floor(s / 16), pos = s % 16, ch = GAME_PROG[bar % 4], sx = 60 / gameBpm(I) / 4;
-  // drums: four on the floor from the start, a snare and busier hats as it builds
-  if (pos % 4 === 0) kick(t, 0.11 + 0.05 * I);
-  if (I > 0.2 && (pos === 4 || pos === 12)) clap(t, 0.05 + 0.03 * I);
-  if (pos % 4 === 2) hit(t, 0.04, 0.03, 'highpass', 7000, musicBus());                 // open-ish off-beat hat
-  else if (I > 0.45 && pos % 2 === 1) hit(t, 0.02, 0.016, 'highpass', 9000, musicBus());
-  if (I > 0.75 && bar % 4 === 3 && pos >= 12) clap(t, 0.03);                            // a little fill
-  // pumping bass: 8ths (root and octave), 16ths up high
-  if (pos % 2 === 0 || I > 0.65) note(midi(ch[0] - 12 + (pos % 4 === 2 ? 12 : 0)), t, sx * (I > 0.65 ? 0.9 : 1.6), 'sawtooth', 0.03 + 0.015 * I);
-  // sixteenth arpeggio from the start; a second one an octave up as it builds
-  const arp = [1, 2, 3, 2, 1, 3, 2, 3];
-  note(midi(ch[arp[pos % 8]] + 12), t, sx * 1.4, 'triangle', 0.013 + 0.008 * I);
-  if (I > 0.4 && pos % 2 === 1) note(midi(ch[arp[(pos + 3) % 8]] + 24), t, sx * 1.2, 'triangle', 0.008);
-  // a soft pad, and near the top a lead line
-  if (pos === 0) for (const n of ch.slice(1)) note(midi(n), t, sx * 16, 'sine', 0.008, 0.15);
-  if (I > 0.65 && pos % 2 === 0) note(midi(GAME_LEAD[(bar % 2) * 8 + pos / 2]), t, sx * 1.6, 'square', 0.011);
+  const S = 'game', bar = Math.floor(s / 16) % SONGS.game.bars.length, pos = s % 16, [ch, mel] = SONGS.game.bars[bar], sx = 60 / gameBpm(I) / 4;
+  // drums: four on the floor from the start; a snare and busier hats as it builds; a fill at the end of a section
+  if (pos % 4 === 0) kick(S, t, 0.13 + 0.04 * I);
+  if (I > 0.15 && (pos === 4 || pos === 12)) snare(S, t, 0.045 + 0.02 * I);
+  if (pos % 4 === 2) hat(S, t, 0.024); else if (I > 0.45 && pos % 2 === 1) hat(S, t, 0.013);
+  if (I > 0.6 && bar % 4 === 3 && pos >= 12) snare(S, t, 0.03);
+  // driving triangle bass: 8ths (root and octave), 16ths up high
+  if (pos % 2 === 0 || I > 0.65) chip(S, 'tri', midi(ch[0] - 12 + (pos % 4 === 2 ? 12 : 0)), t, sx * (I > 0.65 ? 0.9 : 1.6), 0.12);
+  // sixteenth arpeggio (25% pulse); a second one an octave up as it builds
+  chip(S, 0.25, midi(ch[[0, 1, 2, 1][pos % 4]] + 12), t, sx * 0.9, 0.016 + 0.006 * I);
+  if (I > 0.4 && pos % 2 === 1) chip(S, 0.125, midi(ch[(pos >> 1) % 3] + 24), t, sx * 0.8, 0.009);
+  // the lead (from a little way up), and a counter-melody near the top
+  if (I > 0.3 && pos % 2 === 0) { const n = mel[pos / 2]; if (n > 0) chip(S, 0.5, midi(n), t, sx * 1.7, 0.022 + 0.008 * I); }
+  if (I > 0.75 && pos % 4 === 0) chip(S, 0.125, midi(ch[2] + 12), t, sx * 3, 0.012);
 }
 
-// Which song, and how intense
-const songNow = () => (state === 'play' || state === 'count' || state === 'paused' || state === 'found' || state === 'lift') ? 'game' : 'lobby';
+function winStep(s, t) {
+  const S = 'win', bar = Math.floor(s / 16) % SONGS.win.bars.length, pos = s % 16, [ch, mel] = SONGS.win.bars[bar], sx = 60 / 132 / 4;
+  // the fanfare on a 50% pulse, with a harmony a third below on 25%
+  if (pos % 2 === 0) { const n = mel[pos / 2]; if (n > 0) { chip(S, 0.5, midi(n), t, sx * 1.8, 0.028); chip(S, 0.25, midi(n - (n % 12 === 0 || n % 12 === 5 ? 4 : 3)), t, sx * 1.6, 0.014); } }
+  // marching triangle bass and a snare roll into each second bar
+  if (pos % 4 === 0) chip(S, 'tri', midi(ch[0] - 12 + (pos === 8 ? 7 : 0)), t, sx * 2.5, 0.12);
+  if (pos === 0 || pos === 8) kick(S, t, 0.13);
+  if (pos === 4 || pos === 12) snare(S, t, 0.045);
+  if (bar % 2 === 1 && pos >= 12) snare(S, t, 0.025);
+  if (pos % 2 === 1) hat(S, t, 0.012);
+}
+
+// Which song should be playing (null: none — the slow-motion finale)
+function songNow() {
+  if (state === 'over' && mode === 'versus' && winner >= 0) return overT < 0 ? null : 'win';
+  if (state === 'play' || state === 'count' || state === 'paused' || state === 'found' || state === 'lift') return 'game';
+  return 'lobby';
+}
 function musicIntensity() {
   if (state === 'play' || state === 'count' || state === 'paused') return clamp(Math.pow(Math.max(0, height) / 380, 0.85), 0, 1);
   return 0;
 }
-function musicStep(s, t, I, song = 'game') { song === 'lobby' ? lobbyStep(s, t) : gameStep(s, t, I); }
+function musicStep(s, t, I, song = 'game') { song === 'lobby' ? lobbyStep(s, t) : song === 'win' ? winStep(s, t) : gameStep(s, t, I); }
+const songBpm = (song, I) => song === 'lobby' ? lobbyBpm() : song === 'win' ? 132 : gameBpm(I);
+
 function musicTick() {
   if (!actx || actx.state !== 'running') return;
-  musicBus().gain.setTargetAtTime(muted ? 0 : MUSIC_VOL, actx.currentTime, 0.1);
-  if (muted) { music.next = 0; return; }
-  const song = songNow();
-  if (song !== music.song) { music.song = song; music.step = 0; music.next = actx.currentTime + 0.08; }   // (each song from its top)
+  const now = actx.currentTime, cur = muted ? null : songNow();
   music.target = musicIntensity();
   music.I += (music.target - music.I) * (music.target > music.I ? 0.02 : 0.06);   // (rises gently, calms quicker)
-  if (music.next < actx.currentTime) music.next = actx.currentTime + 0.05;
-  while (music.next < actx.currentTime + 0.15) {
-    musicStep(music.step, music.next, music.I, song);
-    music.next += 60 / (song === 'lobby' ? lobbyBpm() : gameBpm(music.I)) / 4;
-    music.step++;
+  for (const song of ['lobby', 'game', 'win']) {
+    trackBus(song);
+    const tr = music.tracks[song], want = song === cur;
+    if (want && !tr.on) { tr.on = true; tr.step = 0; tr.next = now + 0.05; }   // (a song comes in from its top)
+    if (!want && tr.on && !tr.offAt) tr.offAt = now;
+    if (want) tr.offAt = 0;
+    tr.bus.gain.setTargetAtTime(want ? MUSIC_VOL : 0, now, want ? FADE * 0.7 : FADE);
+    if (tr.on && tr.offAt && now - tr.offAt > FADE * 5) tr.on = false;           // faded out: stop playing it
+    if (!tr.on) continue;
+    if (tr.next < now) tr.next = now + 0.05;
+    while (tr.next < now + 0.15) {
+      musicStep(tr.step, tr.next, music.I, song);
+      tr.next += 60 / songBpm(song, music.I) / 4;
+      tr.step++;
+    }
   }
 }
 function musicStart() { if (!music.timer) music.timer = setInterval(musicTick, 25); }
