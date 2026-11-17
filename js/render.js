@@ -15,7 +15,7 @@ function drawBackground() {
   const g = ctx.createLinearGradient(0, -OY, 0, H + OY);
   g.addColorStop(0, top); g.addColorStop(1, bot);
   ctx.fillStyle = g;
-  if (finaleOn()) ctx.fillRect(-OX, -OY, VW, VH);   // zoomed in on a winner: the walls no longer cover the edges
+  if (finaleOn() || deathCam) ctx.fillRect(-OX, -OY, VW, VH);   // zoomed in on a winner: the walls no longer cover the edges
   else ctx.fillRect(WALL - 4, -OY, W - 2 * WALL + 8, VH);   // only inside the tower: the walls cover the rest
   drawScenery();
 
@@ -88,7 +88,7 @@ function wallStrip(x0, x1, top, tall) {
 
 function drawWalls() {
   // The side walls, carried on out to the edges of the window (and above / below on tall windows)
-  const top = camY - OY, tall = finaleOn() ? VH + 400 : VH;   // (a little more while zoomed in on a winner)
+  const top = camY - OY, tall = finaleOn() || deathCam ? VH + 400 : VH;   // (a little more while zoomed in on a winner)
   wallStrip(-OX, WALL, top, tall); wallStrip(W - WALL, W + OX, top, tall);
   ctx.fillStyle = PAL.wallLine;   // the tower's inner edge
   ctx.fillRect(WALL - 3, top, 3, tall); ctx.fillRect(W - WALL, top, 3, tall);
@@ -293,7 +293,11 @@ function render() {
   if (state === 'wardrobe') drawWardrobeRoom();   // wallpaper, exit door, mirror (js/wardrobe.js)
 
   ctx.save();
-  if (finaleOn()) {   // the race is won: zoom in on the winner (js/hud.js)
+  if (deathCam) {     // an obstacle got you: zoomed in on the moment of contact (js/game.js)
+    const e = deathZoom(), z = 1 + (DEATH_ZOOM - 1) * e, wx = deathCam.x, wy = deathCam.y - camY;
+    ctx.translate(W / 2, H / 2); ctx.scale(z, z);
+    ctx.translate(-(W / 2 + (wx - W / 2) * e), -(H / 2 + (wy - H / 2) * e));
+  } else if (finaleOn()) {   // the race is won: zoom in on the winner (js/hud.js)
     const wp = players.find(p => p.i === winner);
     if (wp) {
       const e = finaleZoom(), z = 1 + (FINALE_ZOOM - 1) * e;
@@ -343,6 +347,9 @@ function render() {
   }
   if (state === 'play') drawDanger();
   ctx.restore();
+  if (deathCam && deathCam.t < 0.16) {   // a quick white flash on contact
+    ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - deathCam.t / 0.16)})`; ctx.fillRect(-OX, -OY, VW, VH);
+  }
   drawHUD();
   drawScreenWipe();   // leaving an end screen (js/menu.js)
   drawDoorIris();     // going through the wardrobe door (js/wardrobe.js)

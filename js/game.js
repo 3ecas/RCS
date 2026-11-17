@@ -11,7 +11,8 @@ function update(dt) {
   if (pressed.KeyF) toggleFullscreen();
   ambTick(dt);   // the ambience follows what's near your cube (js/music.js)
 
-  if (doorT) { updateDoor(dt); time += dt; return; }   // going through the wardrobe door (js/wardrobe.js)
+  if (doorT) { updateDoor(dt); time += dt; return; }
+  if (updateDeathCam(dt)) return;                        // frozen on the moment an obstacle got you   // going through the wardrobe door (js/wardrobe.js)
   if (updateRaceStart(dt)) { time += dt; return; }      // online circle transitions (js/net.js)
   if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
   if (state === 'room') { updateRoom(dt); return; }     // the online room scene (js/room.js)
@@ -441,8 +442,33 @@ function updateParticles(dt) {
   if (texts) { for (const t of texts) { t.t -= dt; t.y -= 40 * dt; } texts = texts.filter(t => t.t > 0); }
 }
 
-function die(p, reason) {
+// The death camera (solo / co-op): when an obstacle gets you, the game freezes for DEATH_HOLD seconds and the
+// camera zooms in on the moment of contact; then the cube bursts as usual while the camera eases back out.
+// deathCam = { t, p, reason, x, y } while it runs (t keeps counting through the ease-out).
+const DEATH_HOLD = 2, DEATH_ZOOM_IN = 0.3, DEATH_ZOOM_OUT = 0.5, DEATH_ZOOM = 2.3;
+let deathCam = null;
+const deathZoom = () => {
+  if (!deathCam) return 0;
+  const t = deathCam.t, ease = u => 1 - Math.pow(1 - clamp(u, 0, 1), 3);
+  return t < DEATH_HOLD ? ease(t / DEATH_ZOOM_IN) : 1 - ease((t - DEATH_HOLD) / DEATH_ZOOM_OUT);
+};
+function updateDeathCam(dt) {   // returns true while the game is frozen
+  if (!deathCam) return false;
+  const before = deathCam.t;
+  deathCam.t += dt;
+  if (before < DEATH_HOLD && deathCam.t >= DEATH_HOLD) { const d = deathCam; die(d.p, d.reason, true); }   // now it bursts
+  if (deathCam && deathCam.t >= DEATH_HOLD + DEATH_ZOOM_OUT) deathCam = null;
+  return !!deathCam && deathCam.t < DEATH_HOLD;
+}
+
+function die(p, reason, afterCam = false) {
   if (state === 'over' || p.dead) return;
+  // Solo / co-op, hit by an obstacle: freeze and zoom in on it first (falling off the bottom has no contact moment)
+  if (!afterCam && mode !== 'versus' && net.status !== 'playing' && !/^fell/.test(reason) && !deathCam) {
+    deathCam = { t: 0, p, reason, x: p.x + p.w / 2, y: p.y + p.h / 2 };
+    sfx.impact(); shake = 0;
+    return;
+  }
   if (net.status === 'playing' && !p.remote) relay({ k: 'd', i: p.i, r: reason });   // tell the other computer
   p.dead = true; p.outAt = ++outCount; shake = 0.35;
   deathMsg = `${p.name} ${reason}!`;
