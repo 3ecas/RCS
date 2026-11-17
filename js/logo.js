@@ -54,7 +54,7 @@ function drawLogoArt(c, cx, baseY, u, t = 0, opts = {}) {
   // The platform they stand on (a rounded bar with its deeper layer)
   const pw = total + 2.4 * u, ph = 0.62 * u, px = cx - pw / 2;
   const bar = (yy, col) => { c.fillStyle = col; c.beginPath(); c.roundRect(px, yy, pw, ph, ph / 2); c.fill(); };
-  bar(baseY + off, SOFT.lilac[1]); bar(baseY, SOFT.lilac[0]);
+  if (!opts.noBar) { bar(baseY + off, SOFT.lilac[1]); bar(baseY, SOFT.lilac[0]); }   // (left out on the floor: the floor is its stand)
   // Letters: the deep layer offset down-right, then the soft face
   const xs = [];
   letters.forEach(([L, [soft, deep]], k) => {
@@ -106,53 +106,9 @@ function drawShape(c, kind, x, y, r, col, rot = 0) {
   c.restore();
 }
 
-// The logo on the tower's back wall, at the bottom of the tower (the start scene): it stays put in the
-// world, so the cubes and platforms pass in front of it and it scrolls away as the climb begins.
-const WALL_LOGO = { w: 720, h: 380, cx: 360, base: 300 };   // the painted area, and the logo's platform in it
-const wallLogoY = () => 190;                               // where the logo's platform sits (world y): near the top of the start view
-const WALL_LOGO_U = 18;                                    // its size unit (stroke thickness)
-let wallLogoCache = null;
-function wallLogoImage(k) {
-  if (wallLogoCache && wallLogoCache.k === k && wallLogoCache.W === W) return wallLogoCache.c;
-  const L = WALL_LOGO, c = document.createElement('canvas');
-  c.width = Math.round(L.w * k); c.height = Math.round(L.h * k);
-  const g = c.getContext('2d');
-  g.scale(k, k);
-  drawLogoArt(g, L.cx, L.base, WALL_LOGO_U, 0, { noShapes: true });   // (the little shapes are drawn live, see below)
-  wallLogoCache = { k, W, c };
-  return c;
-}
-// Drawn in world coordinates, right after the background (so everything else is in front of it)
-function drawWallLogo() {
-  if (state === 'room' || state === 'wardrobe' || state === 'lift' || net.status === 'playing') return;   // (only the start scene's tower has it)
-  const L = WALL_LOGO, y0 = wallLogoY() - L.base;
-  if (y0 > camY + H + OY || y0 + L.h < camY - OY) return;   // off screen
-  const k = Math.max(1, Math.round(ctx.getTransform().a * 2) / 2);
-  const img = wallLogoImage(k);
-  ctx.save();
-  ctx.drawImage(img, W / 2 - L.cx, y0, L.w, L.h);
-  drawWallLogoShapes(W / 2, wallLogoY());
-  ctx.restore();
-  if (best > 0 && mode !== 'versus') text('BEST ' + best + ' m', W / 2, wallLogoY() + 46, 14, PAL.inkSoft, 'center', 800);
-}
-
-// The little shapes around the wall logo (drawn live, not cached): each wanders gently around its own spot and turns slowly
-// (the same layout as the logo's rising shapes, but they stay put and just drift — some detail, never busy)
-function drawWallLogoShapes(cx, baseY) {
-  const u = WALL_LOGO_U, half = 4.25 * u;   // (about half the letters' width)
-  const SH = ['dot', 'tri', 'ring', 'plus', 'sq'], cols = Object.values(SOFT), t = time;
-  for (let k = 0; k < 16; k++) {
-    const h = n => ((Math.sin(k * 127.1 + n * 311.7) * 43758.5453) % 1 + 1) % 1;
-    const side = k % 2 ? 1 : -1, lane = (k >> 1) % 4;
-    const ry = ((k >> 3) * 0.5 + lane * 0.27 + h(2) * 0.1) % 1;
-    const sp = 0.25 + h(7) * 0.35;                                   // each at its own pace
-    const wx = Math.sin(t * sp + h(8) * 6.3) * 0.35 * u + Math.sin(t * sp * 0.57 + h(9) * 6.3) * 0.2 * u;
-    const wy = Math.cos(t * sp * 0.8 + h(10) * 6.3) * 0.3 * u + Math.sin(t * sp * 0.43 + h(11) * 6.3) * 0.15 * u;
-    const xx = cx + side * (half + 1.0 * u + lane * 0.95 * u + h(1) * 0.3 * u) + wx;
-    const yy = baseY - (0.15 + ry * 0.8) * 6.2 * u + wy;
-    const spin = (h(6) < 0.5 ? -1 : 1) * (0.15 + h(5) * 0.3);       // slow turns, either way
-    ctx.globalAlpha = 0.75;
-    drawShape(ctx, SH[(k + lane) % SH.length], xx, yy, (0.15 + h(4) * 0.1) * u, cols[(k + lane) % cols.length][1], t * spin + k);
-  }
-  ctx.globalAlpha = 1;
+// The logo in the start scene: small, set into the middle of the floor between the two players' keys,
+// with the best height under it — nothing in the tower can ever cover it there
+function drawFloorLogo() {
+  drawLogoArt(ctx, W / 2, GROUND_Y + 66, 9, time, { noShapes: true, noBar: true });
+  if (best > 0) text('BEST ' + best + ' m', W / 2, GROUND_Y + 92, 13, PAL.inkSoft, 'center', 800);
 }

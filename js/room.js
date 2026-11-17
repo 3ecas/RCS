@@ -150,7 +150,7 @@ function drawRoomHUD() {
   ctx.restore();
   const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
   drawChatLog(); drawChatBubbles();
-  text('Everyone on START to begin  ·  Enter: chat  ·  Esc: leave', W / 2 - 60, GROUND_Y + 28, 14, PAL.inkSoft, 'center', 800);
-  text(keysTxt, W / 2 - 60, GROUND_Y + 54, 14, localCube(0).d, 'center', 900);
+  text('Everyone on START to begin  ·  Enter: chat  ·  Esc: leave', W / 2 - 60, GROUND_Y + 46, 14, PAL.inkSoft, 'center', 800);
+  text(keysTxt, W / 2 - 60, GROUND_Y + 72, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }

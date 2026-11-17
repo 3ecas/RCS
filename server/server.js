@@ -170,7 +170,7 @@ setInterval(() => {
 //  - otherwise (everyone in the room scene), when every computer in the room is ready (at least 2).
 // Anyone joining while a race is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 25;              // game and server must speak the same version
+const PROTOCOL = 26;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);

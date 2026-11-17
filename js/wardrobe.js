@@ -249,6 +249,6 @@ function drawWardrobeHUD() {
   ctx.save(); ctx.translate(0, -OY);
   text('WARDROBE', W / 2, 78, 44, PAL.ink, 'center', 900);
   ctx.restore();
-  keycap('Esc', W - WALL - 44, GROUND_Y + 20, 26, PAL.inkSoft, 0.8);   // also leaves
-  drawArrow(W - WALL - 92, GROUND_Y + 34, 18, Math.PI, PAL.inkSoft);
+  keycap('Esc', W - WALL - 44, GROUND_Y + 38, 26, PAL.inkSoft, 0.8);   // also leaves
+  drawArrow(W - WALL - 92, GROUND_Y + 52, 18, Math.PI, PAL.inkSoft);
 }

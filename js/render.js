@@ -427,7 +427,6 @@ function render() {
     }
   }
   ctx.translate(0, -camY);
-  drawWallLogo();     // painted on the back wall at the bottom of the tower (js/logo.js)
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby' || state === 'room') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
@@ -506,20 +505,22 @@ function drawDanger() {
 // the line; close to the edge some break away and rise as sparks. (Tension for whoever has fallen behind.)
 const DANGER_SHAPES = ['dot', 'tri', 'ring', 'plus', 'sq'], DANGER_COLS = ['rose', 'apricot', 'rose', 'butter', 'rose', 'lilac'];
 function drawDangerLine(danger) {
-  const n = Math.round((W - 2 * WALL) / 20), span = W - 2 * WALL, base = H - 7;
+  const span = W - 2 * WALL, n = Math.round(span / 7), base = H - 7;   // (dense: about one shape every 7 px)
   ctx.save();
   for (let k = 0; k < n; k++) {
     const h = m => ((Math.sin(k * 91.7 + m * 47.3) * 43758.5453) % 1 + 1) % 1;
+    const row = k % 2;                                               // two staggered rows
     const x = WALL + (((k + 0.5) / n * span + time * (h(1) < 0.5 ? -18 : 18) * (0.5 + h(2))) % span + span) % span;
-    const y = base + Math.sin(time * (2 + h(3) * 3) + h(4) * 6.3) * 3.5;
-    const r = (3 + h(5) * 2.5) * (0.6 + 0.6 * danger);
-    ctx.globalAlpha = danger * (0.55 + 0.45 * Math.sin(time * 6 + h(6) * 6.3));
+    const y = base - row * 9 + Math.sin(time * (2 + h(3) * 3) + h(4) * 6.3) * 3.5;
+    const r = (2.5 + h(5) * 2.5) * (0.6 + 0.6 * danger);
+    ctx.globalAlpha = danger * (0.5 + 0.45 * Math.sin(time * 6 + h(6) * 6.3)) * (row ? 0.75 : 1);
     drawShape(ctx, DANGER_SHAPES[k % 5], x, y, r, SOFT[DANGER_COLS[k % 6]][1], time * (h(7) < 0.5 ? -1.5 : 1.5) + k);
-    // sparks: when it's close, some rise off the line and fade
-    if (danger > 0.45 && h(8) < 0.35) {
-      const life = ((time * (0.6 + h(9) * 0.6) + h(10)) % 1);
-      ctx.globalAlpha = (danger - 0.45) / 0.55 * (1 - life) * 0.9;
-      drawShape(ctx, DANGER_SHAPES[(k + 2) % 5], x + Math.sin(life * 6 + k) * 6, base - life * 70, r * (1 - life * 0.5), SOFT[DANGER_COLS[(k + 1) % 6]][1], time * 2 + k);
+    // sparks: as it gets close, more and more rise off the line and fade
+    const sparkFrom = 0.25;
+    if (danger > sparkFrom && h(8) < 0.25 + 0.6 * danger) {
+      const life = ((time * (0.6 + h(9) * 0.7) + h(10)) % 1);
+      ctx.globalAlpha = (danger - sparkFrom) / (1 - sparkFrom) * (1 - life) * 0.9;
+      drawShape(ctx, DANGER_SHAPES[(k + 2) % 5], x + Math.sin(life * 6 + k) * 8, base - life * (60 + 70 * danger) * (0.6 + h(11) * 0.8), r * (1 - life * 0.5), SOFT[DANGER_COLS[(k + 1) % 6]][1], time * 2 + k);
     }
   }
   ctx.restore();

@@ -42,7 +42,7 @@ function layoutButtons() {
   const icons = cornerIcons();
   if (state === 'lobby') return ui.help ? [B('help-close', 'GOT IT', '', cx - 100, 574, 200, 56, { color: PAL.good })] : icons;
   if (state === 'search') return [...icons, B('cancel', 'CANCEL', '', cx - 100, 600, 200, 56)];   // connecting
-  if (state === 'room') return [...icons, B('cancel', 'LEAVE', '', W - WALL - 150, GROUND_Y + 14, 130, 42, { nofocus: true })];
+  if (state === 'room') return [...icons, B('cancel', 'LEAVE', '', W - WALL - 150, GROUND_Y + 34, 130, 42, { nofocus: true })];
   if (state === 'paused') return [...icons,
     B('resume', 'RESUME', '', cx - 310, H * 0.5, 200, 60, { color: PAL.good }),
     B('restart', 'RESTART', '', cx - 100, H * 0.5, 200, 60, { color: PAL.spike }),

@@ -255,11 +255,11 @@ function arrowOver(cx, y) {
 // k: 0 in the lobby; 0…1 while it fades away after a game starts (the logo floats up, the floor's keys
 // go down with the floor as the camera rises)
 function drawLobbyHUD(k = 0) {
-  // (the logo is painted on the back wall now: drawWallLogo in js/logo.js)
   if (k > 0) { ctx.save(); ctx.translate(0, -camY); }   // the floor strip rides down with the floor
+  drawFloorLogo();   // the small logo and best height in the middle of the floor (js/logo.js)
 
   // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
-  const y = GROUND_Y + 9, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
+  const y = GROUND_Y + 28, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
   cube(WALL + 22, y + 14, 28, { c: p1.c, d: p1.d }, myLook);
   keyCluster(WASD, WALL + 104, y, s, p1.d);
   const rx = W - WALL - 104;
