@@ -1,4 +1,4 @@
-// RCS — Private rooms. The PRIVATE portal in the start scene opens a little box asking for a room password.
+// RCS — Private rooms. The PRIVATE portal in the (public) online room opens a little box asking for a room password.
 // Everyone who types the same password goes into the same room, away from the public one: a way to play
 // with friends. (The password isn't a secret kept by the server — it's a meeting place: pick one only your
 // friends would guess.) Enter joins, Esc cancels.
@@ -17,7 +17,7 @@ function closePrivate(stepOut = true) {
   privBox.style.display = 'none';
   privCode.blur();
   // step out of the portal, so it doesn't open again straight away
-  if (stepOut && state === 'lobby') for (const p of players) if (atDoor(p, PRIVATE_X(), GROUND_Y)) { p.x -= DOOR_W + 6; p.prevX = p.x; }
+  if (stepOut && state === 'room') for (const p of players) if (!p.remote && atDoor(p, PRIVATE_X(), GROUND_Y)) { p.x -= DOOR_W + 6; p.prevX = p.x; }
 }
 const privOpen = () => privBox.style.display === 'block';
 // Same password, same room: case and extra spaces don't matter
@@ -34,9 +34,10 @@ privCode.addEventListener('keydown', e => {
 });
 privCode.addEventListener('blur', () => { if (privOpen()) closePrivate(); });
 
-// The PRIVATE portal, on the floor in the middle (between the wardrobe and ONLINE)
-const PRIVATE_X = () => W / 2;
+// The PRIVATE portal: in the public online room, right of START (between the wardrobe and EXIT)
+const PRIVATE_X = () => W / 2 + 200;
+const privateHere = () => state === 'room' && !(net.room && net.room.priv);
 function checkPrivatePortal(dt) {
-  if (holdDoor('private', PRIVATE_X(), dt)) { openPrivate(); return true; }
+  if (privateHere() && holdDoor('private', PRIVATE_X(), dt)) { openPrivate(); return true; }
   return false;
 }

@@ -43,8 +43,7 @@ const heat = m => ramp(m, START_REGION, 500);
 
 // Where each player starts: spread evenly across the floor (closer together when there are many)
 function spawnPos(i, n) {
-  const shift = gen && gen.avoid ? -90 : 0;   // the start scene: a little left of the PRIVATE portal in the middle
-  return { x: W / 2 - PS / 2 + shift + (i - (n - 1) / 2) * Math.min(90, (W - 2 * WALL - PS - 20) / Math.max(1, n - 1)), y: GROUND_Y - PS };
+  return { x: W / 2 - PS / 2 + (i - (n - 1) / 2) * Math.min(90, (W - 2 * WALL - PS - 20) / Math.max(1, n - 1)), y: GROUND_Y - PS };
 }
 
 function generate() {

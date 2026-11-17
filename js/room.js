@@ -23,7 +23,8 @@ function enterRoom() {
     { id: 1, x: W / 2 - START_W / 2, y: GROUND_Y - ROW_GAP, w: START_W, h: 30, type: 'normal', menu: 'start', dx: 0, dy: 0, t: 0, falling: false },
   ];
   // A few platforms to hop around on while waiting
-  [[0.12, 1], [0.88, 1], [0.3, 2], [0.7, 2], [0.14, 3], [0.86, 3]].forEach(([f, row], k) => {
+  [[0.12, 1], [0.3, 2], [0.7, 2], [0.14, 3], [0.86, 3]].forEach(   // (none low on the right: EXIT's sign is there)
+    ([f, row], k) => {
     platforms.push({ id: 2 + k, x: W * f - 60, y: GROUND_Y - row * ROW_GAP, w: 120, h: 16, type: 'normal', dx: 0, dy: 0, t: 0, falling: false });
   });
   // Your cubes: player 1 (WASD) and player 2 (arrow keys) if you're two on this computer
@@ -83,6 +84,7 @@ const onStart = p => {
 
 function updateRoom(dt) {
   time += dt;
+  if (privOpen()) return;   // typing a private room's password (js/private.js): everything waits
   if (net.bannerT > 0) net.bannerT -= dt;
   const click = ui.click; ui.click = null;
   if (pressed.Escape || (click && layoutButtons().some(b => b.id === 'cancel' && inside(b, click.x, click.y)))) { leaveOnline(); return; }
@@ -94,7 +96,8 @@ function updateRoom(dt) {
   updateParticles(dt);
   checkWardrobeDoor(dt);   // the wardrobe portal, right of START (js/wardrobe.js)
   if (doorT) return;
-  if (checkRoomExit(dt)) return;   // the EXIT portal right of START: back to the start scene (js/wardrobe.js)
+  if (checkRoomExit(dt)) return;   // the EXIT portal by the right wall
+  if (checkPrivatePortal(dt)) return;   // the PRIVATE portal right of START: the password box (js/private.js): back to the start scene (js/wardrobe.js)
 
   // Ready = all of this computer's cubes are on START. Tell the server when that changes.
   const ready = players.filter(p => !p.remote).every(onStart);

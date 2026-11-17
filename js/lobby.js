@@ -2,8 +2,8 @@
 // - one player: just climb. Once you're past the middle of the screen the game starts, scrolling up
 //   this same tower (the first stair, a plain platform, is where the climb begins).
 // - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds
-// - the ONLINE portal on the floor by the right wall: stand in it for a second to play online; the PRIVATE
-//   portal beside it asks for a room password (js/private.js)
+// - the ONLINE portal on the floor by the right wall: stand in it for a second to play online (the online
+//   room has a PRIVATE portal for playing with friends, js/private.js)
 // - a small SOUND pad (a jump above, on the left): land on it to turn the sound on or off
 // - the WARDROBE door on the floor, on the left: press down at it to go inside and change your cube (js/wardrobe.js)
 // Player 1 plays with W A S D. Holding an arrow key for 2 seconds adds player 2 (Esc removes them).
@@ -56,7 +56,6 @@ const standingOn = p => !p.onGround || !p.ground ? null : p.ground.isPlayer ? st
 
 function updateLobby(dt) {
   time += dt;
-  if (privOpen()) return;              // typing a private room's password: everything waits
   if (net.bannerT > 0) net.bannerT -= dt;
   // Instructions overlay (? key or icon)
   const click = ui.click; ui.click = null;
@@ -84,7 +83,6 @@ function updateLobby(dt) {
   checkWardrobeDoor(dt);               // a second in the wardrobe portal: go inside (js/wardrobe.js)
   if (state !== 'lobby') return;
   if (checkOnlinePortal(dt)) return;   // a second in the ONLINE portal: go online
-  checkPrivatePortal(dt);               // a second in the PRIVATE portal: the room password box (js/private.js)
 
   // One player: climbing past the middle of the screen starts the game; landing on ONLINE goes online
   if (playerCount === 1) {

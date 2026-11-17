@@ -10,8 +10,9 @@ const DOOR_W = 46, DOOR_H = 66;
 const wardrobe = { saved: null, exitX: 0 };
 
 // Where the portals stand: the wardrobe always on the left, EXIT always on the right, any others in between.
-// Start scene: wardrobe by the left wall, PRIVATE in the middle, ONLINE by the right wall. Online room:
-// wardrobe left of START, EXIT right of it. Inside the wardrobe: EXIT by the right wall.
+// Start scene: wardrobe by the left wall, ONLINE by the right wall. Online room: wardrobe left of START,
+// PRIVATE right of it (in the public room only), EXIT by the right wall. Inside the wardrobe: EXIT by the
+// right wall.
 // wardrobe.from = the scene you went into the wardrobe from (you come back out there).
 const LOBBY_DOOR_X = () => WALL + 52;
 const doorXOf = scene => scene === 'room' ? W / 2 - 200 : LOBBY_DOOR_X();
@@ -190,13 +191,15 @@ function drawDoor(cx, floorY, label, hold, open = 0) {
 // The wardrobe door in the start scene / the online room (drawn behind the cubes)
 function drawLobbyDoor() {
   drawDoor(sceneDoorX(), GROUND_Y, '', holdOf('wardrobe'), doorOpen(true));
-  if (state === 'room') drawRoomExit();
-  else { drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0); drawDoor(PRIVATE_X(), GROUND_Y, 'PRIVATE', holdOf('private'), 0); }
+  if (state === 'room') {
+    if (privateHere()) drawDoor(PRIVATE_X(), GROUND_Y, 'PRIVATE', holdOf('private'), 0);
+    drawRoomExit();
+  } else drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0);
 }
 
-// The online room's way out: an EXIT portal right of START (the wardrobe is on the left). Press down at it to leave online play
+// The online room's way out: an EXIT portal by the right wall (the wardrobe is on the left). Press down at it to leave online play
 // (the circle closes on your cube and opens back in the start scene — js/net.js leaveOnline).
-const ROOM_EXIT_X = () => W / 2 + 200;
+const ROOM_EXIT_X = () => W - WALL - 52;
 function checkRoomExit(dt) {
   if (holdDoor('roomExit', ROOM_EXIT_X(), dt)) { sfx.swoosh(); leaveOnline(); return true; }
   return false;
