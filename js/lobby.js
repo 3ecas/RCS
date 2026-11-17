@@ -107,7 +107,14 @@ function chooseMode(menu, code = '') {
   if (!tutDone) { tutDone = true; try { localStorage.setItem('rcs.tut', '1'); } catch (e) {} }
   // online (one cube per computer): the circle closes on your cube, then the 'Connecting' screen
   // (private: the same, into the room for that password — js/private.js)
-  if (menu === 'multi' || menu === 'private') { net.code = menu === 'private' ? code : ''; mode = 'versus'; startIris(0.3, myCubeOnScreen(), () => [W / 2, 262], startSearch); return; }
+  if (menu === 'multi' || menu === 'private') {
+    net.code = menu === 'private' ? code : ''; mode = 'versus';
+    // from the online room into a private one: the circle closes on the PRIVATE portal and stays shut until
+    // the new room is there, then opens on you in it (no Connecting screen in between)
+    if (state === 'room') startIris(0.4, [PRIVATE_X(), GROUND_Y - DOOR_H / 2 - camY], myCubeOnScreen, startSearch, true);
+    else startIris(0.3, myCubeOnScreen(), () => [W / 2, 262], startSearch);
+    return;
+  }
   mode = menu === 'solo' ? 'solo' : menu === 'coop' ? 'split' : 'versus';
   beginPlay();
 }

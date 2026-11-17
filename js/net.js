@@ -114,10 +114,18 @@ function reportRoundOver() {
 const RACE_IRIS = 0.4, ROOM_IRIS = 0.3;
 let pendingStart = null, pendingRoom = 0, iris = null;
 // action: run once the circle has closed (the scene holds still until then); returns true while holding
-function startIris(close, from, to, action = null) { iris = { t: 0, close, open: 0.55, from, to, action }; sfx.swoosh(); }
+// hold: once closed, it stays closed (the screen covered) until something sets iris.hold = false — e.g. the
+// room → private room portal, which waits for the new room. (After IRIS_HOLD_MAX s it opens anyway.)
+const IRIS_HOLD_MAX = 8;
+function startIris(close, from, to, action = null, hold = false) { iris = { t: 0, close, open: 0.55, from, to, action, hold }; sfx.swoosh(); }
 function updateRaceStart(dt) {
   if (iris) {
     iris.t += dt;
+    if (iris.hold && !iris.action) {   // closed and waiting
+      iris.waited = (iris.waited || 0) + dt;
+      if (iris.waited > IRIS_HOLD_MAX || state === 'lobby') iris.hold = false;   // (taking too long, or it failed: show what's there)
+      else iris.t = Math.min(iris.t, iris.close);
+    }
     if (iris.action && iris.t >= iris.close) { const a = iris.action; iris.action = null; a(); }
     else if (iris.action) return true;
     if (iris.t > iris.close + iris.open) iris = null;
@@ -154,7 +162,10 @@ function onNet(m) {
   if (m.t === 'room') {
     net.room = m;
     if (net.readyWant !== undefined && serverReady() === net.readyWant) net.readyWant = undefined;   // the server agrees
-    if (state === 'search' && !pendingRoom) {     // joined: the circle closes on your cube, then into the room
+    if (state === 'search' && iris && iris.hold) {   // through the PRIVATE portal: the circle, still closed, opens on you in the new room
+      enterRoom(); iris.hold = false; iris.to = myCubeOnScreen;
+    }
+    else if (state === 'search' && !pendingRoom) {     // joined: the circle closes on your cube, then into the room
       pendingRoom = 0.0001; startIris(ROOM_IRIS, [W / 2, 262], myCubeOnScreen);
     }
     else if (state === 'room') syncRoomCubes();   // someone joined, left, got ready…
