@@ -118,7 +118,11 @@ function activate(id) {
     case 'ready': toggleReady(); break;
     case 'resume': state = pausedFrom; break;
     case 'restart': startGame(); break;
-    case 'menu': if (net.status === 'playing') leaveOnline(); else toMenu(); break;
+    case 'menu':
+      if (net.status === 'playing') leaveOnline();
+      else if (state === 'paused') startIris(0.35, myCubeOnScreen(), myCubeOnScreen, () => { if (state === 'paused') toMenu(); });   // (a circle out of the paused game into the start scene)
+      else toMenu();
+      break;
     case 'again': startGame(); break;
   }
 }
