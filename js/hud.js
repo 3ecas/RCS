@@ -134,18 +134,53 @@ function drawIcon(b, focused) {
 
 // End of a race: the winner revealed big, 80s style — a slowly turning pastel sunburst, a striped sunset
 // disc, the winner's cube springing up in the middle and fat chrome-striped letters with a deep 3D shadow
+// faces: the colour bands; 'portal' = filled with the portals' moving rainbow (see portalFill); one colour
+// alone = a plain fill, no bands or shine
 function retroText(str, x, y, size, faces, edge = PAL.ink) {
   ctx.font = `900 ${size}px ${FONT}`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
   const depth = Math.round(size * 0.09);
   ctx.fillStyle = edge;                                           // the 3D extrusion, down-right
   for (let k = depth; k > 0; k--) ctx.fillText(str, x + k, y + k);
   ctx.lineWidth = size * 0.12; ctx.strokeStyle = edge; ctx.strokeText(str, x, y);
+  if (faces === 'portal') return portalFill(str, x, y, size);
+  if (faces.length === 1) { ctx.fillStyle = faces[0]; ctx.fillText(str, x, y); return; }
   const g = ctx.createLinearGradient(0, y - size * 0.8, 0, y);    // chrome: hard bands of colour
   faces.forEach((c, k) => { g.addColorStop(k / faces.length, c); g.addColorStop((k + 1) / faces.length - 0.001, c); });
   ctx.fillStyle = g; ctx.fillText(str, x, y);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';                       // a little shine across the top band
   ctx.save(); ctx.beginPath(); ctx.rect(x - 2000, y - size * 0.8, 4000, size * 0.12); ctx.clip(); ctx.fillText(str, x, y); ctx.restore();
 }
+// Text filled with the portals' look: rainbow rings flowing into its middle under a slowly turning spiral of
+// light (drawn on a small canvas, cut to the letters' shape, then put on screen)
+let portalTextCanvas = null;
+function portalFill(str, x, y, size) {
+  const k = Math.max(1, ctx.getTransform().a), tw = ctx.measureText(str).width + size * 0.4, th = size * 1.3;
+  const c = portalTextCanvas || (portalTextCanvas = document.createElement('canvas'));
+  c.width = Math.ceil(tw * k); c.height = Math.ceil(th * k);
+  const g = c.getContext('2d');
+  g.setTransform(k, 0, 0, k, 0, 0);
+  const bx = tw / 2, by = size * 1.0;                       // the baseline inside the little canvas
+  const pcx = bx, pcy = by - size * 0.36, RW = size * 0.16, cols = ['rose', 'apricot', 'butter', 'mint', 'sky', 'lilac'];
+  const flow = time * 1.6, f = flow % 1, n = Math.ceil(Math.hypot(tw / 2, th) / RW) + 2;
+  for (let i = n; i >= 0; i--) {
+    const rr = (i + 1 - f) * RW;
+    if (rr <= 0) continue;
+    g.fillStyle = SOFT[cols[(i + Math.floor(flow)) % 6]][0];
+    g.beginPath(); g.arc(pcx, pcy, rr, 0, Math.PI * 2); g.fill();
+  }
+  if (g.createConicGradient) {
+    const sp = g.createConicGradient(-time * 1.2, pcx, pcy), arms = 6;
+    for (let a = 0; a < arms; a++) { sp.addColorStop(a / arms, 'rgba(255,255,255,0.35)'); sp.addColorStop((a + 0.5) / arms, 'rgba(255,255,255,0)'); }
+    sp.addColorStop(1, 'rgba(255,255,255,0.35)');
+    g.fillStyle = sp; g.fillRect(0, 0, tw, th);
+  }
+  // ...then keep it only inside the letters
+  g.globalCompositeOperation = 'destination-in';
+  g.font = ctx.font; g.textAlign = 'center'; g.fillStyle = '#fff';
+  g.fillText(str, bx, by);
+  ctx.drawImage(c, x - bx, y - by, tw, th);
+}
+
 // The race-over transition: the game stays in view for a moment (WIPE_START s, so you see the knock-out),
 // then the sunset stripes sweep in one after another from alternate sides until they cover the screen;
 // the winner's entrance starts at REVEAL. Leaving, they sweep away again (screenWipe, drawn in render()).
@@ -188,19 +223,19 @@ function drawResults() {
     drawPodium(cx, cy, t);             // 2nd and 3rd behind, and the winner's block (js below)
     if (t > 0) drawWinnerCube(wp, cx, cy, t, (towerSeed >>> 0) % WIN_STYLES);
     const mine = net.status === 'playing' && !wp.remote;
-    ctx.save(); ctx.translate(0, cy + R + 96); popIn((t - 0.25) / 0.35, () => retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, 0, 84, title)); ctx.restore();
-    ctx.save(); ctx.translate(0, cy + R + 160); popIn((t - 0.42) / 0.35, () => retroText(wp.name.toUpperCase(), cx, 0, 44, [wp.color, wp.color, wp.dark], PAL.ink)); ctx.restore();
+    ctx.save(); ctx.translate(0, cy + R + 96); popIn((t - 0.25) / 0.35, () => retroText(mine ? 'YOU WIN!' : 'WINNER!', cx, 0, 84, 'portal')); ctx.restore();
+    ctx.save(); ctx.translate(0, cy + R + 160); popIn((t - 0.42) / 0.35, () => retroText(wp.name.toUpperCase(), cx, 0, 44, [wp.color], PAL.ink)); ctx.restore();
   } else { ctx.save(); ctx.translate(0, cy + R + 96); popIn((t - 0.1) / 0.35, () => retroText('DRAW!', cx, 0, 84, title)); ctx.restore(); }
   drawPlaces();
   drawConfetti(t);
 }
 
-// The winner's entrance, one of four (picked from the tower's seed, so every computer shows the same one):
+// The winner's entrance, one of three (picked from the tower's seed, so every computer shows the same one):
 //   0 dance    — pops up, then hops to a beat, leaning side to side, spinning every fourth beat
 //   1 spin-up  — rises from below spinning like a coin, settles facing you with a burst of sparkles, floats
 //   2 bounce   — drops in and keeps bouncing, squashing as it lands, a ring rippling out from its feet
-//   3 crowning — pops up, a golden crown floats down onto its head with sparkles, then a happy wiggle
-const WIN_STYLES = 4;
+//   (3 crowning — a crown floating down onto its head — is no longer used: no crown for the winner)
+const WIN_STYLES = 3;
 function drawWinnerCube(wp, cx, cy, t, style) {
   const P = { c: wp.color, d: wp.dark }, S = 130, blink = Math.sin(time * 1.3) > 0.97 ? -1 : 1;
   const easeBack = u => u >= 1 ? 1 : 1 + 2.70158 * Math.pow(u - 1, 3) + 1.70158 * Math.pow(u - 1, 2);
@@ -474,7 +509,6 @@ function drawHUD() {
     ctx.globalAlpha = 0.35 + 0.65 * f;
     text(String(n), W / 2, H * 0.42, 110 + 40 * f, PAL.ink, 'center', 900);
     ctx.globalAlpha = 1;
-    if (net.status === 'playing') text(onlineKeysText(), W / 2, H * 0.42 + 60, 18, localCube(0).d, 'center', 900);
   }
 
   if (state === 'lobby') drawLobbyHUD();    // logo and key hints (js/lobby.js)
@@ -504,15 +538,14 @@ function drawHUD() {
 
   if (state === 'found') {
     const pop = 1 + Math.max(0, foundT - 1.2) * 1.2;
-    // Everyone in the match: your cubes full colour, the other computer's softer
+    // The title on top, then everyone in the match below it (your cubes named YOU)
+    text(net.rematch ? 'NEW ROUND!' : 'MATCH FOUND!', W / 2, 300, 64 * pop, PAL.good, 'center', 900);
     const n = players.length, sz = n > 6 ? 40 : 56, gap = Math.min(96, 680 / n);
     players.forEach((p, k) => {
       const x = W / 2 + (k - (n - 1) / 2) * gap;
-      cube(x - sz / 2, 250 + (56 - sz), sz, { c: p.color, d: p.dark }, p.look);
-      text(p.remote ? p.name : 'YOU', x, 336, n > 6 ? 11 : 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
+      cube(x - sz / 2, 360 + (56 - sz), sz, { c: p.color, d: p.dark }, p.look);
+      text(p.remote ? p.name : 'YOU', x, 446, n > 6 ? 11 : 15, p.remote ? PAL.inkSoft : p.dark, 'center', 900);
     });
-    text(net.rematch ? 'NEW ROUND!' : 'MATCH FOUND!', W / 2, 420, 64 * pop, PAL.good, 'center', 900);
-    text(onlineKeysText(), W / 2, 470, 17, localCube(0).d, 'center', 900);
   }
 
   if (state === 'paused') {

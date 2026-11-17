@@ -382,7 +382,7 @@ function drawJet(j) {
 }
 
 // A player's cube, squashed when it lands. Other computers' cubes keep their colours, a little see-through.
-const OTHERS_ALPHA = 0.7;
+const OTHERS_ALPHA = 0.5;
 function drawPlayer(p) {
   if (p.liftHide) return;   // not on the lift: appears at the start line when it arrives
   if (p.dead) {   // knocked out: the cube spins up and tumbles away (knockOut in js/game.js)
