@@ -258,6 +258,28 @@ function drawLobbyHUD(k = 0) {
   if (k > 0) { ctx.save(); ctx.translate(0, -camY); }   // the floor strip rides down with the floor
   drawFloorLogo();   // the small logo and best height in the middle of the floor (js/logo.js)
 
+  // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
+  const y = GROUND_Y + 48, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
+  cube(WALL + 22, y + 14, 28, { c: p1.c, d: p1.d }, myLook);
+  keyCluster(WASD, WALL + 104, y, s, p1.d);
+  const rx = W - WALL - 104;
+  if (playerCount === 1) {
+    // A dashed "empty" cube with a plus, and the arrow keys faded: hold one to add player 2
+    const f = lobby.join / HOLD_TIME;
+    const bx = W - WALL - 50, by = y + 14;
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = f > 0 ? p2.d : PAL.inkSoft; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(bx + 1, by + 1, 26, 26, 6); ctx.stroke(); ctx.setLineDash([]);
+    if (f > 0) { ctx.save(); ctx.beginPath(); ctx.roundRect(bx + 3, by + 3, 22, 24, 4); ctx.clip(); ctx.fillStyle = p2.c; ctx.fillRect(bx + 3, by + 27 - 24 * f, 22, 24 * f); ctx.restore(); }
+    text('+', bx + 14, by + 21, 20, f > 0 ? p2.d : PAL.inkSoft, 'center', 900);
+    keyCluster(ARROWS, rx, y, s, f > 0 ? p2.d : PAL.inkSoft, f > 0 ? 1 : 0.75, f);
+  } else {
+    cube(W - WALL - 50, y + 14, 28, { c: p2.c, d: p2.d }, p2Look);
+    keyCluster(ARROWS, rx, y, s, p2.d);
+    keycap('Esc', rx - 96, y + 27, s, PAL.inkSoft, 0.8);    // removes player 2
+    ctx.strokeStyle = PAL.inkSoft; ctx.lineWidth = 2.4; ctx.lineCap = 'round';   // a small rounded ✕
+    ctx.beginPath(); ctx.moveTo(rx - 132, y + 35); ctx.lineTo(rx - 124, y + 43); ctx.moveTo(rx - 124, y + 35); ctx.lineTo(rx - 132, y + 43); ctx.stroke();
+  }
+
   if (k > 0) { ctx.restore(); return; }
   if (!tutDone && playerCount === 1) {   // first visit: an arrow at the first stair too
     const st = platforms.find(p => p.stair);
