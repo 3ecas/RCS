@@ -75,7 +75,8 @@ const sfx = {
   },
   // a short, solid bop: a quick rising sine with a little low body under it (player 2 a bit higher)
   jump: i => { const f = i ? 300 : 250; tone(f, f * 1.9, 0.09, 'sine', 0.07); tone(f * 0.5, f * 0.42, 0.06, 'sine', 0.05); },
-  land: (k = 0.5) => { tone(150, 70, 0.08 + 0.06 * k, 'triangle', 0.03 + 0.05 * k); if (k > 0.4) noise(0.06, 0.03 * k, 600); },
+  // a soft, low pat (a little fuller after a long fall; no noise)
+  land: (k = 0.5) => tone(130, 75, 0.07 + 0.04 * k, 'sine', 0.02 + 0.025 * k),
   // A springy BOING: a rising tone with a wobble that settles
   spring: () => {
     if (!actx || muted) return;
