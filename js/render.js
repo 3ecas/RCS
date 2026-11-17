@@ -127,19 +127,10 @@ function buttonSlab(p, on, color = PAL.ink, drop = 0) {
   slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.normalD, EDGE, drop);
 }
 
-// Platforms are never shown cut off by the top of the window: one only appears once it's fully on screen,
-// fading in over PLAT_FADE s (as a climb scrolls up, each new row fades in as it comes into view).
-const PLAT_FADE = 0.25;
+// (Platforms only stop being drawn once they're fully out of view; the start scene's rows are placed so
+// none is cut by the top of the window — see clearTopEdge in js/level.js.)
 function drawPlatform(p) {
-  if (p.y < camY - OY - 60 || p.y > camY + H + OY + 80) return;
-  if (p.type === 'ground' || p.menu === 'lift') return drawPlatformNow(p);
-  if (p.y - 8 < camY - OY) { p.shownAt = undefined; return; }      // (still partly above the top edge)
-  if (p.shownAt === undefined) p.shownAt = time;
-  const a = clamp((time - p.shownAt) / PLAT_FADE, 0, 1);
-  if (a >= 1) return drawPlatformNow(p);
-  ctx.save(); ctx.globalAlpha *= a; drawPlatformNow(p); ctx.restore();
-}
-function drawPlatformNow(p) {
+  if (p.y + p.h + 30 < camY - OY || p.y > camY + H + OY + 80) return;
   const y = p.y;
   if (p.type === 'ground') {
     // The floor: a lilac slab with a rounded deep edge on top, built of the same soft blocks
@@ -508,6 +499,30 @@ function drawDanger() {
   const g = ctx.createLinearGradient(0, H, 0, H - 150);
   g.addColorStop(0, `rgba(232,106,152,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(232,106,152,0)');
   ctx.fillStyle = g; ctx.fillRect(-OX, H - 150, VW, 150);
+  drawDangerLine(danger);
+}
+// The deadly edge made visible: a line of the style's little shapes all along the bottom of the tower,
+// shown only while someone is near it and stronger the closer they are. They bob and turn and drift along
+// the line; close to the edge some break away and rise as sparks. (Tension for whoever has fallen behind.)
+const DANGER_SHAPES = ['dot', 'tri', 'ring', 'plus', 'sq'], DANGER_COLS = ['rose', 'apricot', 'rose', 'butter', 'rose', 'lilac'];
+function drawDangerLine(danger) {
+  const n = Math.round((W - 2 * WALL) / 20), span = W - 2 * WALL, base = H - 7;
+  ctx.save();
+  for (let k = 0; k < n; k++) {
+    const h = m => ((Math.sin(k * 91.7 + m * 47.3) * 43758.5453) % 1 + 1) % 1;
+    const x = WALL + (((k + 0.5) / n * span + time * (h(1) < 0.5 ? -18 : 18) * (0.5 + h(2))) % span + span) % span;
+    const y = base + Math.sin(time * (2 + h(3) * 3) + h(4) * 6.3) * 3.5;
+    const r = (3 + h(5) * 2.5) * (0.6 + 0.6 * danger);
+    ctx.globalAlpha = danger * (0.55 + 0.45 * Math.sin(time * 6 + h(6) * 6.3));
+    drawShape(ctx, DANGER_SHAPES[k % 5], x, y, r, SOFT[DANGER_COLS[k % 6]][1], time * (h(7) < 0.5 ? -1.5 : 1.5) + k);
+    // sparks: when it's close, some rise off the line and fade
+    if (danger > 0.45 && h(8) < 0.35) {
+      const life = ((time * (0.6 + h(9) * 0.6) + h(10)) % 1);
+      ctx.globalAlpha = (danger - 0.45) / 0.55 * (1 - life) * 0.9;
+      drawShape(ctx, DANGER_SHAPES[(k + 2) % 5], x + Math.sin(life * 6 + k) * 6, base - life * 70, r * (1 - life * 0.5), SOFT[DANGER_COLS[(k + 1) % 6]][1], time * 2 + k);
+    }
+  }
+  ctx.restore();
 }
 
 // OUTLINE: draw a soft white edge round the letters first (cheap, unlike a blurred shadow)

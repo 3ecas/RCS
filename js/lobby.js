@@ -1,5 +1,5 @@
 // RCS — The start scene (lobby). It's the bottom of the tower and you can already play in it:
-// - one player: just climb. Once you're past the middle of the screen the game starts, scrolling up
+// - one player: just climb. Once you're near the top of the screen the game starts, scrolling up
 //   this same tower (the first stair, a plain platform, is where the climb begins).
 // - two players: mode platforms (CO-OP / RACE): both stand on one for 2 seconds
 // - the ONLINE portal on the floor by the right wall: stand in it for a second to play online (the online
@@ -89,7 +89,7 @@ function updateLobby(dt) {
   // One player: climbing past the middle of the screen starts the game; landing on ONLINE goes online
   if (playerCount === 1) {
     const on = standingOn(players[0]);
-    if (players[0].y + players[0].h < camY + H / 2) { chooseMode('solo'); return; }
+    if (players[0].y + players[0].h < camY + H * 0.3) { chooseMode('solo'); return; }   // (near the top of the screen)
   }
   // Two players: both on ONLINE goes online at once; both on CO-OP / RACE for 2 seconds starts that
   const pl = standingOn(players[0]);

@@ -47,10 +47,10 @@ function spawnPos(i, n) {
 }
 
 function generate() {
-  while (GROUND_Y - rowK * ROW_GAP > camY - OY - 300) {   // build a little past the top of the window
+  while (GROUND_Y - rowK * ROW_GAP > camY - OY - 600) {   // build well past the top of the window (rows are there before they scroll in)
     const y0 = GROUND_Y - rowK * ROW_GAP;
     const nudge = R() < ROW_WOBBLE ? wrand(-14, 14) : 0;
-    genRow(y0 + nudge);
+    genRow(gen.avoid ? clearTopEdge(y0 + nudge) : y0 + nudge);
     rowK++;
   }
 }
@@ -80,6 +80,15 @@ function pickCx(w, lo, hi, refs, G) {
 // Horizontal space a platform can ever occupy (moving ones include their full slide range)
 const extent = p => p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w] : [p.x, p.x + p.w];
 
+// The start scene doesn't scroll, so a row lying across the top of the window would sit there cut in half:
+// move such a row a little (fully below the edge, or fully above it — whichever is the smaller move; rows
+// are ROW_GAP apart and a jump reaches well over that, so a few pixels either way keep it in reach)
+function clearTopEdge(y) {
+  const top = -OY, PH = 16;
+  if (y >= top + 10 || y + PH <= top - 6) return y;
+  const down = top + 10 - y, up = y + PH - (top - 6);
+  return down <= up ? y + down : y - up;
+}
 function genRow(y) {
   // Rows level with the logo on the back wall keep clear of it: a plain step on one side (js/logo.js)
   const A = gen.avoid;
