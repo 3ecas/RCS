@@ -44,7 +44,7 @@ const PAL = {
   flame: '#ffb08a', flame2: '#ffd89c', flameCore: '#fff6e2', fire: '#ff9a78',   // flames: apricot, butter, cream
   good: '#4cb38a',
 };
-// The 10 cube colours players can pick from (c = body, d = darker outline)
+// The 18 cube colours players can pick from (c = body, d = darker outline)
 const COLORS = [
   { name: 'Pink',   c: '#ff4fa3', d: '#c21f72' },
   { name: 'Red',    c: '#ff5a4e', d: '#c42a20' },
@@ -56,6 +56,14 @@ const COLORS = [
   { name: 'Blue',   c: '#3d8bff', d: '#1b5bc4' },
   { name: 'Purple', c: '#9b5cff', d: '#6a2fd1' },
   { name: 'Brown',  c: '#b8743d', d: '#7f4a1f' },
+  { name: 'Coral',  c: '#ff7f6e', d: '#cc4f3f' },
+  { name: 'Gold',   c: '#f2b632', d: '#b5800a' },
+  { name: 'Mint',   c: '#5ee0b4', d: '#25a57c' },
+  { name: 'Sky',    c: '#62c4ff', d: '#2b8ccc' },
+  { name: 'Navy',   c: '#3f51b5', d: '#26327a' },
+  { name: 'Lavender', c: '#c39bff', d: '#8b62d6' },
+  { name: 'Magenta', c: '#e040fb', d: '#a514c0' },
+  { name: 'Charcoal', c: '#5b5670', d: '#36324a' },
 ];
 // The tower is split into regions, each with its own hazards and background colours [top, bottom].
 // You start in a plain region (just platforms) for the first START_REGION metres; after that a new region

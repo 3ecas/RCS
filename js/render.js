@@ -271,7 +271,7 @@ function drawPlayer(p) {
     ctx.restore();
     // the hat and the shades, flying off on their own
     for (const [o, draw] of [[a.hat, () => drawHat(-p.w / 2, 0, p.w, p.look.h, k, 0, P)],
-                             [a.shades, () => drawFace(-p.w / 2, -p.h * 0.36 - 3, p.w, p.h, 5, k, 0, false)]]) {
+                             [a.shades, () => drawFace(-p.w / 2, -p.h * 0.36 - 3, p.w, p.h, p.look.f, k, 0, false)]]) {
       if (!o) continue;
       ctx.save(); ctx.globalAlpha = (p.remote ? OTHERS_ALPHA : 1) * clamp(2.6 - a.t, 0, 1);
       ctx.translate(o.x, o.y); ctx.rotate(o.rot); draw(); ctx.restore();

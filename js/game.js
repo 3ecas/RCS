@@ -471,7 +471,7 @@ function knockOut(p) {
   // whatever it wears flies off on its own: the hat higher and spinning, shades (that face) popping off sideways
   const fly = (dx, dy, vx, vy) => ({ x: x + dx, y: y + dy, vx, vy, rot: 0, vr: rand(-14, 14) });
   if (p.look && p.look.h) p.deathAnim.hat = fly(0, -p.h / 2, rand(-220, 220), -980);
-  if (p.look && p.look.f === 5) p.deathAnim.shades = fly(0, -p.h * 0.14 + 3, (Math.random() < 0.5 ? -1 : 1) * rand(160, 260), -620);
+  if (p.look && WORN_FACES.includes(p.look.f)) p.deathAnim.shades = fly(0, -p.h * 0.14 + 3, (Math.random() < 0.5 ? -1 : 1) * rand(160, 260), -620);
 }
 function updateDeaths(dt) {
   if (!players) return;

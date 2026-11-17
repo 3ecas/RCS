@@ -170,7 +170,7 @@ setInterval(() => {
 //  - otherwise (everyone in the room scene), when every computer in the room is ready (at least 2).
 // Anyone joining while a race is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 28;              // game and server must speak the same version
+const PROTOCOL = 29;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -252,7 +252,7 @@ function onMessage(c, text) {
     if (m.v !== PROTOCOL) { c.send({ t: 'old' }); return; }
     leaveRoom(c);
     // Cube colours of the players on this computer (1 or 2 of them; colour numbers 0–9)
-    const colors = (Array.isArray(m.colors) ? m.colors : [0]).slice(0, 2).map(v => Math.max(0, Math.min(9, v | 0)));
+    const colors = (Array.isArray(m.colors) ? m.colors : [0]).slice(0, 2).map(v => Math.max(0, Math.min(17, v | 0)));
     c.colors = colors.length ? colors : [0];
     // Each cube's look: small whole numbers only (the game checks the ranges)
     const looks = Array.isArray(m.looks) ? m.looks : [];
@@ -273,7 +273,7 @@ function onMessage(c, text) {
     // New colours / looks from the wardrobe (same number of cubes as when joining)
     const r = c.room;
     if (!r || !Array.isArray(m.colors) || m.colors.length !== c.colors.length) return;
-    c.colors = m.colors.map(v => Math.max(0, Math.min(9, v | 0)));
+    c.colors = m.colors.map(v => Math.max(0, Math.min(17, v | 0)));
     const looks = Array.isArray(m.looks) ? m.looks : [];
     c.looks = c.colors.map((_, k) => { const l = looks[k] || {}; return { f: Math.max(0, Math.min(15, l.f | 0)), h: Math.max(0, Math.min(15, l.h | 0)), p: Math.max(0, Math.min(15, l.p | 0)) }; });
     roomStatus(r);
