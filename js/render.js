@@ -14,7 +14,9 @@ function drawBackground() {
   const [top, bot] = bgAt(heightM(camY + H / 2));
   const g = ctx.createLinearGradient(0, -OY, 0, H + OY);
   g.addColorStop(0, top); g.addColorStop(1, bot);
-  ctx.fillStyle = g; ctx.fillRect(WALL - 4, -OY, W - 2 * WALL + 8, VH);   // only inside the tower: the walls cover the rest
+  ctx.fillStyle = g;
+  if (finaleOn()) ctx.fillRect(-OX, -OY, VW, VH);   // zoomed in on a winner: the walls no longer cover the edges
+  else ctx.fillRect(WALL - 4, -OY, W - 2 * WALL + 8, VH);   // only inside the tower: the walls cover the rest
   drawScenery();
 
 }
@@ -86,7 +88,7 @@ function wallStrip(x0, x1, top, tall) {
 
 function drawWalls() {
   // The side walls, carried on out to the edges of the window (and above / below on tall windows)
-  const top = camY - OY, tall = VH;
+  const top = camY - OY, tall = finaleOn() ? VH + 400 : VH;   // (a little more while zoomed in on a winner)
   wallStrip(-OX, WALL, top, tall); wallStrip(W - WALL, W + OX, top, tall);
   ctx.fillStyle = PAL.wallLine;   // the tower's inner edge
   ctx.fillRect(WALL - 3, top, 3, tall); ctx.fillRect(W - WALL, top, 3, tall);
@@ -128,12 +130,22 @@ function drawPlatform(p) {
   const y = p.y;
   if (p.type === 'ground') {
     // The floor: a lilac slab with a rounded deep edge on top, built of the same soft blocks
-    tiles(-OX, W + OX, y, y + p.h + OY + 20, 58, 30, 6, 'rgba(255,255,255,0.28)', PAL.ground);
+    const T = (a, b, y0, y1) => tiles(a, b, y0, y1, 58, 30, 6, 'rgba(255,255,255,0.28)', PAL.ground);
+    if (p.hole) {   // the race floor over the room, with START's hole in it (js/lift.js)
+      const hx = p.hole.x, hw = p.hole.w;
+      T(-OX, hx, y, y + p.h); T(hx + hw, W + OX, y, y + p.h);
+      if (!lift) T(-OX, W + OX, y + p.h, y + p.h + OY + 400);   // (while the lift runs, the room is below)
+      ctx.fillStyle = PAL.groundD;
+      ctx.beginPath(); ctx.roundRect(p.x - 2, y, hx - p.x + 2, 5, 2.5); ctx.roundRect(hx + hw, y, p.x + p.w + 2 - hx - hw, 5, 2.5); ctx.fill();
+      return;
+    }
+    T(-OX, W + OX, y, y + p.h + OY + 400);   // (deep enough for the winner zoom too)
     ctx.fillStyle = PAL.groundD; ctx.beginPath(); ctx.roundRect(p.x - 2, y, p.w + 4, 5, 2.5); ctx.fill();
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe') ctx.fillText('START', W / 2, y + 40);
+    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe' && !p.roomPart) ctx.fillText('START', W / 2, y + 40);
     return;
   }
+  if (p.menu === 'lift') return drawLiftPlatform(p);     // (js/lift.js)
   if (p.menu === 'start') return drawStartPlatform(p);   // online room (js/room.js)
   if (p.menu) return drawMenuPlatform(p);   // lobby platforms (js/lobby.js)
   let x = p.x;
@@ -366,6 +378,7 @@ function drawJet(j) {
 
 // A player's cube, squashed when it lands. Other computers' cubes are faded ghosts (js/look.js).
 function drawPlayer(p) {
+  if (p.liftHide) return;   // not on the lift: appears at the start line when it arrives
   if (p.dead) {   // knocked out: the cube spins up and tumbles away (knockOut in js/game.js)
     const a = p.deathAnim;
     if (!a || a.t > 3 || a.y > camY + H + OY + 80) return;
@@ -399,6 +412,15 @@ function render() {
   if (state === 'wardrobe') drawWardrobeRoom();   // wallpaper, exit door, mirror (js/wardrobe.js)
 
   ctx.save();
+  if (finaleOn()) {   // the race is won: zoom in on the winner (js/hud.js)
+    const wp = players.find(p => p.i === winner);
+    if (wp) {
+      const e = finaleZoom(), z = 1 + (FINALE_ZOOM - 1) * e;
+      const wx = wp.x + wp.w / 2, wy = wp.y + wp.h / 2 - camY;
+      ctx.translate(W / 2, H / 2); ctx.scale(z, z);
+      ctx.translate(-(W / 2 + (wx - W / 2) * e), -(H / 2 + (wy - H / 2) * e));
+    }
+  }
   ctx.translate(0, -camY);
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);

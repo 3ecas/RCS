@@ -169,7 +169,7 @@ setInterval(() => {
 //  - otherwise (everyone in the room scene), when every computer in the room is ready (at least 2).
 // Anyone joining while a race is on waits in the room for the next one.
 const MAX_PLAYERS = 10;
-const PROTOCOL = 23;              // game and server must speak the same version
+const PROTOCOL = 24;              // game and server must speak the same version
 const rooms = [];
 
 const cubesIn = list => list.reduce((n, c) => n + c.colors.length, 0);
@@ -207,7 +207,7 @@ function maybeStart(r) {
     cl.colors.forEach((color, slot) => roster.push({ color, look: cl.looks[slot] || {}, owner, slot, name: slot === 0 ? cl.name || '' : '', id: cl.id + ':' + slot }));
   });
   const seed = crypto.randomInt(1, 2147483646);
-  r.racers.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: r.mode, startIn: 4500, roster, round: r.round }));
+  r.racers.forEach((c, i) => c.send({ t: 'match', you: i, seed, mode: r.mode, startIn: 5500, roster, round: r.round }));
   roomStatus(r);
   return true;
 }

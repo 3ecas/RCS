@@ -139,6 +139,12 @@ function retroText(str, x, y, size, faces, edge = PAL.ink) {
 // then the sunset stripes sweep in one after another from alternate sides until they cover the screen;
 // the winner's entrance starts at REVEAL. Leaving, they sweep away again (screenWipe, drawn in render()).
 const WIPE_START = 0.5, REVEAL = 1.15;
+// Before all that, the finale: when the last opponent goes out, the race plays on in slow motion while the
+// camera zooms in on the winner. overT starts at -FINALE, so the results above still start at 0.
+const FINALE = 1.6, FINALE_SLOW = 0.25, FINALE_ZOOM = 1.9;
+const finaleOn = () => state === 'over' && mode === 'versus' && winner >= 0;
+// How far the zoom has gone (0 … 1): it eases in over the slow motion and holds while the stripes sweep in
+const finaleZoom = () => { const u = clamp((overT + FINALE) / 1.2, 0, 1); return 1 - Math.pow(1 - u, 3); };
 const BANDS = ['#ffe7a0', '#ffd59e', '#ffc7a1', '#ffb3b0', '#f7a8c4', '#e8a3c8', '#d4b2ee', '#c8b6f2'];
 const wipeIn = k => clamp((overT - WIPE_START - k * 0.05) / 0.45, 0, 1);   // how far band k has swept in
 function drawResults() {
@@ -305,7 +311,7 @@ function drawPodium(cx, cy, t) {
     ctx.fillStyle = mixHex(P.col[0], '#ffffff', 0.45); ctx.strokeStyle = P.col[1]; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x - bw / 2, top); ctx.lineTo(x - bw / 2 + tf, top - tf); ctx.lineTo(x + bw / 2 - tf, top - tf); ctx.lineTo(x + bw / 2, top); ctx.closePath(); ctx.fill(); ctx.stroke();
     // the place number on its front
-    if (bh > 30 * sc) { OUTLINE = false; text(String(P.place), x, top + Math.min(bh * 0.62, 52 * sc), Math.round(40 * sc), P.col[1], 'center', 900); }
+    if (bh > 30 * sc) { OUTLINE = false; text(P.place + ['st', 'nd', 'rd'][P.place - 1], x, top + Math.min(bh * 0.62, 52 * sc), Math.round(34 * sc), P.col[1], 'center', 900); }
     ctx.restore();
     if (!who) continue;
     // 2nd / 3rd: the cube pops on once its block is up, then breathes a little

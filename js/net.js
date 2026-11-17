@@ -8,7 +8,7 @@ const SERVER_URL = 'wss://rcs-d5wp.onrender.com/ws';
 // me: which computer we are in the race. roster: every cube's colour, owner and name.
 // room: the shared room (who's in it, who's ready). round: which race in the room this is;
 // sentOver: told the server this race has ended.
-const PROTOCOL = 23;   // must match the server's; an outdated copy of the game is told to refresh
+const PROTOCOL = 24;   // must match the server's; an outdated copy of the game is told to refresh
 const net = { ws: null, status: 'off', me: 0, local: 1, roster: null, room: null, round: 0, sentOver: false, sendT: 0, banner: '', bannerT: 0 };
 
 function netUrl() {
@@ -100,7 +100,7 @@ const roomName = p => p.name || p.colors.map(ci => COLORS[ci].name).join(' & ');
 
 // Our race has ended: tell the server once, so the room can start the next round
 function reportRoundOver() {
-  if (net.status !== 'playing' || net.sentOver) return;
+  if (net.status !== 'playing' || net.sentOver || pendingStart) return;   // (not while the next race is already on its way)
   net.sentOver = true;
   netSend({ t: 'roundOver', round: net.round });
 }
@@ -132,8 +132,8 @@ function applyStart(m, late) {
   reset(m.seed);
   // Show "Match found!" first, then the 3-2-1 countdown (both computers start together)
   const total = m.startIn / 1000 - late;
-  foundT = Math.max(0.3, Math.min(1.5, total - 1));
-  countdown = total - foundT;
+  countdown = Math.min(3, total - 0.3);   // 3-2-1
+  foundT = total - countdown;
   state = 'found'; sfx.milestone();
 }
 function drawIris() {
@@ -165,8 +165,8 @@ function onNet(m) {
     mode = m.mode; net.me = m.you; net.status = 'playing'; net.sendT = 0;
     net.round = m.round; net.sentOver = false;
     net.roster = m.roster || [{ color: 0, owner: 0, slot: 0 }, { color: 7, owner: 1, slot: 0 }];
-    // The circle closes first — on START in the room, on the winner on the results screen — then opens on MATCH FOUND
-    if (state === 'room') { pendingStart = { m, t: 0 }; startIris(RACE_IRIS, [W / 2, GROUND_Y - ROW_GAP + 15 - camY], () => [W / 2, 280]); }
+    // On the results screen the circle closes on the winner, then opens on MATCH FOUND
+    if (state === 'room') startLift(m);   // in the room: START rises into the race (js/lift.js)
     else if (state === 'over') { pendingStart = { m, t: 0 }; startIris(RACE_IRIS, [W / 2, 300], () => [W / 2, 280]); }
     else applyStart(m, 0);
   }
@@ -189,7 +189,7 @@ function playersLeft(owner) {
   // In a race, if only one cube is left standing, it wins
   const left = alive();
   if (mode === 'versus' && (state === 'play' || state === 'count') && left.length === 1) {
-    state = 'over'; overT = 0; winner = left[0].i; wins[left[0].uid] = winsOf(left[0]) + 1;
+    state = 'over'; overT = 0; winner = left[0].i; wins[left[0].uid] = winsOf(left[0]) + 1; startFinale();
     deathMsg = 'Everyone else left the race';
   }
 }

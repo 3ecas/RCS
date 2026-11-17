@@ -12,11 +12,22 @@ function update(dt) {
   if (updateRaceStart(dt)) { time += dt; return; }      // online circle transitions (js/net.js)
   if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
   if (state === 'room') { updateRoom(dt); return; }     // the online room scene (js/room.js)
+  if (state === 'lift') { updateLift(dt); return; }     // START rising from the room into the race (js/lift.js)
   if (state === 'wardrobe') { updateWardrobe(dt); return; }   // inside the wardrobe (js/wardrobe.js)
   // Pause, room and end screens are driven by buttons (mouse or keyboard)
   if (state === 'found') {       // "Match found!" — then the countdown
     time += dt; foundT -= dt;
     if (foundT <= 0) { state = 'count'; sfx.beep(440); }
+    return;
+  }
+  if (state === 'over' && overT < 0 && finaleOn()) {   // the finale: slow motion, zooming in on the winner
+    const sd = dt * FINALE_SLOW;
+    time += sd; overT += dt;
+    updateWorld(sd);
+    for (const p of players) if (!p.dead) p.remote ? updateRemote(p, sd) : updatePlayer(p, sd);
+    updateParticles(sd);
+    shake = Math.max(0, shake - dt);
+    reportRoundOver();
     return;
   }
   if (state === 'paused' || state === 'search' || state === 'over') {
@@ -51,8 +62,8 @@ function update(dt) {
 
   generate();
   updateWorld(dt);
-  // In versus nobody moves until the countdown hits GO, so it's a fair start
-  if (!(mode === 'versus' && state === 'count')) {
+  // During the countdown you can walk left and right to pick your spot, but not jump (see updatePlayer)
+  {
     for (const p of players) {
       if (p.dead) continue;
       if (p.remote) { updateRemote(p, dt); continue; }
@@ -230,6 +241,7 @@ function wallNear(p, reach) {
 
 function updatePlayer(p, dt) {
   const inp = humanInput(p);
+  if (state === 'count') inp.jump = inp.jumpPressed = inp.down = false;   // countdown: left and right only
   p.prevX = p.x; p.prevY = p.y;
   if (p.press) { springPress(p, inp, dt); return; }   // riding a spring pad down
 
@@ -470,6 +482,12 @@ function updateHazards(dt) {
   }
 }
 
+// The race is won: slow motion and a zoom on the winner before the results (see FINALE in js/hud.js)
+function startFinale() {
+  overT = -FINALE;
+  sfx.slowmo();
+}
+
 function updateParticles(dt) {
   if (!particles) return;
   for (const q of particles) { q.vy += q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; if (q.vr) q.rot += q.vr * dt; }
@@ -492,7 +510,7 @@ function die(p, reason) {
     return;
   }
   state = 'over'; overT = 0; ui.focus = 0;   // (the first button — PLAY AGAIN / READY — starts selected)
-  if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) wins[left[0].uid] = winsOf(left[0]) + 1; }
+  if (mode === 'versus') { winner = left.length ? left[0].i : -1; if (winner >= 0) { wins[left[0].uid] = winsOf(left[0]) + 1; startFinale(); } }
   else if (height > best) { best = height; newBest = true; saveBest(); }
 }
 

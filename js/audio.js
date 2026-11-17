@@ -58,6 +58,7 @@ const sfx = {
   },
   popper: () => { noise(0.18, 0.09, 4000); tone(300, 1200, 0.12, 'sine', 0.04); },   // confetti
   bloop: k => tone(k % 2 ? 330 : 392, 220, 0.09, 'triangle', 0.05),               // a dance hop
+  slowmo: () => { tone(620, 110, 1.4, 'sine', 0.06); tone(310, 70, 1.4, 'triangle', 0.04); },   // time slowing down
   swoosh: () => { tone(300, 1100, 0.3, 'sine', 0.04); noise(0.3, 0.025, 2500); },
   whoosh: () => tone(180, 900, 1.4, 'sine', 0.04),                                 // the spin-up rising
   chime: () => { [1568, 2093, 2637].forEach((f, k) => tone(f, f, 0.35, 'triangle', 0.04, k * 0.07)); },
