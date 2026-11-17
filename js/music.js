@@ -12,7 +12,7 @@
 // a hum near moving platforms, bubbling near water columns, a whirr near shurikens, crackle near flames.
 'use strict';
 
-const MUSIC_VOL = 0.55;
+const MUSIC_VOL = 0.38;   // (the whole band; sound effects are louder than this)
 const music = { next: 0, step: 0, I: 0, target: 0, bus: null, timer: null };
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
 // The chord loop (a bar each), and a pentatonic scale for the lead
