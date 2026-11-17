@@ -109,12 +109,13 @@ function chooseMode(menu, code = '') {
   if (!tutDone) { tutDone = true; try { localStorage.setItem('rcs.tut', '1'); } catch (e) {} }
   // online (one cube per computer): the circle closes on your cube, then the 'Connecting' screen
   // (private: the same, into the room for that password — js/private.js)
-  if (menu === 'multi' || menu === 'private') {
-    net.code = menu === 'private' ? code : ''; mode = 'versus';
-    // from the online room into a private one: the circle closes on the PRIVATE portal and stays shut until
-    // the new room is there, then opens on you in it (no Connecting screen in between)
-    if (state === 'room') startIris(0.4, [PRIVATE_X(), GROUND_Y - DOOR_H / 2 - camY], myCubeOnScreen, startSearch, true);
-    else startIris(0.3, myCubeOnScreen(), () => [W / 2, 262], startSearch);
+  // ONLINE: into the online hub (js/hub.js) — the circle closes on your cube and opens on it there
+  if (menu === 'multi') { mode = 'versus'; startIris(0.3, myCubeOnScreen(), myCubeOnScreen, enterHub); return; }
+  // PRIVATE (from the hub): the circle closes on the PRIVATE portal and stays shut until the private lobby
+  // is there, then opens on you in it (no Connecting screen in between)
+  if (menu === 'private') {
+    net.code = code; mode = 'versus';
+    startIris(0.4, [PRIVATE_X(), GROUND_Y - DOOR_H / 2 - camY], myCubeOnScreen, startSearch, true);
     return;
   }
   mode = menu === 'solo' ? 'solo' : menu === 'coop' ? 'split' : 'versus';
@@ -259,7 +260,7 @@ function drawLobbyHUD(k = 0) {
   drawFloorLogo();   // the small logo and best height in the middle of the floor (js/logo.js)
 
   // The floor: player 1's cube and keys on the left; player 2 (or how to add them) on the right
-  const y = GROUND_Y + 28, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
+  const y = GROUND_Y + 48, s = 23, p1 = COLORS[myColor], p2 = COLORS[p2Color];
   cube(WALL + 22, y + 14, 28, { c: p1.c, d: p1.d }, myLook);
   keyCluster(WASD, WALL + 104, y, s, p1.d);
   const rx = W - WALL - 104;

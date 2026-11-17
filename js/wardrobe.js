@@ -11,8 +11,8 @@ const wardrobe = { saved: null, exitX: 0 };
 
 // Where the portals stand: the wardrobe always on the left, EXIT always on the right, any others in between.
 // They stand in the corners, a little in from the walls (CORNER_X): the wardrobe in the left one, the way
-// out in the right one — ONLINE in the start scene, EXIT in the online room and inside the wardrobe. The
-// online room's PRIVATE portal is in between, right of START. Nothing low ever hangs over a corner portal
+// out in the right one — ONLINE in the start scene, EXIT in the online hub, the lobbies and inside the
+// wardrobe. The hub's FIND MATCH and PRIVATE portals are in between. Nothing low ever hangs over a corner portal
 // (the start scene's mode platforms and the room's platforms keep clear of them).
 // wardrobe.from = the scene you went into the wardrobe from (you come back out there).
 const CORNER_X = 52;                        // a portal's centre, from the wall beside it
@@ -193,10 +193,9 @@ function drawDoor(cx, floorY, label, hold, open = 0) {
 // The wardrobe door in the start scene / the online room (drawn behind the cubes)
 function drawLobbyDoor() {
   drawDoor(sceneDoorX(), GROUND_Y, '', holdOf('wardrobe'), doorOpen(true));
-  if (state === 'room') {
-    if (privateHere()) drawDoor(PRIVATE_X(), GROUND_Y, 'PRIVATE', holdOf('private'), 0);
-    drawRoomExit();
-  } else drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0);
+  if (state === 'room') drawRoomExit();
+  else if (state === 'hub') drawHubPortals();   // FIND MATCH, PRIVATE, EXIT (js/hub.js)
+  else drawDoor(ONLINE_X(), GROUND_Y, 'ONLINE', holdOf('online'), 0);
 }
 
 // The online room's way out: an EXIT portal by the right wall (the wardrobe is on the left). Press down at it to leave online play
@@ -249,6 +248,6 @@ function drawWardrobeHUD() {
   ctx.save(); ctx.translate(0, -OY);
   text('WARDROBE', W / 2, 78, 44, PAL.ink, 'center', 900);
   ctx.restore();
-  keycap('Esc', W - WALL - 44, GROUND_Y + 38, 26, PAL.inkSoft, 0.8);   // also leaves
-  drawArrow(W - WALL - 92, GROUND_Y + 52, 18, Math.PI, PAL.inkSoft);
+  keycap('Esc', W - WALL - 44, GROUND_Y + 56, 26, PAL.inkSoft, 0.8);   // also leaves
+  drawArrow(W - WALL - 92, GROUND_Y + 70, 18, Math.PI, PAL.inkSoft);
 }

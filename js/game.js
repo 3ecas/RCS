@@ -12,6 +12,7 @@ function update(dt) {
   if (updateRaceStart(dt)) { time += dt; return; }      // online circle transitions (js/net.js)
   if (state === 'lobby') { updateLobby(dt); return; }   // the playable start scene (js/lobby.js)
   if (state === 'room') { updateRoom(dt); return; }     // the online room scene (js/room.js)
+  if (state === 'hub') { updateHub(dt); return; }       // the online hub: FIND MATCH / PRIVATE (js/hub.js)
   if (state === 'lift') { updateLift(dt); return; }     // START rising from the room into the race (js/lift.js)
   if (state === 'wardrobe') { updateWardrobe(dt); return; }   // inside the wardrobe (js/wardrobe.js)
   // Pause, room and end screens are driven by buttons (mouse or keyboard)

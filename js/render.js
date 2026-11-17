@@ -146,7 +146,7 @@ function drawPlatform(p) {
     T(-OX, W + OX, y, y + p.h + OY + 400);   // (deep enough for the winner zoom too)
     ctx.fillStyle = PAL.groundD; ctx.beginPath(); ctx.roundRect(p.x - 2, y, p.w + 4, 5, 2.5); ctx.fill();
     ctx.fillStyle = PAL.inkSoft; ctx.font = `700 16px ${FONT}`; ctx.textAlign = 'center';
-    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe' && !p.roomPart) ctx.fillText('START', W / 2, y + 40);
+    if (state !== 'lobby' && state !== 'room' && state !== 'wardrobe' && state !== 'hub' && !p.roomPart) ctx.fillText('START', W / 2, y + 40);
     return;
   }
   if (p.menu === 'lift') return drawLiftPlatform(p);     // (js/lift.js)
@@ -299,6 +299,7 @@ function drawZapper(z) {
 
 // Two Paths region: the dividing wall, in the same stone as the side walls
 function drawDivider(dv) {
+  if (dv.ceiling) return drawCeiling(dv);   // the online hub's low ceiling (js/hub.js)
   const top = Math.max(dv.top, camY - OY - 10), bot = Math.min(dv.bot, camY + H + OY + 10);
   if (bot <= top) return;
   // A column of the wall's soft blocks, with a rounded deep edge, a foot and (pillars) a cap
@@ -429,7 +430,7 @@ function render() {
   ctx.translate(0, -camY);
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
-  if (state === 'lobby' || state === 'room') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
+  if (state === 'lobby' || state === 'room' || state === 'hub') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
   else if (lobbyFade > 0) { ctx.globalAlpha = 1 - clamp(lobbyFade / LOBBY_FADE, 0, 1); drawLobbyDoor(); ctx.globalAlpha = 1; }
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);

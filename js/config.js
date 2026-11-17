@@ -10,7 +10,7 @@ const GRAV = 2100, JUMP_V = 860, MAX_VX = 360, SPRING_V = 1400, MAX_FALL = 1300;
 // Springs: how far the pad sinks under you (px), how long that takes (s), and its wobble (stiffness, damping)
 const SPRING_DEPTH = 11, SPRING_DOWN = 0.09, SPRING_K = 330, SPRING_DAMP = 9;
 const PX_PER_M = 40;
-const FLOOR_H = 110;          // the floor strip at the bottom (keys, the logo and the best height sit on it)
+const FLOOR_H = 150;          // the floor strip at the bottom (keys, the logo and the best height sit on it)
 const GROUND_Y = H - FLOOR_H;
 const ROW_GAP = 120;        // every row of platforms sits this far above the last (3 m)
 const ROW_WOBBLE = 0.12;    // chance a row is nudged slightly off the grid

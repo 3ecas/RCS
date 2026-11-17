@@ -97,7 +97,6 @@ function updateRoom(dt) {
   checkWardrobeDoor(dt);   // the wardrobe portal, right of START (js/wardrobe.js)
   if (doorT) return;
   if (checkRoomExit(dt)) return;   // the EXIT portal by the right wall
-  if (checkPrivatePortal(dt)) return;   // the PRIVATE portal right of START: the password box (js/private.js): back to the start scene (js/wardrobe.js)
 
   // Ready = all of this computer's cubes are on START. Tell the server when that changes.
   const ready = players.filter(p => !p.remote).every(onStart);
@@ -131,7 +130,7 @@ function drawRoomHUD() {
   ctx.save(); ctx.translate(0, -OY);
   ctx.save(); OUTLINE = true;
   const priv = net.room && net.room.priv;
-  text(priv ? 'PRIVATE ROOM' : 'ROOM', W / 2, 92, priv ? 44 : 56, PAL.ink, 'center', 900);
+  text(priv ? 'PRIVATE LOBBY' : 'PUBLIC LOBBY', W / 2, 92, 44, PAL.ink, 'center', 900);
   if (priv) text('password: ' + net.code, W / 2, 152, 14, PAL.inkSoft, 'center', 800);
   text(roomLine(), W / 2, 128, 18, PAL.good, 'center', 900);
   OUTLINE = false; ctx.restore();
@@ -150,7 +149,7 @@ function drawRoomHUD() {
   ctx.restore();
   const keysTxt = net.local === 2 ? `${COLORS[localColor(0)].name.toUpperCase()}: W A S D   ·   ${COLORS[localColor(1)].name.toUpperCase()}: ARROW KEYS` : 'W A S D or arrow keys';
   drawChatLog(); drawChatBubbles();
-  text('Everyone on START to begin  ·  Enter: chat  ·  Esc: leave', W / 2 - 60, GROUND_Y + 46, 14, PAL.inkSoft, 'center', 800);
-  text(keysTxt, W / 2 - 60, GROUND_Y + 72, 14, localCube(0).d, 'center', 900);
+  text('Everyone on START to begin  ·  Enter: chat  ·  Esc: leave', W / 2 - 60, GROUND_Y + 62, 14, PAL.inkSoft, 'center', 800);
+  text(keysTxt, W / 2 - 60, GROUND_Y + 90, 14, localCube(0).d, 'center', 900);
   drawBanner(150);
 }

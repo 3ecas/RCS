@@ -483,6 +483,7 @@ function drawHUD() {
     ctx.globalAlpha = 1 - k; drawLobbyHUD(k); ctx.globalAlpha = 1;
   }
   if (state === 'room') drawRoomHUD();      // the online room scene (js/room.js)
+  if (state === 'hub') drawHubHUD();        // the online hub (js/hub.js)
   if (state === 'wardrobe') drawWardrobeHUD();
 
   // a soft veil over the game for menus; the game-over one fades in (a race draws its own stripes instead)

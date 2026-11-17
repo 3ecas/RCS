@@ -109,6 +109,6 @@ function drawShape(c, kind, x, y, r, col, rot = 0) {
 // The logo in the start scene: small, set into the middle of the floor between the two players' keys,
 // with the best height under it — nothing in the tower can ever cover it there
 function drawFloorLogo() {
-  drawLogoArt(ctx, W / 2, GROUND_Y + 66, 9, time, { noShapes: true, noBar: true });
-  if (best > 0) text('BEST ' + best + ' m', W / 2, GROUND_Y + 92, 13, PAL.inkSoft, 'center', 800);
+  drawLogoArt(ctx, W / 2, GROUND_Y + 96, 13, time, { noShapes: true, noBar: true });
+  if (best > 0) text('BEST ' + best + ' m', W / 2, GROUND_Y + 128, 14, PAL.inkSoft, 'center', 800);
 }
