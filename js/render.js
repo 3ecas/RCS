@@ -282,6 +282,19 @@ function drawPlayer(p) {
   const w = p.w * sx, h = p.h * sy;
   const x = p.x + p.w / 2 - w / 2, y = p.y + p.h - h;
   if (p.remote) ctx.globalAlpha = OTHERS_ALPHA;
+  const g = warpOf(p);   // going into / coming out of a portal (js/wardrobe.js): spinning, small and white
+  if (g > 0) {
+    if (g >= 1) { ctx.globalAlpha = 1; return; }
+    const e = g * g, k = 1 - e;
+    ctx.save();
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(e * Math.PI * 3 * (p.face < 0 ? -1 : 1)); ctx.scale(k, k);
+    ctx.globalAlpha *= clamp((1 - g) / 0.25, 0, 1);
+    drawCubeArt(-p.w / 2, -p.h / 2, p.w, p.h, { c: mixHex(p.color, '#ffffff', g), d: mixHex(p.dark, '#ffffff', g * 0.85) }, p.look, p.face, p.blink);
+    ctx.globalAlpha *= g * 0.7; ctx.fillStyle = '#ffffff';            // and a white glow over the whole cube
+    ctx.beginPath(); ctx.roundRect(-p.w / 2 - 2, -p.h / 2 - 2, p.w + 4, p.h + 4, 8); ctx.fill();
+    ctx.restore(); ctx.globalAlpha = 1;
+    return;
+  }
   drawCubeArt(x, y, w, h, { c: p.color, d: p.dark }, p.look, p.face, p.blink);
   ctx.globalAlpha = 1;
 }
@@ -402,3 +415,4 @@ function text(str, x, y, size, color, align = 'center', weight = 800) {
 
 // A cube on a menu / results screen (size s), with its look
 function cube(x, y, s, P, look) { drawCubeArt(x, y, s, s, P, look, 0, 1); }
+

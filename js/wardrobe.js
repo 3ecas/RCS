@@ -27,6 +27,7 @@ const atDoor = (p, cx, floorY) => p.onGround && Math.abs(p.y + p.h - floorY) < 3
 const DOOR_HOLD = 1;
 let doorHold = {};
 function holdDoor(id, cx, dt) {
+  if (warpOut) { if (warpOut.id === id) warpOut.t += dt; return warpDone(id); }
   // (two players on this computer: both have to be standing in it)
   const mine = players.filter(p => !p.remote && !p.dead);
   const inIt = !doorT && !iris && mine.length > 0 && mine.every(p => atDoor(p, cx, GROUND_Y));
@@ -34,8 +35,39 @@ function holdDoor(id, cx, dt) {
   doorHold[id] = inIt ? before + dt : 0;
   if (inIt && before === 0) sfx.loadStart(DOOR_HOLD);   // the loading tone climbs while you stand in it
   if (!inIt && before > 0) sfx.loadStop();               // stepped out
-  if (doorHold[id] >= DOOR_HOLD) { doorHold = {}; sfx.loadStop(); sfx.pling(); return true; }
+  if (doorHold[id] >= DOOR_HOLD && !warpOut) {
+    doorHold = {}; sfx.loadStop(); sfx.pling();
+    if (id === 'private') return true;           // (the password box opens right there: you stay put)
+    warpOut = { id, t: 0, state };                      // your cubes spin away into the portal first (then it's true)
+    for (const p of mine) p.vx = p.vy = 0;
+  }
   return false;
+}
+
+// Going into a portal: your cubes spin round, shrink and turn white until they're gone; then the portal takes
+// you. Coming out the other side they do the opposite: a white speck spins up into the cube.
+const WARP_OUT = 0.5, WARP_IN = 0.5;
+let warpOut = null, warpIn = null;
+// Called every frame by the scenes (before their portals): true once the cubes are gone, for the portal `id`
+function updateWarp(dt) {
+  if (warpOut && warpOut.state !== state) warpOut = null;   // (the scene changed under it: never mind)
+  if (warpIn) {
+    // (only once the screen is showing where you came out: not while a circle or door is still closing)
+    const covered = (iris && (iris.action || iris.hold || iris.t < iris.close)) || (doorT && !doorT.swapped) || state === 'search';
+    if (!covered) { warpIn.t += dt; if (warpIn.t >= WARP_IN) warpIn = null; }
+  }
+}
+function warpDone(id) {
+  if (!warpOut || warpOut.id !== id || warpOut.t < WARP_OUT) return false;
+  warpOut = null; warpIn = { t: 0 };
+  return true;
+}
+// How far gone a cube is: 0 (normal) … 1 (vanished)
+function warpOf(p) {
+  if (p.remote || p.dead) return 0;
+  if (warpOut) return clamp(warpOut.t / WARP_OUT, 0, 1);
+  if (warpIn) return 1 - clamp(warpIn.t / WARP_IN, 0, 1);
+  return 0;
 }
 const holdOf = id => clamp((doorHold[id] || 0) / DOOR_HOLD, 0, 1);
 

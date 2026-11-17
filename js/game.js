@@ -10,6 +10,7 @@ function update(dt) {
   if (pressed.KeyM) toggleMute();
   if (pressed.KeyF) toggleFullscreen();
   ambTick(dt);   // the ambience follows what's near your cube (js/music.js)
+  updateWarp(dt);   // cubes spinning into / out of a portal (js/wardrobe.js)
 
   if (doorT) { updateDoor(dt); time += dt; return; }
   if (updateDeathCam(dt)) return;                        // frozen on the moment an obstacle got you   // going through the wardrobe door (js/wardrobe.js)
@@ -232,6 +233,7 @@ function updatePlayer(p, dt) {
   const inp = humanInput(p);
   if (state === 'count') inp.jump = inp.jumpPressed = inp.down = false;   // countdown: left and right only
   p.prevX = p.x; p.prevY = p.y;
+  if (warpOf(p) > 0) { p.vx = p.vy = 0; return; }   // spinning into / out of a portal: held still
   if (p.press) { springPress(p, inp, dt); return; }   // riding a spring pad down
 
   // Ride whatever we're standing on
