@@ -5,6 +5,8 @@
 //   chimney  — a narrow shaft between two pillars with nothing inside: wall-jump up it
 //   wall     — ledges hugging a side wall, alternating with platforms further out: wall-jump up the side
 //   plaza    — a wide platform, then two routes (one with a gem), then they meet again
+//   fork     — a wide platform, then two routes side by side for a few rows (one with the obstacles), then
+//              they meet again: now and then there's more than one way up
 // Each piece places the path's platform(s) for one row; js/level.js adds the extras, hazards and gems.
 'use strict';
 
@@ -14,6 +16,7 @@ const PIECES = {
   chimney: { rows: [3, 10], weight: 1.5, minM: 20 },
   wall:    { rows: [4, 6], weight: 1.4 },
   plaza:   { rows: [3, 3], weight: 1.1, minM: 8 },
+  fork:    { rows: [5, 7], weight: 1.0, minM: 25 },
 };
 const SHAFT_W = 130, PILLAR_W = 22;
 
@@ -83,10 +86,10 @@ const PIECE_ROW = {
       // a bubble column from lower down that would reach into the pillars stops just below them
       for (const b of bubbles) if (b.top < bot && b.bot > top && b.x < pc.cx + SHAFT_W / 2 + PILLAR_W + 20 && b.x + b.w > pc.cx - SHAFT_W / 2 - PILLAR_W - 20) b.top = Math.max(b.top, bot + 12);
       bubbles = bubbles.filter(b => b.bot - b.top >= 80);
-      // Mostly the chimney is the only way up. Sometimes (if there's room) a second route climbs the outside:
-      // a column of platforms on the roomier side, each within reach of the last, ending beside the cap.
+      // Besides the shaft there's always a second route up the outside (on the roomier side): a column of
+      // platforms, each within reach of the last, ending beside the cap — with obstacles of its own.
       const roomL = pc.cx - capW / 2 - 30 - L, roomR = W - WALL - (pc.cx + capW / 2 + 30);
-      const wantAlt = R() < 0.3, wantSide = R() < 0.45;
+      const wantAlt = true, wantSide = R() < 0.45;
       pc.alt = wantAlt && Math.max(roomL, roomR) >= 120
         ? (roomL >= roomR ? { lo: L + 6, hi: pc.cx - capW / 2 - 30, side: -1 } : { lo: pc.cx + capW / 2 + 30, hi: W - WALL - 6, side: 1 }) : null;
       // The way out at the top: a cap over the shaft, or (sometimes) a ledge beside it — you wall-jump out of
@@ -107,8 +110,10 @@ const PIECE_ROW = {
       const a = pc.alt, w = Math.min(wrand(90, 120), a.hi - a.lo - 4);
       const topRef = ex ? { type: 'normal', x: ex.x, w: ex.w } : { type: 'normal', x: pc.cx - capW / 2, w: capW };
       const refs = pc.left === 1 || (ex && pc.left === 2) ? [pc.altPrev, topRef] : [pc.altPrev];
-      const q = makePlatform(pickCx(w, a.lo, a.hi, refs, G - 10), y, w, d, a.lo, a.hi, false);
+      // (obstacles on the outside route: spikes every other step, and higher up a shuriken sweeping across it)
+      const q = makePlatform(pickCx(w, a.lo, a.hi, refs, G - 10), y, w, d, a.lo, a.hi, pc.k % 2 === 1 && pc.left > 1);
       q.alt = true; row.push(q); pc.altPrev = q;
+      if (pc.k >= 1 && pc.left > 1 && !q.spikes && R() < lerp(0.15, 0.5, heat(m))) addBlade(y, a.lo, a.hi, m);
     }
     if (pc.left === 1 && ex) {
       // A ledge beside the top of the shaft, level with the pillars' tops
@@ -123,9 +128,39 @@ const PIECE_ROW = {
       addGem(pc.cx, y - 50);
       return { main, row: [main, ...row], rowHaz: false, block: whole, noFly: true };
     }
-    // Inside the shaft there's nothing to stand on: wall-jump between the pillars
+    // Inside the shaft there's nothing to stand on: wall-jump between the pillars. Late in the climb some
+    // rows get a flamethrower in a pillar, firing across the shaft on a timer (from alternate sides)
+    if (pc.k >= 1 && pc.left > 2 && heat(m) > 0.4 && R() < lerp(0.25, 0.55, (heat(m) - 0.4) / 0.6)) {
+      const side = pc.k % 2 ? -1 : 1;
+      jets.push({ ox: side < 0 ? pc.cx - SHAFT_W / 2 : pc.cx + SHAFT_W / 2, oy: y - 50, dx: -side, dy: 0, len: SHAFT_W * 0.55, thick: 26,
+                  period: wrand(2.4, 3.2), off: wrand(0, 3), t: 0, last: 0, shaft: true });
+    }
     const main = { type: 'shaft', x: pc.cx - SHAFT_W / 2, w: SHAFT_W };
     return { main, row, rowHaz: false, block: whole, noFly: true };
+  },
+
+  fork(pc, y, m, d, L, G, allowHaz) {
+    const R0 = W - WALL, mid = (L + R0) / 2;
+    if (pc.k === 0) {            // a wide platform both routes start from
+      const w = Math.min(R0 - L - 60, wrand(380, 480));
+      pc.cx = pickCx(w, L, R0, gen.prev ? [gen.prev] : [], G);
+      const main = plain(pc.cx - w / 2, y, w);
+      pc.lp = pc.rp = main; pc.risky = R() < 0.5 ? -1 : 1;   // which route gets the obstacles
+      return { main, row: [main], rowHaz: false };
+    }
+    if (pc.left === 1) {         // they meet again: one platform reaching over both routes
+      const a = center(pc.lp), b = center(pc.rp), w = Math.min(R0 - L - 20, Math.max(170, b - a + 50));
+      const x = clamp((a + b) / 2 - w / 2, L + 4, R0 - 4 - w);
+      const p = plain(x, y, w);
+      return { main: p, row: [p], rowHaz: false, noFly: true };
+    }
+    // two routes, one each side of the middle, each step within reach of that route's last one
+    const w = wrand(100, 130);
+    const l = makePlatform(pickCx(w, L + 6, mid - 40, [pc.lp], G), y, w, d, L + 6, mid - 40, allowHaz && pc.risky < 0);
+    const r = makePlatform(pickCx(w, mid + 40, R0 - 6, [pc.rp], G), y, w, d, mid + 40, R0 - 6, allowHaz && pc.risky > 0);
+    pc.lp = l; pc.rp = r;
+    // (main = the risky route, so this row's flying obstacle lands on it)
+    return { main: pc.risky < 0 ? l : r, row: [l, r], rowHaz: !!(l.spikes || r.spikes), block: [L, R0] };
   },
 
   wall(pc, y, m, d, L, G, allowHaz) {

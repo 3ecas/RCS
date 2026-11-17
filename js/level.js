@@ -163,7 +163,12 @@ function genPathRow(y, m, d, L) {
     const pJet = has(m, 'wallflame') ? lerp(0.25, 0.45, heat(m)) * hz(m) : 0;
     const pZap = has(m, 'zapper') ? lerp(0.35, 0.55, heat(m)) * hz(m) : 0;
     const r = R();
-    if (r < pJet) { addJet(R() < 0.5 ? 'L' : 'R', y); rowHaz = true; }
+    if (r < pJet) {
+      // from the wall next to the path, and only when its flame reaches over where you jump
+      const side = cx < (L + W - WALL) / 2 ? 'L' : 'R';
+      const gap = side === 'L' ? main.x - WALL : W - WALL - (main.x + main.w);
+      if (gap < JET_LEN - 80) { addJet(side, y); rowHaz = true; }
+    }
     else if (r < pJet + pBlade) {
       addBlade(y, clamp(cx - w / 2 - 90, L, W - WALL), clamp(cx + w / 2 + 90, L, W - WALL), m);
       blade = blades[blades.length - 1];
@@ -254,7 +259,7 @@ function addBlade(rowY, lo, hi, m) {
 // Near the path (cx); sometimes tilted.
 function addZapper(rowY, cx, lo, m) {
   const len = wrand(200, lerp(280, 420, heat(m)));
-  const mid = clamp(cx + wrand(-120, 120), lo + len / 2 + 10, W - WALL - len / 2 - 10);
+  const mid = clamp(cx + wrand(-50, 50), lo + len / 2 + 10, W - WALL - len / 2 - 10);   // (across the path)
   const tilt = R() < 0.35 ? wrand(-36, 36) : 0;
   const y = rowY - 62;
   zaps.push({ x1: mid - len / 2, y1: y - tilt, x2: mid + len / 2, y2: y + tilt,
@@ -286,7 +291,10 @@ function addPlatformJet(p) {
   const base = { period: wrand(2.4, 3.4), off: wrand(0, 3), t: 0, last: 0 };
   // (straight up it stops short of the row above: it mustn't reach that row's platform)
   if (R() < 0.6) jets.push({ ...base, ox: left ? p.x + 18 : p.x + p.w - 18, oy: p.y, dx: 0, dy: -1, len: Math.min(PJET_LEN, ROW_GAP + 80), thick: PJET_THICK });
-  else jets.push({ ...base, ox: left ? p.x : p.x + p.w, oy: p.y - 20, dx: left ? -1 : 1, dy: 0, len: PJET_LEN + 20, thick: PJET_THICK });
+  else {   // sideways: from the end you arrive at, pointing back the way you come from (over your jump, not into empty air)
+    const from = gen.prev && gen.prev.type !== 'shaft' ? center(gen.prev) < center(p) : left;
+    jets.push({ ...base, ox: from ? p.x : p.x + p.w, oy: p.y - 20, dx: from ? -1 : 1, dy: 0, len: PJET_LEN + 20, thick: PJET_THICK });
+  }
 }
 function jetState(j) {
   const ph = (j.t + j.off) % j.period;
