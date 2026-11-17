@@ -445,7 +445,7 @@ function updateParticles(dt) {
 // The death camera (solo / co-op): when an obstacle gets you, the game freezes for DEATH_HOLD seconds and the
 // camera zooms in on the moment of contact; then the cube bursts as usual while the camera eases back out.
 // deathCam = { t, p, reason, x, y } while it runs (t keeps counting through the ease-out).
-const DEATH_HOLD = 2, DEATH_ZOOM_IN = 0.3, DEATH_ZOOM_OUT = 0.5, DEATH_ZOOM = 2.3;
+const DEATH_HOLD = 0.9, DEATH_ZOOM_IN = 0.18, DEATH_ZOOM_OUT = 0.4, DEATH_ZOOM = 2.3;
 let deathCam = null;
 const deathZoom = () => {
   if (!deathCam) return 0;

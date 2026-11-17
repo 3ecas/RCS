@@ -89,7 +89,7 @@ const sfx = {
     tone(2093, 2093, 0.3, 'triangle', 0.03, 0.65);
   },
   // An obstacle got you (solo): a short hit and a ringing tone while everything freezes
-  impact: () => { tone(180, 60, 0.25, 'square', 0.05); noise(0.12, 0.06, 1800); tone(1320, 1240, 1.6, 'sine', 0.02, 0.05); },
+  impact: () => { tone(180, 60, 0.25, 'square', 0.05); noise(0.12, 0.06, 1800); tone(1320, 1240, 0.8, 'sine', 0.02, 0.05); },
   // Race start: three soft beeps (3, 2, 1) and a trumpet ta-ra on GO
   count: () => { tone(660, 660, 0.14, 'triangle', 0.035); tone(1320, 1320, 0.08, 'sine', 0.012); },   // a soft clean beep
   // GO: a clean little trumpet call, "ta-RA!" — a short note, then the fourth above it held
