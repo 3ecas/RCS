@@ -144,7 +144,7 @@ function drawDoor(cx, floorY, label, hold, open = 0) {
   const arch = (dx, dy, w, h, rr) => { ctx.beginPath(); ctx.roundRect(dx, dy, w, h, [rr, rr, 0, 0]); };
   const base = ctx.globalAlpha;   // (respects a fade in progress)
   // rim
-  ctx.fillStyle = SOFT.lilac[1]; arch(x - 5, y - 5, DOOR_W + 10, DOOR_H + 5, r + 5); ctx.fill();
+  ctx.fillStyle = SOFT.lilac[1]; arch(x - EDGE, y - EDGE, DOOR_W + 2 * EDGE, DOOR_H + EDGE, r + EDGE); ctx.fill();   // rim: as thick as the cubes' outline
   // the portal: rainbow rings flowing endlessly into its middle, with a slow spiral of light turning over them
   ctx.save(); arch(x, y, DOOR_W, DOOR_H, r); ctx.clip();
   const pcx = cx, pcy = y + DOOR_H * 0.52, RW = 7, cols = ['rose', 'apricot', 'butter', 'mint', 'sky', 'lilac'];

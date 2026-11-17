@@ -114,7 +114,9 @@ function drawWalls() {
 }
 
 // The look shared by buttons and platforms: a face, a crisp outline, and a solid shadow under it
-function slab(x, y, w, h, face, edge, lw = 2, drop = 0) {
+// lw: the outline — 3 px, the same as the cubes' and the portals' (EDGE)
+const EDGE = 3;
+function slab(x, y, w, h, face, edge, lw = EDGE, drop = 0) {
   const r = Math.min(5, h / 2, w / 2);   // softly rounded corners
   if (drop) { ctx.fillStyle = edge; ctx.beginPath(); ctx.roundRect(x, y + drop, w, h, r); ctx.fill(); }
   ctx.fillStyle = face; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
@@ -122,7 +124,7 @@ function slab(x, y, w, h, face, edge, lw = 2, drop = 0) {
 }
 // A white button-platform (lobby, wardrobe, room). on: someone stands on it — it lights up in `color`.
 function buttonSlab(p, on, color = PAL.ink, drop = 0) {
-  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.normalD, on ? 3 : 2, drop);
+  slab(p.x, p.y, p.w, p.h, '#ffffff', on ? color : PAL.normalD, EDGE, drop);
 }
 
 function drawPlatform(p) {
