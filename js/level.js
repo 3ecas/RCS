@@ -13,7 +13,8 @@ function startWorld(withLobby) {
     rowK = 2;
     // The mode platforms span the width, so the next row can start anywhere; keep it hazard-free.
     // On the sound pad's row the tower's platforms stay clear of the pad.
-    gen = { prev: platforms.find(p => p.stair) || { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true, lo: padEnd + 60, loUntil: GROUND_Y - 2.5 * ROW_GAP };
+    gen = { prev: platforms.find(p => p.stair) || { type: 'normal', x: WALL, w: W - 2 * WALL }, prevHaz: true, lo: padEnd + 60, loUntil: GROUND_Y - 2.5 * ROW_GAP,
+            avoid: { x0: W / 2 - 175, x1: W / 2 + 175, top: wallLogoY() - 175, bot: wallLogoY() + 40 } };   // the logo on the wall (js/logo.js)
   }
   generate();
 }
@@ -80,6 +81,9 @@ function pickCx(w, lo, hi, refs, G) {
 const extent = p => p.type === 'move' ? [p.baseX - p.amp, p.baseX + p.amp + p.w] : [p.x, p.x + p.w];
 
 function genRow(y) {
+  // Rows level with the logo on the back wall keep clear of it: a plain step on one side (js/logo.js)
+  const A = gen.avoid;
+  if (A && y + 16 > A.top && y < A.bot) { genBesideLogo(y, A); return; }
   const m = heightM(y), d = diff(y);
   const L = gen.lo && y > gen.loUntil ? gen.lo : WALL;   // left edge (the lobby's colour column takes the left)
   const first = platforms.length;
@@ -158,6 +162,16 @@ function genPathRow(y, m, d, L) {
   gen.prev = pc.prev || main;
 }
 
+// One plain step beside the logo, on the side of the last step (within reach of it), no hazards
+function genBesideLogo(y, A) {
+  const pc = center(gen.prev), w = 120, left = pc < W / 2;
+  const lo = left ? WALL + 10 : A.x1, hi = left ? A.x0 : W - WALL - 10;
+  const cx = clamp(pc + (left ? -40 : 40), lo + w / 2, hi - w / 2);
+  const p = { id: nextPid++, x: cx - w / 2, y, w, h: 16, type: 'normal', dx: 0, t: 0, falling: false, vy: 0, bounceT: 0 };
+  platforms.push(p);
+  snapToWalls([p]);
+  gen.prev = p; gen.prevHaz = false;
+}
 
 // A still platform that ends just short of a wall (the tower's sides, a pillar, the Two Paths wall) is
 // stretched to touch it: a gap too narrow to fall through would only look wrong

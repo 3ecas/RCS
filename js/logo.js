@@ -123,7 +123,7 @@ function wallLogoImage(k) {
 }
 // Drawn in world coordinates, right after the background (so everything else is in front of it)
 function drawWallLogo() {
-  if (state === 'room' || state === 'wardrobe') return;
+  if (state === 'room' || state === 'wardrobe' || state === 'lift' || net.status === 'playing') return;   // (only the start scene's tower has it)
   const L = WALL_LOGO, y0 = wallLogoY() - L.base;
   if (y0 > camY + H + OY || y0 + L.h < camY - OY) return;   // off screen
   const k = Math.max(1, Math.round(ctx.getTransform().a * 2) / 2);
