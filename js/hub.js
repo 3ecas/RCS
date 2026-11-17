@@ -60,7 +60,7 @@ function leaveHub() {
 function drawHubPortals() {
   drawDoor(FIND_X(), GROUND_Y, 'FIND MATCH', holdOf('find'), 0);
   drawDoor(PRIVATE_X(), GROUND_Y, 'PRIVATE', holdOf('private'), 0);
-  drawDoor(HUB_EXIT_X(), GROUND_Y, 'EXIT', holdOf('hubExit'), 0);
+  drawDoor(HUB_EXIT_X(), GROUND_Y, 'MAIN MENU', holdOf('hubExit'), 0);
 }
 
 // The tunnel's ceiling: the floor's soft blocks, upside down, with the same deep edge along it

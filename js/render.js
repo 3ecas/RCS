@@ -431,7 +431,8 @@ function render() {
   for (const b of bubbles) drawBubbles(b);
   for (const p of platforms) drawPlatform(p);
   if (state === 'lobby' || state === 'room' || state === 'hub') drawLobbyDoor();   // the wardrobe door on the floor (js/wardrobe.js)
-  else if (lobbyFade > 0) { ctx.globalAlpha = 1 - clamp(lobbyFade / LOBBY_FADE, 0, 1); drawLobbyDoor(); ctx.globalAlpha = 1; }
+  // a game started from the start scene: its portals stay as they are and scroll away with the floor (no fade)
+  else if (gen && gen.lobby && net.status !== 'playing' && camY + H + OY > GROUND_Y - DOOR_H - 60) drawLobbyDoor();
   for (const z of zaps) drawZapper(z);
   for (const dv of dividers) drawDivider(dv);
   for (const g of gems) drawGem(g);
@@ -479,7 +480,6 @@ function render() {
   // Tall windows show a bit below the tower's bottom edge: that's out, so shade it
   if (OY > 0) {
     ctx.fillStyle = 'rgba(91,75,107,0.14)'; ctx.fillRect(-OX, H, VW, OY);
-    ctx.fillStyle = 'rgba(232,106,152,0.35)'; ctx.fillRect(-OX, H - 1, VW, 2);
   }
   if (state === 'play') drawDanger();
   ctx.restore();
@@ -489,17 +489,14 @@ function render() {
   drawIris();         // online: connecting -> room, room -> race (js/net.js)
 }
 
-// Red glow at the bottom when someone is about to fall off the screen
+// When someone is about to fall off the bottom: the danger line of shapes (drawDangerLine)
 function drawDanger() {
   if (camY >= -40) return;
   let danger = 0;
   for (const p of alive()) danger = Math.max(danger, (p.y - (camY + H * 0.72)) / (H * 0.28));
   danger = clamp(danger, 0, 1);
   if (danger <= 0) return;
-  const g = ctx.createLinearGradient(0, H, 0, H - 150);
-  g.addColorStop(0, `rgba(232,106,152,${0.45 * danger * (0.7 + 0.3 * Math.sin(time * 12))})`); g.addColorStop(1, 'rgba(232,106,152,0)');
-  ctx.fillStyle = g; ctx.fillRect(-OX, H - 150, VW, 150);
-  drawDangerLine(danger);
+  drawDangerLine(danger);   // (only the shapes: no red glow or line)
 }
 // The deadly edge made visible: a line of the style's little shapes all along the bottom of the tower,
 // shown only while someone is near it and stronger the closer they are. They bob and turn and drift along
