@@ -43,8 +43,11 @@ const TILE = '#f4effc';
 // The blocks are drawn once into a small picture (two courses) and repeated as a pattern: one fill instead of
 // hundreds of shapes every frame. Patterns sit on the world's grid, so the blocks scroll with the tower.
 const tileCache = {};
+// The camera's zoom this frame (death camera, race winner): the cached pictures (wall, block patterns) keep the
+// resolution of the unzoomed screen, so a zoom doesn't rebuild them on every step of it (that dropped frames)
+let renderZoom = 1;
 function tilePattern(bw, bh, gap, color, base, c0 = ctx) {
-  const k = Math.max(1, Math.round(c0.getTransform().a * 2) / 2);   // drawn at the screen's resolution
+  const k = Math.max(1, Math.round(c0.getTransform().a / (c0 === ctx ? renderZoom : 1) * 2) / 2);   // drawn at the screen's resolution (not re-made for each step of a zoom)
   const key = [bw, bh, gap, color, base, k].join('|');
   if (tileCache[key]) return tileCache[key];
   const rh = bh + gap, cw = bw + gap, c = document.createElement('canvas');
@@ -70,7 +73,7 @@ function tiles(x0, x1, y0, y1, bw = 58, bh = 30, gap = 6, color = TILE, base = n
 // each frame, shifted to where the blocks are: copying a picture is the cheapest thing a canvas does
 const wallCache = {};
 function wallStrip(x0, x1, top, tall) {
-  const period = 2 * 36, k = Math.max(1, Math.round(ctx.getTransform().a * 2) / 2), w = x1 - x0, hh = tall + period;
+  const period = 2 * 36, k = Math.max(1, Math.round(ctx.getTransform().a / renderZoom * 2) / 2), w = x1 - x0, hh = tall + period;
   const key = [Math.round(x0), Math.round(w), Math.round(hh), k].join('|');
   let c = wallCache[key];
   if (!c) {
@@ -88,7 +91,7 @@ function wallStrip(x0, x1, top, tall) {
 
 function drawWalls() {
   // The side walls, carried on out to the edges of the window (and above / below on tall windows)
-  const top = camY - OY, tall = finaleOn() || deathCam ? VH + 400 : VH;   // (a little more while zoomed in on a winner)
+  const top = camY - OY, tall = VH + 400;   // (a little more than the window: enough for a zoom, without rebuilding the picture)
   wallStrip(-OX, WALL, top, tall); wallStrip(W - WALL, W + OX, top, tall);
   ctx.fillStyle = PAL.wallLine;   // the tower's inner edge
   ctx.fillRect(WALL - 3, top, 3, tall); ctx.fillRect(W - WALL, top, 3, tall);
@@ -307,16 +310,17 @@ function render() {
   if (state === 'wardrobe') drawWardrobeRoom();   // wallpaper, exit door, mirror (js/wardrobe.js)
 
   ctx.save();
+  renderZoom = 1;
   if (deathCam) {     // an obstacle got you: zoomed in on the moment of contact (js/game.js)
     const e = deathZoom(), z = 1 + (DEATH_ZOOM - 1) * e, wx = deathCam.x, wy = deathCam.y - camY;
-    ctx.translate(W / 2, H / 2); ctx.scale(z, z);
+    ctx.translate(W / 2, H / 2); ctx.scale(z, z); renderZoom = z;
     ctx.translate(-(W / 2 + (wx - W / 2) * e), -(H / 2 + (wy - H / 2) * e));
   } else if (finaleOn()) {   // the race is won: zoom in on the winner (js/hud.js)
     const wp = players.find(p => p.i === winner);
     if (wp) {
       const e = finaleZoom(), z = 1 + (FINALE_ZOOM - 1) * e;
       const wx = wp.x + wp.w / 2, wy = wp.y + wp.h / 2 - camY;
-      ctx.translate(W / 2, H / 2); ctx.scale(z, z);
+      ctx.translate(W / 2, H / 2); ctx.scale(z, z); renderZoom = z;
       ctx.translate(-(W / 2 + (wx - W / 2) * e), -(H / 2 + (wy - H / 2) * e));
     }
   }
@@ -360,7 +364,7 @@ function render() {
     ctx.fillStyle = 'rgba(91,75,107,0.14)'; ctx.fillRect(-OX, H, VW, OY);
   }
   if (state === 'play') drawDanger();
-  ctx.restore();
+  ctx.restore(); renderZoom = 1;
   if (deathCam && deathCam.t < 0.16) {   // a quick white flash on contact
     ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - deathCam.t / 0.16)})`; ctx.fillRect(-OX, -OY, VW, VH);
   }
